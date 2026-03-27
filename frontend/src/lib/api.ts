@@ -86,4 +86,17 @@ export const api = {
   listVectorStores: () => request<any>("/vectorstores/"),
   validateVectorStore: (data: { type: string; config?: Record<string, string> }) =>
     request<any>("/vectorstores/validate", { method: "POST", body: JSON.stringify(data) }),
+
+  // Providers
+  getProviderCatalog: () => request<any>("/providers/catalog"),
+  listProviders: () => request<any[]>("/providers/"),
+  createProvider: (data: any) =>
+    request<any>("/providers/", { method: "POST", body: JSON.stringify(data) }),
+  updateProvider: (id: number, data: any) =>
+    request<any>(`/providers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteProvider: (id: number) =>
+    request<any>(`/providers/${id}`, { method: "DELETE" }),
+  testProvider: (id: number) =>
+    request<any>(`/providers/${id}/test`, { method: "POST" }),
+  getAvailableModels: () => request<any>("/providers/models/available"),
 };

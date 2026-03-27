@@ -1,12 +1,12 @@
 """LLM-powered grid search proposer that analyzes documents and suggests hyperparameter combinations."""
 
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
-from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage, Document
+from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.services.llm_factory import get_llm
 
 
 SYSTEM_PROMPT = """You are an expert in RAG (Retrieval-Augmented Generation) optimization.
@@ -42,14 +42,12 @@ Return ONLY valid JSON."""
 async def propose_grid_search(
     documents: list[Document],
     num_qa_pairs: int,
-    model: str | None = None,
+    db: Session,
+    provider_id: Optional[int] = None,
+    model: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Analyze documents and propose a grid search configuration."""
-    llm = ChatOpenAI(
-        model=model or settings.default_llm_model,
-        api_key=settings.openai_api_key,
-        temperature=0.2,
-    )
+    llm = get_llm(db, provider_id=provider_id, model=model, temperature=0.2)
 
     total_length = sum(len(doc.page_content) for doc in documents)
     sample_content = "\n".join(doc.page_content[:500] for doc in documents[:4])

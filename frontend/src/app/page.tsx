@@ -9,6 +9,7 @@ import StepReview from "@/components/steps/StepReview";
 import StepGridSearch from "@/components/steps/StepGridSearch";
 import StepExecution from "@/components/steps/StepExecution";
 import StepResults from "@/components/steps/StepResults";
+import SettingsProviders from "@/components/SettingsProviders";
 
 const STEPS = [
   { id: "upload", label: "Upload Documents", icon: "upload" },
@@ -24,6 +25,7 @@ type StepId = (typeof STEPS)[number]["id"];
 export default function Home() {
   const [currentStep, setCurrentStep] = useState<StepId>("upload");
   const [completedSteps, setCompletedSteps] = useState<Set<StepId>>(new Set());
+  const [showSettings, setShowSettings] = useState(false);
   const [pipelineData, setPipelineData] = useState<{
     documentIds: number[];
     datasetId: number | null;
@@ -43,6 +45,11 @@ export default function Home() {
     if (currentIndex < STEPS.length - 1) {
       setCurrentStep(STEPS[currentIndex + 1].id);
     }
+  };
+
+  const handleStepClick = (id: string) => {
+    setCurrentStep(id as StepId);
+    setShowSettings(false);
   };
 
   const renderStep = () => {
@@ -102,15 +109,25 @@ export default function Home() {
         steps={STEPS}
         currentStep={currentStep}
         completedSteps={completedSteps}
-        onStepClick={setCurrentStep}
+        onStepClick={handleStepClick}
+        showSettings={showSettings}
+        onSettingsClick={() => setShowSettings(true)}
       />
       <main className="flex-1 overflow-y-auto">
-        <PipelineHeader
-          steps={STEPS}
-          currentStep={currentStep}
-          completedSteps={completedSteps}
-        />
-        <div className="p-6 max-w-6xl mx-auto">{renderStep()}</div>
+        {showSettings ? (
+          <div className="p-6 max-w-6xl mx-auto">
+            <SettingsProviders onBack={() => setShowSettings(false)} />
+          </div>
+        ) : (
+          <>
+            <PipelineHeader
+              steps={STEPS}
+              currentStep={currentStep}
+              completedSteps={completedSteps}
+            />
+            <div className="p-6 max-w-6xl mx-auto">{renderStep()}</div>
+          </>
+        )}
       </main>
     </div>
   );

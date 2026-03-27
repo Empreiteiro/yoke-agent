@@ -1,22 +1,13 @@
 """RAG pipeline execution with configurable hyperparameters."""
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain.chains import RetrievalQA
+from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.services.llm_factory import get_llm, get_embeddings
 from app.services.vectorstore_factory import create_vectorstore_backend
-
-
-def get_embeddings(model_name: str) -> OpenAIEmbeddings:
-    """Get an embeddings instance for the given model."""
-    return OpenAIEmbeddings(
-        model=model_name,
-        api_key=settings.openai_api_key,
-    )
 
 
 def chunk_documents(
@@ -39,8 +30,11 @@ async def run_rag_pipeline(
     documents: List[Document],
     questions: List[str],
     params: Dict[str, Any],
+    db: Session,
     vectorstore_type: str = "chromadb",
     vectorstore_config: Dict[str, Any] | None = None,
+    llm_provider_id: Optional[int] = None,
+    embedding_provider_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """Run a RAG pipeline with the given parameters and return answers for each question.
 
@@ -48,8 +42,11 @@ async def run_rag_pipeline(
         documents: Source documents to index
         questions: List of questions to answer
         params: RAG hyperparameters (chunk_size, chunk_overlap, embedding_model, top_k, search_type)
+        db: Database session for resolving providers
         vectorstore_type: Type of vector store to use
         vectorstore_config: Optional vector store configuration
+        llm_provider_id: Provider ID for the LLM (auto-detect if None)
+        embedding_provider_id: Provider ID for embeddings (auto-detect if None)
 
     Returns:
         List of dicts with 'question', 'answer', and 'contexts' for each question
@@ -63,20 +60,16 @@ async def run_rag_pipeline(
     # 1. Chunk documents
     chunks = chunk_documents(documents, chunk_size, chunk_overlap)
 
-    # 2. Create embeddings
-    embeddings = get_embeddings(embedding_model)
+    # 2. Create embeddings via provider factory
+    embeddings = get_embeddings(db, provider_id=embedding_provider_id, model=embedding_model)
 
     # 3. Create vector store and index
     collection_name = f"exp_{chunk_size}_{chunk_overlap}_{top_k}_{search_type}"
     backend = create_vectorstore_backend(vectorstore_type, vectorstore_config)
     backend.create_collection(collection_name, chunks, embeddings)
 
-    # 4. Run queries
-    llm = ChatOpenAI(
-        model=settings.default_llm_model,
-        api_key=settings.openai_api_key,
-        temperature=0,
-    )
+    # 4. Create LLM via provider factory
+    llm = get_llm(db, provider_id=llm_provider_id, temperature=0)
 
     results = []
     for question in questions:

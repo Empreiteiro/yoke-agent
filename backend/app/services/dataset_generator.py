@@ -1,12 +1,12 @@
 """LLM-powered evaluation dataset generation from documents."""
 
 import json
-from typing import List, Dict
+from typing import List, Dict, Optional
 
-from langchain_openai import ChatOpenAI
 from langchain.schema import Document, HumanMessage, SystemMessage
+from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.services.llm_factory import get_llm
 
 
 SYSTEM_PROMPT = """You are an expert at creating evaluation datasets for RAG (Retrieval-Augmented Generation) systems.
@@ -34,15 +34,13 @@ Return ONLY a valid JSON array. Each object must have "question", "ground_truth"
 
 async def generate_qa_pairs(
     documents: List[Document],
+    db: Session,
     num_questions: int = 10,
-    model: str | None = None,
+    provider_id: Optional[int] = None,
+    model: Optional[str] = None,
 ) -> List[Dict[str, str]]:
     """Generate Q&A evaluation pairs from documents using an LLM."""
-    llm = ChatOpenAI(
-        model=model or settings.default_llm_model,
-        api_key=settings.openai_api_key,
-        temperature=0.3,
-    )
+    llm = get_llm(db, provider_id=provider_id, model=model, temperature=0.3)
 
     # Combine document content (truncate if too long)
     combined_content = "\n\n---\n\n".join(
