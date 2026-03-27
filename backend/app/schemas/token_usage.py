@@ -20,8 +20,7 @@ class TokenUsageResponse(BaseModel):
     estimated_cost: Optional[float] = None
     extra_metadata: Optional[dict] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True, "protected_namespaces": ()}
 
 
 class TokenUsageSummary(BaseModel):
