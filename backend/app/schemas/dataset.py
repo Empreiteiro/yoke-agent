@@ -50,5 +50,11 @@ class DatasetResponse(BaseModel):
         from_attributes = True
 
 
+class DatasetGenerateOptions(BaseModel):
+    reading_mode: str = "full"  # "full" or "partial"
+    max_pages: Optional[int] = None  # When partial, max pages to read (random)
+    num_questions: Optional[int] = None  # None = auto-calculate based on content size
+
+
 class DatasetApprove(BaseModel):
     pass
