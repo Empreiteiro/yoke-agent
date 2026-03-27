@@ -9,8 +9,11 @@ import {
   BarChart3,
   Zap,
   Settings,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme, Theme } from "@/contexts/ThemeContext";
 
 const iconMap: Record<string, any> = {
   upload: Upload,
@@ -36,6 +39,12 @@ interface SidebarProps {
   onSettingsClick?: () => void;
 }
 
+const themes: { key: Theme; icon: any; label: string }[] = [
+  { key: "light", icon: Sun, label: "Light" },
+  { key: "dark", icon: Moon, label: "Dark" },
+  { key: "neon", icon: Zap, label: "Neon" },
+];
+
 export default function Sidebar({
   steps,
   currentStep,
@@ -44,6 +53,8 @@ export default function Sidebar({
   showSettings = false,
   onSettingsClick,
 }: SidebarProps) {
+  const { theme, setTheme } = useTheme();
+
   return (
     <aside className="w-72 bg-surface-50 border-r border-surface-200/50 flex flex-col">
       <div className="p-6 border-b border-surface-200/50">
@@ -52,8 +63,8 @@ export default function Sidebar({
             <Zap className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">RAG Pipeline</h1>
-            <p className="text-xs text-slate-400">Optimization Studio</p>
+            <h1 className="text-lg font-bold text-primary">RAG Pipeline</h1>
+            <p className="text-xs text-t-secondary">Optimization Studio</p>
           </div>
         </div>
       </div>
@@ -74,7 +85,7 @@ export default function Sidebar({
                   ? "bg-accent/10 text-accent border border-accent/20"
                   : isCompleted
                   ? "text-emerald-400 hover:bg-surface-100"
-                  : "text-slate-400 hover:bg-surface-100 hover:text-slate-300"
+                  : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
               )}
             >
               <div
@@ -84,7 +95,7 @@ export default function Sidebar({
                     ? "bg-accent/20 text-accent"
                     : isCompleted
                     ? "bg-emerald-500/20 text-emerald-400"
-                    : "bg-surface-200 text-slate-500"
+                    : "bg-surface-200 text-muted"
                 )}
               >
                 {isCompleted ? (
@@ -99,7 +110,7 @@ export default function Sidebar({
         })}
       </nav>
 
-      {/* Settings button */}
+      {/* Settings button + Theme toggle */}
       <div className="p-4 space-y-3 border-t border-surface-200/50">
         <button
           onClick={onSettingsClick}
@@ -107,7 +118,7 @@ export default function Sidebar({
             "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
             showSettings
               ? "bg-accent/10 text-accent border border-accent/20"
-              : "text-slate-400 hover:bg-surface-100 hover:text-slate-300"
+              : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
           )}
         >
           <div
@@ -115,7 +126,7 @@ export default function Sidebar({
               "w-8 h-8 rounded-lg flex items-center justify-center",
               showSettings
                 ? "bg-accent/20 text-accent"
-                : "bg-surface-200 text-slate-500"
+                : "bg-surface-200 text-muted"
             )}
           >
             <Settings className="w-4 h-4" />
@@ -123,8 +134,28 @@ export default function Sidebar({
           <span>Providers</span>
         </button>
 
+        {/* Theme toggle */}
+        <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-100 rounded-xl border border-surface-200/50">
+          {themes.map(({ key, icon: ThemeIcon, label }) => (
+            <button
+              key={key}
+              onClick={() => setTheme(key)}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+                theme === key
+                  ? "bg-accent/15 text-accent shadow-sm"
+                  : "text-muted hover:text-t-secondary hover:bg-surface-200/50"
+              )}
+              title={label}
+            >
+              <ThemeIcon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+          ))}
+        </div>
+
         <div className="px-4 py-3 rounded-xl bg-surface-100 border border-surface-200/50">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+          <div className="flex items-center justify-between text-xs text-t-secondary mb-2">
             <span>Progress</span>
             <span>
               {completedSteps.size}/{steps.length}

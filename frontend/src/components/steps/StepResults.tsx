@@ -47,7 +47,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-slate-400">
+      <div className="flex items-center justify-center py-20 text-t-secondary">
         Loading report...
       </div>
     );
@@ -55,7 +55,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
 
   if (!report) {
     return (
-      <div className="text-center py-20 text-slate-400">
+      <div className="text-center py-20 text-t-secondary">
         No report available. Run experiments first.
       </div>
     );
@@ -95,11 +95,11 @@ export default function StepResults({ experimentId }: StepResultsProps) {
         <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-2xl border border-accent/20 p-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
-              <Trophy className="w-6 h-6 text-white" />
+              <Trophy className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white">Best Configuration</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="text-xl font-bold text-primary">Best Configuration</h3>
+              <p className="text-sm text-t-secondary">
                 Overall Score:{" "}
                 <span className="text-accent font-bold text-lg">
                   {((best.overall_score ?? 0) * 100).toFixed(1)}%
@@ -120,8 +120,8 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                 key={item.label}
                 className="p-3 bg-surface-100/50 rounded-xl border border-surface-200/30"
               >
-                <p className="text-xs text-slate-400 mb-1">{item.label}</p>
-                <p className="text-sm font-semibold text-white">{item.value}</p>
+                <p className="text-xs text-t-secondary mb-1">{item.label}</p>
+                <p className="text-sm font-semibold text-primary">{item.value}</p>
               </div>
             ))}
           </div>
@@ -130,14 +130,14 @@ export default function StepResults({ experimentId }: StepResultsProps) {
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radarData}>
-                <PolarGrid stroke="#232338" />
-                <PolarAngleAxis dataKey="metric" tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 10 }} />
+                <PolarGrid stroke="var(--surface-200)" />
+                <PolarAngleAxis dataKey="metric" tick={{ fill: "var(--text-secondary)", fontSize: 12 }} />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: "var(--text-muted)", fontSize: 10 }} />
                 <Radar
                   name="Score"
                   dataKey="value"
-                  stroke="#8b5cf6"
-                  fill="#8b5cf6"
+                  stroke="var(--accent)"
+                  fill="var(--accent)"
                   fillOpacity={0.2}
                 />
               </RadarChart>
@@ -149,24 +149,24 @@ export default function StepResults({ experimentId }: StepResultsProps) {
       {/* Bar chart comparison */}
       {barData.length > 0 && (
         <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
-          <h3 className="text-lg font-semibold text-white mb-6">Top 10 Configurations</h3>
+          <h3 className="text-lg font-semibold text-primary mb-6">Top 10 Configurations</h3>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#232338" />
-                <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} domain={[0, 100]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-200)" />
+                <XAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 12 }} />
+                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 12 }} domain={[0, 100]} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#1a1a2e",
-                    border: "1px solid #232338",
+                    backgroundColor: "var(--surface-100)",
+                    border: "1px solid var(--surface-200)",
                     borderRadius: "12px",
-                    color: "#e2e8f0",
+                    color: "var(--text-primary)",
                   }}
                 />
                 <Legend />
-                <Bar dataKey="score" name="Overall" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="faithfulness" name="Faithfulness" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="score" name="Overall" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="faithfulness" name="Faithfulness" fill="var(--secondary)" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="relevancy" name="Relevancy" fill="#10b981" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -177,8 +177,8 @@ export default function StepResults({ experimentId }: StepResultsProps) {
       {/* Detailed table */}
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-white">All Results</h3>
-          <div className="flex items-center gap-2 text-sm text-slate-400">
+          <h3 className="text-lg font-semibold text-primary">All Results</h3>
+          <div className="flex items-center gap-2 text-sm text-t-secondary">
             <span>{report.summary.completed} of {report.summary.total_combinations} completed</span>
           </div>
         </div>
@@ -191,7 +191,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                   (header) => (
                     <th
                       key={header}
-                      className="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+                      className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider"
                     >
                       {header}
                     </th>
@@ -207,28 +207,28 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                     index === 0 ? "bg-accent/5" : ""
                   }`}
                 >
-                  <td className="px-3 py-3 text-slate-300">
+                  <td className="px-3 py-3 text-t-hover">
                     {index === 0 ? (
                       <Trophy className="w-4 h-4 text-amber-400 inline" />
                     ) : (
                       `#${index + 1}`
                     )}
                   </td>
-                  <td className="px-3 py-3 text-white">{combo.params.chunk_size}</td>
-                  <td className="px-3 py-3 text-white">{combo.params.chunk_overlap}%</td>
-                  <td className="px-3 py-3 text-white text-xs">{combo.params.embedding_model}</td>
-                  <td className="px-3 py-3 text-white">{combo.params.top_k}</td>
-                  <td className="px-3 py-3 text-white capitalize">{combo.params.search_type}</td>
-                  <td className="px-3 py-3 text-white">
+                  <td className="px-3 py-3 text-primary">{combo.params.chunk_size}</td>
+                  <td className="px-3 py-3 text-primary">{combo.params.chunk_overlap}%</td>
+                  <td className="px-3 py-3 text-primary text-xs">{combo.params.embedding_model}</td>
+                  <td className="px-3 py-3 text-primary">{combo.params.top_k}</td>
+                  <td className="px-3 py-3 text-primary capitalize">{combo.params.search_type}</td>
+                  <td className="px-3 py-3 text-primary">
                     {combo.faithfulness != null ? `${(combo.faithfulness * 100).toFixed(1)}%` : "-"}
                   </td>
-                  <td className="px-3 py-3 text-white">
+                  <td className="px-3 py-3 text-primary">
                     {combo.answer_relevancy != null ? `${(combo.answer_relevancy * 100).toFixed(1)}%` : "-"}
                   </td>
-                  <td className="px-3 py-3 text-white">
+                  <td className="px-3 py-3 text-primary">
                     {combo.context_precision != null ? `${(combo.context_precision * 100).toFixed(1)}%` : "-"}
                   </td>
-                  <td className="px-3 py-3 text-white">
+                  <td className="px-3 py-3 text-primary">
                     {combo.context_recall != null ? `${(combo.context_recall * 100).toFixed(1)}%` : "-"}
                   </td>
                   <td className="px-3 py-3">
