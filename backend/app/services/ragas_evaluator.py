@@ -81,10 +81,14 @@ def _run_evaluate(dataset, metrics, all_metric_names: List[str]) -> dict:
     result = evaluate(dataset=dataset, metrics=metrics)
 
     # Extract scores safely — EvaluationResult uses [] access, not .get()
+    # Some RAGAS versions return per-question lists; we need the aggregate float.
     scores = {}
     for name in all_metric_names:
         try:
-            scores[name] = result[name]
+            val = result[name]
+            if isinstance(val, list):
+                val = sum(val) / len(val) if val else None
+            scores[name] = float(val) if val is not None else None
         except (KeyError, TypeError, IndexError):
             scores[name] = None
 
