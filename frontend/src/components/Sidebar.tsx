@@ -37,6 +37,7 @@ interface SidebarProps {
   currentStep: string;
   completedSteps: Set<string>;
   onStepClick: (id: string) => void;
+  isStepAccessible?: (id: string) => boolean;
   showSettings?: boolean;
   onSettingsClick?: () => void;
   showHistory?: boolean;
@@ -56,6 +57,7 @@ export default function Sidebar({
   currentStep,
   completedSteps,
   onStepClick,
+  isStepAccessible,
   showSettings = false,
   onSettingsClick,
   showHistory = false,
@@ -103,14 +105,19 @@ export default function Sidebar({
           const Icon = iconMap[step.icon] || Database;
           const isActive = currentStep === step.id && !isAnySpecialView;
           const isCompleted = completedSteps.has(step.id);
+          const accessible = isStepAccessible ? isStepAccessible(step.id) : true;
+          const isLocked = !accessible && !isCompleted;
 
           return (
             <button
               key={step.id}
               onClick={() => onStepClick(step.id)}
+              disabled={isLocked}
               className={cn(
                 "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-                isActive
+                isLocked
+                  ? "text-muted cursor-not-allowed opacity-50"
+                  : isActive
                   ? "bg-accent/10 text-accent"
                   : isCompleted
                   ? "text-emerald-400 hover:bg-surface-100"
@@ -120,7 +127,9 @@ export default function Sidebar({
               <div
                 className={cn(
                   "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-                  isActive
+                  isLocked
+                    ? "bg-surface-200/50 text-muted"
+                    : isActive
                     ? "bg-accent/20 text-accent"
                     : isCompleted
                     ? "bg-emerald-500/20 text-emerald-400"
@@ -138,8 +147,11 @@ export default function Sidebar({
           );
         })}
 
-        {/* History, Logs, Providers - no divider */}
-        <div className="pt-2 space-y-0.5">
+        {/* Separator */}
+        <div className="!my-3 mx-2 border-t border-surface-200/40" />
+
+        {/* History, Logs, Providers - always accessible */}
+        <div className="space-y-0.5">
           <button
             onClick={onHistoryClick}
             className={cn(

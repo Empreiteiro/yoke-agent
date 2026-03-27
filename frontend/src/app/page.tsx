@@ -51,7 +51,24 @@ export default function Home() {
     }
   };
 
+  // Steps that require the previous step to be completed
+  const stepPrerequisites: Record<string, string | null> = {
+    upload: null,
+    dataset: null,
+    review: "dataset",
+    "grid-search": "review",
+    execution: "grid-search",
+    results: "execution",
+  };
+
+  const isStepAccessible = (stepId: string): boolean => {
+    const prereq = stepPrerequisites[stepId];
+    if (prereq === null) return true;
+    return completedSteps.has(prereq as StepId);
+  };
+
   const handleStepClick = (id: string) => {
+    if (!isStepAccessible(id)) return;
     setCurrentStep(id as StepId);
     setShowSettings(false);
     setShowHistory(false);
@@ -120,6 +137,7 @@ export default function Home() {
         currentStep={currentStep}
         completedSteps={completedSteps}
         onStepClick={handleStepClick}
+        isStepAccessible={isStepAccessible}
         showSettings={showSettings}
         onSettingsClick={() => {
           setShowSettings(true);
