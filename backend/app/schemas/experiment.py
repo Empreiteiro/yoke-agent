@@ -40,6 +40,8 @@ class CombinationResponse(BaseModel):
     answer_correctness: Optional[float] = None
     overall_score: Optional[float] = None
     duration_seconds: Optional[float] = None
+    detailed_results: Optional[dict] = None
+    error_message: Optional[str] = None
     created_at: datetime
     completed_at: Optional[datetime] = None
 

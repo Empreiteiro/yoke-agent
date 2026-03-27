@@ -16,6 +16,7 @@ def _run_migrations(engine):
     inspector = inspect(engine)
     migrations = [
         ("datasets", "error_message", "TEXT"),
+        ("experiment_combinations", "error_message", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:
