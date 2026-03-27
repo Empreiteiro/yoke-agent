@@ -10,6 +10,9 @@ import {
   XCircle,
   Loader2,
   AlertCircle,
+  StopCircle,
+  Play,
+  RotateCcw,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import {
@@ -32,8 +35,10 @@ import {
 
 const statusConfig: Record<string, { icon: any; color: string; label: string }> = {
   completed: { icon: CheckCircle, color: "text-emerald-400", label: "Completed" },
+  completed_with_errors: { icon: AlertCircle, color: "text-amber-400", label: "Partial" },
   running: { icon: Loader2, color: "text-blue-400", label: "Running" },
   failed: { icon: XCircle, color: "text-red-400", label: "Failed" },
+  stopped: { icon: StopCircle, color: "text-orange-400", label: "Stopped" },
   pending: { icon: Clock, color: "text-t-secondary", label: "Pending" },
   configured: { icon: AlertCircle, color: "text-amber-400", label: "Configured" },
   proposing: { icon: Loader2, color: "text-purple-400", label: "Proposing" },
@@ -45,6 +50,8 @@ export default function History() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [expandedReport, setExpandedReport] = useState<any>(null);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [resumingId, setResumingId] = useState<number | null>(null);
+  const [pollingId, setPollingId] = useState<number | null>(null);
 
   useEffect(() => {
     loadExperiments();
@@ -77,6 +84,32 @@ export default function History() {
       setExpandedReport(null);
     } finally {
       setLoadingReport(false);
+    }
+  };
+
+  const handleResume = async (expId: number, retryFailed: boolean) => {
+    setResumingId(expId);
+    try {
+      await api.resumeExperiment(expId, retryFailed);
+      setPollingId(expId);
+      const interval = setInterval(async () => {
+        try {
+          const data = await api.getExperiment(expId);
+          setExperiments((prev) =>
+            prev.map((e) => (e.id === expId ? data : e))
+          );
+          if (["completed", "completed_with_errors", "failed", "stopped"].includes(data.status)) {
+            clearInterval(interval);
+            setPollingId(null);
+            setResumingId(null);
+          }
+        } catch {
+          // keep polling
+        }
+      }, 3000);
+    } catch (err) {
+      console.error("Failed to resume experiment:", err);
+      setResumingId(null);
     }
   };
 
@@ -193,6 +226,44 @@ export default function History() {
                     </div>
                   )}
                 </button>
+
+                {/* Resume actions */}
+                {["stopped", "failed", "completed_with_errors"].includes(exp.status) && (
+                  (() => {
+                    const stoppedCount = (exp.combinations || []).filter((c: any) => c.status === "stopped").length;
+                    const failedCount = (exp.combinations || []).filter((c: any) => c.status === "failed").length;
+                    const isResuming = resumingId === exp.id || pollingId === exp.id;
+                    return (
+                      <div className="flex items-center gap-2 px-5 pb-4 -mt-1">
+                        {isResuming ? (
+                          <span className="flex items-center gap-2 text-xs text-accent">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Running...
+                          </span>
+                        ) : (
+                          <>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleResume(exp.id, false); }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent bg-accent/10 border border-accent/20 rounded-lg hover:bg-accent/20 transition-colors"
+                            >
+                              <Play className="w-3 h-3" />
+                              {stoppedCount > 0 ? `Resume (${stoppedCount})` : "Resume"}
+                            </button>
+                            {failedCount > 0 && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleResume(exp.id, true); }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-400 bg-orange-500/10 border border-orange-500/20 rounded-lg hover:bg-orange-500/20 transition-colors"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                Retry Failed ({failedCount})
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()
+                )}
 
                 {/* Expanded details */}
                 {isExpanded && (
