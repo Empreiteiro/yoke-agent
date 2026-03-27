@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Play, Loader2, CheckCircle, XCircle, Clock, AlertCircle, ChevronDown, ChevronUp, Square, StopCircle } from "lucide-react";
+import { Play, Loader2, CheckCircle, XCircle, Clock, AlertCircle, ChevronDown, ChevronUp, Square, StopCircle, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepExecutionProps {
@@ -67,6 +67,29 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
     }
   };
 
+  const handleResume = async (retryFailed: boolean = false) => {
+    if (!experimentId) return;
+    setRunning(true);
+    setStopping(false);
+    try {
+      await api.resumeExperiment(experimentId, retryFailed);
+      const interval = setInterval(async () => {
+        const data = await api.getExperiment(experimentId);
+        setExperiment(data);
+        if (data.status === "completed" || data.status === "completed_with_errors" || data.status === "failed" || data.status === "stopped") {
+          clearInterval(interval);
+          setPollInterval(null);
+          setRunning(false);
+          setStopping(false);
+        }
+      }, 3000);
+      setPollInterval(interval);
+    } catch (err) {
+      console.error("Failed to resume experiment:", err);
+      setRunning(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-t-secondary">
@@ -83,6 +106,8 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
   const progress = total > 0 ? ((completed + failed) / total) * 100 : 0;
   const isDone = experiment?.status === "completed" || experiment?.status === "completed_with_errors";
   const isStopped = experiment?.status === "stopped";
+  const isFailed = experiment?.status === "failed" || experiment?.status === "completed_with_errors";
+  const canResume = isStopped || isFailed;
   const stopped = combinations.filter((c: any) => c.status === "stopped").length;
 
   // Get first error message for summary
@@ -97,30 +122,47 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
     <div className="space-y-6">
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
         <div className="flex items-center justify-end gap-3 mb-6">
-          {!isDone && !isStopped && (
-            running ? (
+          {running ? (
+            <button
+              onClick={handleStop}
+              disabled={stopping}
+              className="px-6 py-3 bg-red-500/10 border border-red-500/30 text-red-400 font-medium rounded-xl hover:bg-red-500/20 disabled:opacity-50 flex items-center gap-2"
+            >
+              {stopping ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Square className="w-4 h-4" />
+              )}
+              {stopping ? "Stopping..." : "Stop Execution"}
+            </button>
+          ) : canResume && !running ? (
+            <>
+              {failed > 0 && (
+                <button
+                  onClick={() => handleResume(true)}
+                  className="px-5 py-3 bg-orange-500/10 border border-orange-500/30 text-orange-400 font-medium rounded-xl hover:bg-orange-500/20 flex items-center gap-2 text-sm"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Resume & Retry Failed ({failed + stopped})
+                </button>
+              )}
               <button
-                onClick={handleStop}
-                disabled={stopping}
-                className="px-6 py-3 bg-red-500/10 border border-red-500/30 text-red-400 font-medium rounded-xl hover:bg-red-500/20 disabled:opacity-50 flex items-center gap-2"
-              >
-                {stopping ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Square className="w-4 h-4" />
-                )}
-                {stopping ? "Stopping..." : "Stop Execution"}
-              </button>
-            ) : (
-              <button
-                onClick={handleRun}
-                className="px-6 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 flex items-center gap-2"
+                onClick={() => handleResume(false)}
+                className="px-5 py-3 bg-accent/10 border border-accent/30 text-accent font-medium rounded-xl hover:bg-accent/20 flex items-center gap-2 text-sm"
               >
                 <Play className="w-4 h-4" />
-                Start Execution
+                {stopped > 0 ? `Resume (${stopped} remaining)` : `Retry Failed (${failed})`}
               </button>
-            )
-          )}
+            </>
+          ) : !isDone ? (
+            <button
+              onClick={handleRun}
+              className="px-6 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 flex items-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Start Execution
+            </button>
+          ) : null}
         </div>
 
         {/* Progress */}
@@ -236,12 +278,18 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
         </div>
       </div>
 
-      {isStopped && completed > 0 && (
+      {canResume && !running && (
         <div className="flex items-start gap-3 p-4 bg-orange-500/5 border border-orange-500/20 rounded-xl">
           <StopCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-orange-400">
-            Experiment stopped. {completed} combination(s) completed before stopping.
-          </p>
+          <div className="text-sm text-orange-400">
+            <p>
+              {isStopped ? "Experiment stopped." : "Experiment finished with errors."}{" "}
+              {completed > 0 && `${completed} completed`}
+              {failed > 0 && `${completed > 0 ? ", " : ""}${failed} failed`}
+              {stopped > 0 && `${completed > 0 || failed > 0 ? ", " : ""}${stopped} stopped`}.
+            </p>
+            <p className="mt-1 text-orange-400/70">Use the buttons above to resume or retry.</p>
+          </div>
         </div>
       )}
 

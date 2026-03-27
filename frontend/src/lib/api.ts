@@ -85,6 +85,8 @@ export const api = {
     request<any>(`/experiments/${id}/run`, { method: "POST" }),
   stopExperiment: (id: number) =>
     request<any>(`/experiments/${id}/stop`, { method: "POST" }),
+  resumeExperiment: (id: number, retryFailed: boolean = false) =>
+    request<any>(`/experiments/${id}/resume?retry_failed=${retryFailed}`, { method: "POST" }),
   getExperimentReport: (id: number) =>
     request<any>(`/experiments/${id}/report`),
 

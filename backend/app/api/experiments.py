@@ -200,6 +200,58 @@ def stop_experiment(experiment_id: int, db: Session = Depends(get_db)):
     return {"detail": "Experiment stopped", "experiment_id": experiment_id}
 
 
+@router.post("/{experiment_id}/resume")
+async def resume_experiment(
+    experiment_id: int,
+    retry_failed: bool = False,
+    background_tasks: BackgroundTasks = None,
+    db: Session = Depends(get_db),
+):
+    """Resume a stopped or failed experiment. Optionally retry failed combinations."""
+    exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    if exp.status not in ("stopped", "failed", "completed_with_errors"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Experiment cannot be resumed. Current status: {exp.status}",
+        )
+
+    # Reset stopped combinations back to pending
+    db.query(ExperimentCombination).filter(
+        ExperimentCombination.experiment_id == experiment_id,
+        ExperimentCombination.status == "stopped",
+    ).update({"status": "pending"})
+
+    # Optionally retry failed combinations
+    if retry_failed:
+        db.query(ExperimentCombination).filter(
+            ExperimentCombination.experiment_id == experiment_id,
+            ExperimentCombination.status == "failed",
+        ).update({"status": "pending", "error_message": None})
+
+    remaining = db.query(ExperimentCombination).filter(
+        ExperimentCombination.experiment_id == experiment_id,
+        ExperimentCombination.status == "pending",
+    ).count()
+
+    if remaining == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="No combinations to resume. All are already completed.",
+        )
+
+    exp.status = "running"
+    db.commit()
+
+    background_tasks.add_task(_run_experiment_sync, experiment_id)
+    return {
+        "detail": f"Experiment resumed with {remaining} pending combinations",
+        "experiment_id": experiment_id,
+        "remaining": remaining,
+    }
+
+
 @router.get("/{experiment_id}/report", response_model=ExperimentReport)
 def get_experiment_report(experiment_id: int, db: Session = Depends(get_db)):
     exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
