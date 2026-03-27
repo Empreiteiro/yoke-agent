@@ -1,18 +1,39 @@
+# Core framework
 fastapi==0.115.0
 uvicorn==0.30.6
 python-multipart==0.0.9
-sqlalchemy==2.0.35
-alembic==1.13.2
 pydantic==2.9.2
 pydantic-settings==2.5.2
+
+# Database
+sqlalchemy==2.0.35
+alembic==1.13.2
+
+# LangChain core
 langchain==0.3.1
-langchain-openai==0.2.1
 langchain-community==0.3.1
+langchain-openai==0.2.1
 langchain-huggingface==0.1.0
-chromadb==0.5.7
+
+# Optional LangChain providers (installed for multi-provider support)
+langchain-anthropic>=0.2.0
+langchain-google-genai>=2.0.0
+langchain-cohere>=0.3.0
+langchain-ollama>=0.2.0
+
+# Document loaders
+pypdf>=4.0.0
+unstructured>=0.10.0
+
+# RAG evaluation
 ragas==0.2.3
-nltk>=3.8.1
 datasets==3.0.1
+nltk>=3.8.1
+
+# Vector store
+chromadb==0.5.7
+
+# Utilities
 python-dotenv==1.0.1
 aiofiles==24.1.0
 httpx==0.27.2
