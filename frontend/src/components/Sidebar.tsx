@@ -11,6 +11,7 @@ import {
   Settings,
   Clock,
   FileText,
+  BookOpen,
   Sun,
   Moon,
 } from "lucide-react";
@@ -44,6 +45,8 @@ interface SidebarProps {
   onHistoryClick?: () => void;
   showLogs?: boolean;
   onLogsClick?: () => void;
+  showGlossary?: boolean;
+  onGlossaryClick?: () => void;
 }
 
 const themes: { key: Theme; icon: any; label: string }[] = [
@@ -64,9 +67,11 @@ export default function Sidebar({
   onHistoryClick,
   showLogs = false,
   onLogsClick,
+  showGlossary = false,
+  onGlossaryClick,
 }: SidebarProps) {
   const { theme, setTheme } = useTheme();
-  const isAnySpecialView = showSettings || showHistory || showLogs;
+  const isAnySpecialView = showSettings || showHistory || showLogs || showGlossary;
 
   return (
     <aside className="w-60 bg-surface-50 flex flex-col h-screen">
@@ -216,6 +221,28 @@ export default function Sidebar({
               <Settings className="w-3.5 h-3.5" />
             </div>
             <span>Providers</span>
+          </button>
+
+          <button
+            onClick={onGlossaryClick}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+              showGlossary
+                ? "bg-accent/10 text-accent"
+                : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
+            )}
+          >
+            <div
+              className={cn(
+                "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
+                showGlossary
+                  ? "bg-accent/20 text-accent"
+                  : "bg-surface-200 text-muted"
+              )}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+            </div>
+            <span>Concepts</span>
           </button>
         </div>
       </nav>

@@ -12,6 +12,7 @@ import StepResults from "@/components/steps/StepResults";
 import SettingsProviders from "@/components/SettingsProviders";
 import History from "@/components/History";
 import Logs from "@/components/Logs";
+import Glossary from "@/components/Glossary";
 
 const STEPS = [
   { id: "upload", label: "Upload Documents", icon: "upload", description: "Upload one or more documents to analyze. Supported formats: PDF, TXT, DOCX, MD." },
@@ -30,6 +31,7 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+  const [showGlossary, setShowGlossary] = useState(false);
   const [pipelineData, setPipelineData] = useState<{
     documentIds: number[];
     datasetId: number | null;
@@ -73,6 +75,7 @@ export default function Home() {
     setShowSettings(false);
     setShowHistory(false);
     setShowLogs(false);
+    setShowGlossary(false);
   };
 
   const renderStep = () => {
@@ -143,18 +146,28 @@ export default function Home() {
           setShowSettings(true);
           setShowHistory(false);
           setShowLogs(false);
+          setShowGlossary(false);
         }}
         showHistory={showHistory}
         onHistoryClick={() => {
           setShowHistory(true);
           setShowSettings(false);
           setShowLogs(false);
+          setShowGlossary(false);
         }}
         showLogs={showLogs}
         onLogsClick={() => {
           setShowLogs(true);
           setShowSettings(false);
           setShowHistory(false);
+          setShowGlossary(false);
+        }}
+        showGlossary={showGlossary}
+        onGlossaryClick={() => {
+          setShowGlossary(true);
+          setShowSettings(false);
+          setShowHistory(false);
+          setShowLogs(false);
         }}
       />
       <main className="flex-1 overflow-y-auto p-3 pl-0">
@@ -170,6 +183,10 @@ export default function Home() {
           ) : showLogs ? (
             <div className="p-6 max-w-6xl mx-auto">
               <Logs />
+            </div>
+          ) : showGlossary ? (
+            <div className="p-6 max-w-6xl mx-auto">
+              <Glossary />
             </div>
           ) : (
             <>
