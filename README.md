@@ -127,7 +127,7 @@ make dev
 ```
 
 This starts both servers:
-- **Backend**: http://localhost:7000 (with hot reload)
+- **Backend**: http://localhost:7070 (with hot reload)
 - **Frontend**: http://localhost:4000
 
 ### Available Make Commands
@@ -207,10 +207,10 @@ Each hyperparameter combination is evaluated using these [RAGAS](https://docs.ra
 
 ## API Reference
 
-The backend exposes a RESTful API at `http://localhost:7000`. Full interactive documentation is available at:
+The backend exposes a RESTful API at `http://localhost:7070`. Full interactive documentation is available at:
 
-- **Swagger UI**: http://localhost:7000/docs
-- **ReDoc**: http://localhost:7000/redoc
+- **Swagger UI**: http://localhost:7070/docs
+- **ReDoc**: http://localhost:7070/redoc
 
 ### Key Endpoints
 
