@@ -18,7 +18,7 @@ class TokenUsageResponse(BaseModel):
     completion_tokens: int
     total_tokens: int
     estimated_cost: Optional[float] = None
-    metadata: Optional[dict] = None
+    extra_metadata: Optional[dict] = None
 
     class Config:
         from_attributes = True

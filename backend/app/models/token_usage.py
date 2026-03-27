@@ -29,4 +29,4 @@ class TokenUsageLog(Base):
     estimated_cost = Column(Float, nullable=True)
 
     # Extra context
-    metadata = Column(JSON, nullable=True)
+    extra_metadata = Column(JSON, nullable=True)

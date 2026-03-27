@@ -104,7 +104,7 @@ def log_token_usage(
         completion_tokens=completion_tokens,
         total_tokens=total_tokens,
         estimated_cost=cost,
-        metadata=metadata,
+        extra_metadata=metadata,
     )
     db.add(log)
     db.commit()
