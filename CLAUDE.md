@@ -6,7 +6,7 @@ End-to-end platform for optimizing Retrieval-Augmented Generation (RAG) pipeline
 ## Architecture
 - **Backend**: Python/FastAPI with SQLAlchemy (SQLite default)
 - **Frontend**: Next.js 14 with Tailwind CSS (dark theme)
-- Backend runs on port 8000, frontend on port 3000
+- Backend runs on port 7000, frontend on port 4000
 - Frontend proxies `/api/*` to backend
 
 ## Key Commands

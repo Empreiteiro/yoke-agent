@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     app_name: str = "RAG Optimization Pipeline"
     database_url: str = "sqlite:///./rag_pipeline.db"
     upload_dir: str = "./uploads"
-    cors_origins: List[str] = ["http://localhost:3000"]
+    cors_origins: List[str] = ["http://localhost:4000"]
     openai_api_key: str = ""
     default_llm_model: str = "gpt-4o-mini"
     default_embedding_model: str = "text-embedding-3-small"

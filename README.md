@@ -127,8 +127,8 @@ make dev
 ```
 
 This starts both servers:
-- **Backend**: http://localhost:8000 (with hot reload)
-- **Frontend**: http://localhost:3000
+- **Backend**: http://localhost:7000 (with hot reload)
+- **Frontend**: http://localhost:4000
 
 ### Available Make Commands
 
@@ -161,7 +161,7 @@ All backend configuration is managed via environment variables in `backend/.env`
 | `DEFAULT_LLM_MODEL` | `gpt-4o-mini` | LLM model for dataset generation |
 | `DEFAULT_EMBEDDING_MODEL` | `text-embedding-3-small` | Default embedding model |
 | `DEFAULT_VECTORSTORE` | `chromadb` | Default vector store provider |
-| `CORS_ORIGINS` | `http://localhost:3000` | Allowed CORS origins |
+| `CORS_ORIGINS` | `http://localhost:4000` | Allowed CORS origins |
 
 ---
 
@@ -207,10 +207,10 @@ Each hyperparameter combination is evaluated using these [RAGAS](https://docs.ra
 
 ## API Reference
 
-The backend exposes a RESTful API at `http://localhost:8000`. Full interactive documentation is available at:
+The backend exposes a RESTful API at `http://localhost:7000`. Full interactive documentation is available at:
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **Swagger UI**: http://localhost:7000/docs
+- **ReDoc**: http://localhost:7000/redoc
 
 ### Key Endpoints
 
