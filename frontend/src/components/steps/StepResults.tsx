@@ -108,13 +108,15 @@ export default function StepResults({ experimentId }: StepResultsProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
             {[
               { label: "Chunk Size", value: `${best.params.chunk_size} tokens` },
               { label: "Overlap", value: `${best.params.chunk_overlap}%` },
               { label: "Embedding", value: best.params.embedding_model },
+              { label: "Dims", value: best.params.embedding_dimensions || "default" },
               { label: "Top-K", value: best.params.top_k },
               { label: "Search", value: best.params.search_type },
+              { label: "Distance", value: best.params.distance_metric || "cosine" },
             ].map((item) => (
               <div
                 key={item.label}
@@ -187,7 +189,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-surface-200/50">
-                {["Rank", "Chunk Size", "Overlap", "Embedding", "Top-K", "Search", "Faithfulness", "Relevancy", "Precision", "Recall", "Overall"].map(
+                {["Rank", "Chunk Size", "Overlap", "Embedding", "Dims", "Top-K", "Search", "Dist.", "Faithfulness", "Relevancy", "Precision", "Recall", "Overall"].map(
                   (header) => (
                     <th
                       key={header}
@@ -217,8 +219,10 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                   <td className="px-3 py-3 text-primary">{combo.params.chunk_size}</td>
                   <td className="px-3 py-3 text-primary">{combo.params.chunk_overlap}%</td>
                   <td className="px-3 py-3 text-primary text-xs">{combo.params.embedding_model}</td>
+                  <td className="px-3 py-3 text-t-secondary text-xs">{combo.params.embedding_dimensions || "default"}</td>
                   <td className="px-3 py-3 text-primary">{combo.params.top_k}</td>
                   <td className="px-3 py-3 text-primary capitalize">{combo.params.search_type}</td>
+                  <td className="px-3 py-3 text-t-secondary text-xs">{combo.params.distance_metric || "cosine"}</td>
                   <td className="px-3 py-3 text-primary">
                     {combo.faithfulness != null ? `${(combo.faithfulness * 100).toFixed(1)}%` : "-"}
                   </td>

@@ -11,7 +11,7 @@ class VectorStoreBackend(ABC):
     """Abstract base class for vector store backends."""
 
     @abstractmethod
-    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings) -> None:
+    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings, distance_metric: str = "cosine") -> None:
         """Create a new collection and index documents."""
         pass
 
@@ -43,14 +43,17 @@ class ChromaDBBackend(VectorStoreBackend):
         self.persist_directory = persist_directory
         self._vectorstore = None
 
-    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings) -> None:
+    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings, distance_metric: str = "cosine") -> None:
         from langchain_community.vectorstores import Chroma
 
+        # ChromaDB supports: cosine, l2, ip
+        collection_metadata = {"hnsw:space": distance_metric}
         self._vectorstore = Chroma.from_documents(
             documents=documents,
             embedding=embeddings,
             collection_name=name,
             persist_directory=self.persist_directory,
+            collection_metadata=collection_metadata,
         )
 
     def similarity_search(self, query: str, k: int = 5) -> List[Document]:
@@ -82,7 +85,7 @@ class PineconeBackend(VectorStoreBackend):
         self.index_name = index_name
         self._vectorstore = None
 
-    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings) -> None:
+    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings, distance_metric: str = "cosine") -> None:
         from langchain_community.vectorstores import Pinecone
 
         self._vectorstore = Pinecone.from_documents(
@@ -118,7 +121,7 @@ class QdrantBackend(VectorStoreBackend):
         self.collection_name = collection_name
         self._vectorstore = None
 
-    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings) -> None:
+    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings, distance_metric: str = "cosine") -> None:
         from langchain_community.vectorstores import Qdrant
 
         self._vectorstore = Qdrant.from_documents(
@@ -155,7 +158,7 @@ class WeaviateBackend(VectorStoreBackend):
         self.class_name = class_name
         self._vectorstore = None
 
-    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings) -> None:
+    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings, distance_metric: str = "cosine") -> None:
         from langchain_community.vectorstores import Weaviate
         import weaviate
 
@@ -194,7 +197,7 @@ class PGVectorBackend(VectorStoreBackend):
         self.collection_name = collection_name
         self._vectorstore = None
 
-    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings) -> None:
+    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings, distance_metric: str = "cosine") -> None:
         from langchain_community.vectorstores import PGVector
 
         self._vectorstore = PGVector.from_documents(

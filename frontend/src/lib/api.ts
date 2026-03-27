@@ -102,6 +102,7 @@ export const api = {
   testProvider: (id: number) =>
     request<any>(`/providers/${id}/test`, { method: "POST" }),
   getAvailableModels: () => request<any>("/providers/models/available"),
+  getEmbeddingDimensions: () => request<any>("/providers/models/embedding-dimensions"),
 
   // Token Usage
   listTokenUsage: (params?: {

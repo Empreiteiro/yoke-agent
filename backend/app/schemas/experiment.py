@@ -9,6 +9,8 @@ class RAGParams(BaseModel):
     embedding_model: str = Field(..., description="Embedding model identifier")
     top_k: int = Field(..., description="Number of documents to retrieve")
     search_type: str = Field(..., description="Search type: vector, hybrid, mmr")
+    embedding_dimensions: Optional[int] = Field(None, description="Embedding output dimensions (None = model default)")
+    distance_metric: str = Field("cosine", description="Distance metric: cosine, l2, ip")
 
 
 class ExperimentCreate(BaseModel):
@@ -24,6 +26,8 @@ class GridSearchConfig(BaseModel):
     embedding_models: list[str] = ["text-embedding-3-small"]
     top_k_values: list[int] = [3, 5, 10]
     search_types: list[str] = ["vector", "hybrid"]
+    embedding_dimensions: list[int] = []  # Empty = use model defaults
+    distance_metrics: list[str] = ["cosine"]  # cosine, l2, ip
     # Optional RAGAS metrics to include beyond the fixed ones
     optional_metrics: list[str] = []
 

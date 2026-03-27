@@ -15,8 +15,16 @@ const DEFAULT_CONFIG = {
   embedding_models: ["text-embedding-3-small"],
   top_k_values: [3, 5],
   search_types: ["vector"],
+  embedding_dimensions: [] as number[],
+  distance_metrics: ["cosine"],
   optional_metrics: [] as string[],
 };
+
+const DISTANCE_METRICS = [
+  { id: "cosine", label: "Cosine" },
+  { id: "l2", label: "L2 (Euclidean)" },
+  { id: "ip", label: "IP (Inner Product)" },
+];
 
 const AVAILABLE_METRICS = [
   { id: "answer_similarity", label: "Answer Similarity", description: "Semantic similarity between generated and ground truth answers" },
@@ -32,6 +40,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
   const [newTopK, setNewTopK] = useState("");
   const [availableEmbeddings, setAvailableEmbeddings] = useState<Array<{provider_name: string; model: string}>>([]);
   const [noProviders, setNoProviders] = useState(false);
+  const [dimensionsMap, setDimensionsMap] = useState<Record<string, {default: number; supports_custom: boolean; supported: number[]}>>({});
 
   useEffect(() => {
     api.getAvailableModels().then((data) => {
@@ -45,14 +54,33 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
     }).catch(() => {
       setNoProviders(true);
     });
+    api.getEmbeddingDimensions().then(setDimensionsMap).catch(() => {});
   }, []);
 
-  const totalCombinations =
+  // Calculate combinations accounting for per-model dimension expansion
+  const dimensionMultiplier = (() => {
+    if (config.embedding_dimensions.length === 0) return 1;
+    // For each model, count how many selected dimensions are valid
+    let totalModelDimCombos = 0;
+    for (const model of config.embedding_models) {
+      const info = dimensionsMap[model];
+      if (!info) { totalModelDimCombos += 1; continue; }
+      const validDims = config.embedding_dimensions.filter((d) => info.supported.includes(d));
+      totalModelDimCombos += validDims.length || 1;
+    }
+    // Average per model (will be multiplied by other params which already include model count)
+    return config.embedding_models.length > 0 ? totalModelDimCombos / config.embedding_models.length : 1;
+  })();
+
+  const totalCombinations = Math.round(
     config.chunk_sizes.length *
     config.chunk_overlaps.length *
     config.embedding_models.length *
     config.top_k_values.length *
-    config.search_types.length;
+    config.search_types.length *
+    config.distance_metrics.length *
+    dimensionMultiplier
+  );
 
   const addToArray = (
     field: keyof typeof config,
@@ -300,6 +328,107 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                 </label>
               ))}
             </div>
+          </div>
+
+          {/* Distance Metric */}
+          <div>
+            <label className="block text-sm font-medium text-t-hover mb-3">Distance Metric</label>
+            <div className="flex gap-3">
+              {DISTANCE_METRICS.map((dm) => (
+                <label
+                  key={dm.id}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={config.distance_metrics.includes(dm.id)}
+                    onChange={() => {
+                      if (config.distance_metrics.includes(dm.id)) {
+                        setConfig((prev) => ({
+                          ...prev,
+                          distance_metrics: prev.distance_metrics.filter((d) => d !== dm.id),
+                        }));
+                      } else {
+                        setConfig((prev) => ({
+                          ...prev,
+                          distance_metrics: [...prev.distance_metrics, dm.id],
+                        }));
+                      }
+                    }}
+                    className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
+                  />
+                  <span className="text-sm text-t-hover">{dm.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Embedding Dimensions */}
+          <div>
+            <label className="block text-sm font-medium text-t-hover mb-1">Embedding Dimensions</label>
+            <p className="text-xs text-muted mb-3">
+              Leave empty to use each model&apos;s default. Only models that support custom dimensions will be tested with non-default values.
+            </p>
+            {(() => {
+              // Collect all valid dimensions from selected models
+              const allDims = new Set<number>();
+              const modelDefaults: Record<string, number> = {};
+              for (const model of config.embedding_models) {
+                const info = dimensionsMap[model];
+                if (info) {
+                  modelDefaults[model] = info.default;
+                  if (info.supports_custom) {
+                    info.supported.forEach((d: number) => allDims.add(d));
+                  }
+                }
+              }
+              const sortedDims = Array.from(allDims).sort((a, b) => a - b);
+
+              if (sortedDims.length === 0) {
+                return (
+                  <div className="text-xs text-t-secondary px-3 py-2 bg-surface-50 rounded-lg border border-surface-200/50">
+                    Selected models do not support custom dimensions — defaults will be used
+                    {Object.entries(modelDefaults).map(([model, dim]) => (
+                      <span key={model} className="ml-2 text-muted">({model}: {dim}d)</span>
+                    ))}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {sortedDims.map((dim) => {
+                    const selected = config.embedding_dimensions.includes(dim);
+                    // Which selected models support this dim?
+                    const supportedBy = config.embedding_models.filter((m) => {
+                      const info = dimensionsMap[m];
+                      return info?.supported.includes(dim);
+                    });
+                    return (
+                      <button
+                        key={dim}
+                        onClick={() => {
+                          setConfig((prev) => ({
+                            ...prev,
+                            embedding_dimensions: selected
+                              ? prev.embedding_dimensions.filter((d) => d !== dim)
+                              : [...prev.embedding_dimensions, dim],
+                          }));
+                        }}
+                        className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                          selected
+                            ? "bg-accent/10 text-accent border-accent/30"
+                            : "bg-surface-200 text-t-hover border-surface-200/50 hover:bg-surface-300"
+                        }`}
+                        title={`Supported by: ${supportedBy.join(", ")}`}
+                      >
+                        {dim}d
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
