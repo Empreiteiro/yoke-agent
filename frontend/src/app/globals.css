@@ -86,6 +86,16 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
+/* Remove surface borders in dark/neon themes for cleaner look */
+[data-theme="dark"] .border-surface-200\/50,
+[data-theme="dark"] .border-surface-200\/30,
+[data-theme="neon"] .border-surface-200\/50,
+[data-theme="neon"] .border-surface-200\/30,
+:root .border-surface-200\/50,
+:root .border-surface-200\/30 {
+  border-color: transparent;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
