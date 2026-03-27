@@ -4,6 +4,7 @@ interface Step {
   id: string;
   label: string;
   icon: string;
+  description: string;
 }
 
 interface PipelineHeaderProps {
@@ -31,6 +32,9 @@ export default function PipelineHeader({
               <span className="text-accent">{step?.label}</span>
             </div>
             <h2 className="text-xl font-semibold text-primary">{step?.label}</h2>
+            {step?.description && (
+              <p className="text-sm text-t-secondary mt-1">{step.description}</p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {steps.map((s, i) => (
