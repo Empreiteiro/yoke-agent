@@ -77,13 +77,7 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
   return (
     <div className="space-y-6">
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-semibold text-primary">Run Experiments</h3>
-            <p className="text-sm text-t-secondary">
-              Execute all {total} combinations and evaluate with RAGAS.
-            </p>
-          </div>
+        <div className="flex items-center justify-end mb-6">
           {!isDone && (
             <button
               onClick={handleRun}

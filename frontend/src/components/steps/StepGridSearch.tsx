@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Grid3X3, Plus, X, Settings2, Loader2, AlertCircle } from "lucide-react";
+import { Grid3X3, Plus, X, Loader2, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepGridSearchProps {
@@ -129,16 +129,6 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
     <div className="space-y-6">
       {/* Experiment name */}
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-            <Settings2 className="w-5 h-5 text-accent" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-primary">Experiment Setup</h3>
-            <p className="text-sm text-t-secondary">Name your experiment and select a vector store.</p>
-          </div>
-        </div>
-
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-t-hover mb-2">Experiment Name <span className="text-muted font-normal">(optional)</span></label>

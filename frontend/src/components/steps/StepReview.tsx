@@ -125,15 +125,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
   return (
     <div className="space-y-6">
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-semibold text-primary">
-              Review Evaluation Dataset
-            </h3>
-            <p className="text-sm text-t-secondary">
-              Review, edit, add, or remove Q&A pairs. Import additional items from a JSON file.
-            </p>
-          </div>
+        <div className="flex items-center justify-end mb-6">
           <div className="flex items-center gap-2">
             <label className="px-4 py-2 bg-surface-200 text-t-hover text-sm font-medium rounded-xl hover:bg-surface-300 transition-colors cursor-pointer flex items-center gap-2">
               <Upload className="w-4 h-4" />

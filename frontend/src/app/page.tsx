@@ -14,12 +14,12 @@ import History from "@/components/History";
 import Logs from "@/components/Logs";
 
 const STEPS = [
-  { id: "upload", label: "Upload Documents", icon: "upload" },
-  { id: "dataset", label: "Generate Dataset", icon: "database" },
-  { id: "review", label: "Review & Approve", icon: "check-circle" },
-  { id: "grid-search", label: "Grid Search Config", icon: "grid" },
-  { id: "execution", label: "Run Experiments", icon: "play" },
-  { id: "results", label: "Results & Report", icon: "bar-chart" },
+  { id: "upload", label: "Upload Documents", icon: "upload", description: "Upload one or more documents to analyze. Supported formats: PDF, TXT, DOCX, MD." },
+  { id: "dataset", label: "Generate Dataset", icon: "database", description: "An LLM will analyze your documents and generate question-answer pairs for evaluation." },
+  { id: "review", label: "Review & Approve", icon: "check-circle", description: "Review, edit, add, or remove Q&A pairs. Import additional items from a JSON file." },
+  { id: "grid-search", label: "Grid Search Config", icon: "grid", description: "Name your experiment and configure RAG hyperparameters." },
+  { id: "execution", label: "Run Experiments", icon: "play", description: "Execute all combinations and evaluate with RAGAS." },
+  { id: "results", label: "Results & Report", icon: "bar-chart", description: "View the best configurations and detailed results." },
 ] as const;
 
 type StepId = (typeof STEPS)[number]["id"];

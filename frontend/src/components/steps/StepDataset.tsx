@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Database, Loader2, Sparkles, CheckCircle, AlertCircle } from "lucide-react";
+import { Database, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepDatasetProps {
@@ -81,18 +81,6 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
   return (
     <div className="space-y-6">
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-accent" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-primary">Generate Evaluation Dataset</h3>
-            <p className="text-sm text-t-secondary">
-              An LLM will analyze your documents and generate question-answer pairs for evaluation.
-            </p>
-          </div>
-        </div>
-
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-t-hover mb-2">

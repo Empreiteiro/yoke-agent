@@ -67,14 +67,6 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
   return (
     <div className="space-y-6">
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
-        <h3 className="text-lg font-semibold text-primary mb-2">
-          Upload Documents
-        </h3>
-        <p className="text-sm text-t-secondary mb-6">
-          Upload one or more documents to analyze. Supported formats: PDF, TXT,
-          DOCX, MD.
-        </p>
-
         {/* Drop zone */}
         <div
           onDragEnter={handleDrag}
