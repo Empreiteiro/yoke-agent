@@ -13,6 +13,7 @@ import {
   StopCircle,
   Play,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import {
@@ -110,6 +111,19 @@ export default function History() {
     } catch (err) {
       console.error("Failed to resume experiment:", err);
       setResumingId(null);
+    }
+  };
+
+  const handleDelete = async (expId: number) => {
+    try {
+      await api.deleteExperiment(expId);
+      setExperiments((prev) => prev.filter((e) => e.id !== expId));
+      if (expandedId === expId) {
+        setExpandedId(null);
+        setExpandedReport(null);
+      }
+    } catch (err) {
+      console.error("Failed to delete experiment:", err);
     }
   };
 
@@ -225,6 +239,18 @@ export default function History() {
                       </p>
                     </div>
                   )}
+
+                  <div
+                    className="flex-shrink-0 p-2 rounded-lg text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (exp.status === "running") return;
+                      handleDelete(exp.id);
+                    }}
+                    title={exp.status === "running" ? "Stop the experiment before deleting" : "Delete experiment"}
+                  >
+                    <Trash2 className={`w-4 h-4 ${exp.status === "running" ? "opacity-30 cursor-not-allowed" : ""}`} />
+                  </div>
                 </button>
 
                 {/* Resume actions */}

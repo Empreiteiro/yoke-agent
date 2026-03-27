@@ -74,6 +74,7 @@ export const api = {
     request<any>("/experiments/", { method: "POST", body: JSON.stringify(data) }),
   listExperiments: () => request<any[]>("/experiments/"),
   getExperiment: (id: number) => request<any>(`/experiments/${id}`),
+  deleteExperiment: (id: number) => request<any>(`/experiments/${id}`, { method: "DELETE" }),
   proposeGridSearch: (id: number) =>
     request<any>(`/experiments/${id}/propose-grid`, { method: "POST" }),
   configureGrid: (id: number, config: any) =>

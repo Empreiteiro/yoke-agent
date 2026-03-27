@@ -65,6 +65,22 @@ def get_experiment(experiment_id: int, db: Session = Depends(get_db)):
     return exp
 
 
+@router.delete("/{experiment_id}")
+def delete_experiment(experiment_id: int, db: Session = Depends(get_db)):
+    """Delete an experiment and all its combinations."""
+    exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    if exp.status == "running":
+        raise HTTPException(status_code=400, detail="Cannot delete a running experiment. Stop it first.")
+    db.query(ExperimentCombination).filter(
+        ExperimentCombination.experiment_id == experiment_id
+    ).delete()
+    db.delete(exp)
+    db.commit()
+    return {"detail": "Experiment deleted", "experiment_id": experiment_id}
+
+
 @router.post("/{experiment_id}/propose-grid")
 async def propose_grid_search(experiment_id: int, db: Session = Depends(get_db)):
     """Use LLM to propose a grid search configuration based on document analysis."""
