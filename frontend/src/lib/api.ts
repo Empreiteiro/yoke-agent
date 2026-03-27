@@ -42,8 +42,11 @@ export const api = {
   listDatasets: () => request<any[]>("/datasets/"),
   getDataset: (id: number) => request<any>(`/datasets/${id}`),
   deleteDataset: (id: number) => request<any>(`/datasets/${id}`, { method: "DELETE" }),
-  generateDataset: (id: number) =>
-    request<any>(`/datasets/${id}/generate`, { method: "POST" }),
+  generateDataset: (id: number, options?: { reading_mode?: string; max_pages?: number; num_questions?: number }) =>
+    request<any>(`/datasets/${id}/generate`, {
+      method: "POST",
+      body: options ? JSON.stringify(options) : undefined,
+    }),
   addDatasetItem: (id: number, item: { question: string; ground_truth: string; context?: string }) =>
     request<any>(`/datasets/${id}/items`, { method: "POST", body: JSON.stringify(item) }),
   updateDatasetItem: (datasetId: number, itemId: number, item: any) =>

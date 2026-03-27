@@ -15,6 +15,7 @@ from app.schemas.dataset import (
     DatasetResponse,
     DatasetItemCreate,
     DatasetItemUpdate,
+    DatasetGenerateOptions,
 )
 from app.services.document_loader import load_documents
 from app.services.dataset_generator import generate_qa_pairs
@@ -24,13 +25,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _generate_dataset_sync(dataset_id: int):
+def _generate_dataset_sync(dataset_id: int, options: Optional[dict] = None):
     """Synchronous wrapper for background dataset generation."""
-    asyncio.run(_generate_dataset_task(dataset_id))
+    asyncio.run(_generate_dataset_task(dataset_id, options))
 
 
-async def _generate_dataset_task(dataset_id: int):
+async def _generate_dataset_task(dataset_id: int, options: Optional[dict] = None):
     """Background task to generate dataset items using LLM."""
+    options = options or {}
     db = SessionLocal()
     try:
         dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
@@ -49,7 +51,13 @@ async def _generate_dataset_task(dataset_id: int):
             db.commit()
             return
 
-        pairs = await generate_qa_pairs(documents, db=db, num_questions=10)
+        pairs = await generate_qa_pairs(
+            documents,
+            db=db,
+            num_questions=options.get("num_questions"),
+            reading_mode=options.get("reading_mode", "full"),
+            max_pages=options.get("max_pages"),
+        )
 
         for pair in pairs:
             item = DatasetItem(
@@ -118,6 +126,7 @@ def delete_dataset(dataset_id: int, db: Session = Depends(get_db)):
 async def generate_dataset(
     dataset_id: int,
     background_tasks: BackgroundTasks,
+    options: Optional[DatasetGenerateOptions] = None,
     db: Session = Depends(get_db),
 ):
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
@@ -127,7 +136,8 @@ async def generate_dataset(
     dataset.status = "generating"
     db.commit()
 
-    background_tasks.add_task(_generate_dataset_sync, dataset_id)
+    opts_dict = options.model_dump() if options else {}
+    background_tasks.add_task(_generate_dataset_sync, dataset_id, opts_dict)
     return {"detail": "Dataset generation started", "dataset_id": dataset_id}
 
 
