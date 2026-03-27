@@ -98,34 +98,28 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
         <div className="flex items-center justify-end gap-3 mb-6">
           {!isDone && !isStopped && (
-            <>
-              {running && (
-                <button
-                  onClick={handleStop}
-                  disabled={stopping}
-                  className="px-6 py-3 bg-red-500/10 border border-red-500/30 text-red-400 font-medium rounded-xl hover:bg-red-500/20 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {stopping ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Square className="w-4 h-4" />
-                  )}
-                  {stopping ? "Stopping..." : "Stop"}
-                </button>
-              )}
+            running ? (
               <button
-                onClick={handleRun}
-                disabled={running}
-                className="px-6 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                onClick={handleStop}
+                disabled={stopping}
+                className="px-6 py-3 bg-red-500/10 border border-red-500/30 text-red-400 font-medium rounded-xl hover:bg-red-500/20 disabled:opacity-50 flex items-center gap-2"
               >
-                {running ? (
+                {stopping ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Play className="w-4 h-4" />
+                  <Square className="w-4 h-4" />
                 )}
-                {running ? "Running..." : "Start Execution"}
+                {stopping ? "Stopping..." : "Stop Execution"}
               </button>
-            </>
+            ) : (
+              <button
+                onClick={handleRun}
+                className="px-6 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 flex items-center gap-2"
+              >
+                <Play className="w-4 h-4" />
+                Start Execution
+              </button>
+            )
           )}
         </div>
 
@@ -173,7 +167,7 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
         )}
 
         {/* Combination list */}
-        <div className="space-y-2 max-h-96 overflow-y-auto">
+        <div className="space-y-2">
           {combinations.map((combo: any, index: number) => (
             <div key={combo.id}>
               <div
