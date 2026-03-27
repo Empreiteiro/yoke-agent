@@ -10,7 +10,6 @@ import {
   XCircle,
   Loader2,
   AlertCircle,
-  ArrowLeft,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import {
@@ -29,20 +28,18 @@ import {
   Legend,
 } from "recharts";
 
-interface HistoryProps {
-  onBack: () => void;
-}
+
 
 const statusConfig: Record<string, { icon: any; color: string; label: string }> = {
   completed: { icon: CheckCircle, color: "text-emerald-400", label: "Completed" },
   running: { icon: Loader2, color: "text-blue-400", label: "Running" },
   failed: { icon: XCircle, color: "text-red-400", label: "Failed" },
-  pending: { icon: Clock, color: "text-slate-400", label: "Pending" },
+  pending: { icon: Clock, color: "text-t-secondary", label: "Pending" },
   configured: { icon: AlertCircle, color: "text-amber-400", label: "Configured" },
   proposing: { icon: Loader2, color: "text-purple-400", label: "Proposing" },
 };
 
-export default function History({ onBack }: HistoryProps) {
+export default function History() {
   const [experiments, setExperiments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -103,7 +100,7 @@ export default function History({ onBack }: HistoryProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-slate-400">
+      <div className="flex items-center justify-center py-20 text-t-secondary">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
         Loading history...
       </div>
@@ -113,25 +110,17 @@ export default function History({ onBack }: HistoryProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={onBack}
-          className="p-2 rounded-lg hover:bg-surface-100 text-slate-400 hover:text-white transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h2 className="text-2xl font-bold text-white">Pipeline History</h2>
-          <p className="text-sm text-slate-400 mt-1">
-            {experiments.length} experiment{experiments.length !== 1 ? "s" : ""} recorded
-          </p>
-        </div>
+      <div>
+        <h2 className="text-2xl font-bold text-primary">Pipeline History</h2>
+        <p className="text-sm text-t-secondary mt-1">
+          {experiments.length} experiment{experiments.length !== 1 ? "s" : ""} recorded
+        </p>
       </div>
 
       {experiments.length === 0 ? (
         <div className="text-center py-20">
-          <Clock className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-          <p className="text-slate-400">No experiments yet. Run your first pipeline to see history here.</p>
+          <Clock className="w-12 h-12 text-muted mx-auto mb-4" />
+          <p className="text-t-secondary">No experiments yet. Run your first pipeline to see history here.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -157,15 +146,15 @@ export default function History({ onBack }: HistoryProps) {
                 >
                   <div className="flex-shrink-0">
                     {isExpanded ? (
-                      <ChevronDown className="w-5 h-5 text-slate-400" />
+                      <ChevronDown className="w-5 h-5 text-t-secondary" />
                     ) : (
-                      <ChevronRight className="w-5 h-5 text-slate-400" />
+                      <ChevronRight className="w-5 h-5 text-t-secondary" />
                     )}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
-                      <h3 className="text-white font-semibold truncate">
+                      <h3 className="text-primary font-semibold truncate">
                         {exp.name}
                       </h3>
                       <span
@@ -175,7 +164,7 @@ export default function History({ onBack }: HistoryProps) {
                         {status.label}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-slate-400">
+                    <div className="flex items-center gap-4 text-xs text-t-secondary">
                       <span>{formatDate(exp.created_at)}</span>
                       {exp.dataset_name && (
                         <span>Dataset: {exp.dataset_name}</span>
@@ -189,7 +178,7 @@ export default function History({ onBack }: HistoryProps) {
 
                   {bestScore != null && (
                     <div className="flex-shrink-0 text-right">
-                      <p className="text-xs text-slate-400 mb-0.5">Best Score</p>
+                      <p className="text-xs text-t-secondary mb-0.5">Best Score</p>
                       <p
                         className={`text-lg font-bold ${
                           bestScore >= 0.8
@@ -209,14 +198,14 @@ export default function History({ onBack }: HistoryProps) {
                 {isExpanded && (
                   <div className="border-t border-surface-200/50 p-6">
                     {loadingReport ? (
-                      <div className="flex items-center justify-center py-8 text-slate-400">
+                      <div className="flex items-center justify-center py-8 text-t-secondary">
                         <Loader2 className="w-5 h-5 animate-spin mr-2" />
                         Loading details...
                       </div>
                     ) : expandedReport ? (
                       <ExpandedReport report={expandedReport} />
                     ) : (
-                      <p className="text-slate-400 text-center py-4">
+                      <p className="text-t-secondary text-center py-4">
                         Failed to load report details.
                       </p>
                     )}
@@ -259,20 +248,20 @@ function ExpandedReport({ report }: { report: any }) {
       {/* Summary stats */}
       <div className="grid grid-cols-4 gap-4">
         <div className="p-3 bg-surface-50 rounded-xl border border-surface-200/30">
-          <p className="text-xs text-slate-400 mb-1">Total</p>
-          <p className="text-lg font-bold text-white">{report.summary.total_combinations}</p>
+          <p className="text-xs text-t-secondary mb-1">Total</p>
+          <p className="text-lg font-bold text-primary">{report.summary.total_combinations}</p>
         </div>
         <div className="p-3 bg-surface-50 rounded-xl border border-surface-200/30">
-          <p className="text-xs text-slate-400 mb-1">Completed</p>
+          <p className="text-xs text-t-secondary mb-1">Completed</p>
           <p className="text-lg font-bold text-emerald-400">{report.summary.completed}</p>
         </div>
         <div className="p-3 bg-surface-50 rounded-xl border border-surface-200/30">
-          <p className="text-xs text-slate-400 mb-1">Failed</p>
+          <p className="text-xs text-t-secondary mb-1">Failed</p>
           <p className="text-lg font-bold text-red-400">{report.summary.failed}</p>
         </div>
         <div className="p-3 bg-surface-50 rounded-xl border border-surface-200/30">
-          <p className="text-xs text-slate-400 mb-1">Pending</p>
-          <p className="text-lg font-bold text-slate-400">{report.summary.pending}</p>
+          <p className="text-xs text-t-secondary mb-1">Pending</p>
+          <p className="text-lg font-bold text-t-secondary">{report.summary.pending}</p>
         </div>
       </div>
 
@@ -281,7 +270,7 @@ function ExpandedReport({ report }: { report: any }) {
         <div className="bg-gradient-to-br from-accent/5 to-secondary/5 rounded-xl border border-accent/20 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Trophy className="w-5 h-5 text-amber-400" />
-            <h4 className="text-white font-semibold">Best Configuration</h4>
+            <h4 className="text-primary font-semibold">Best Configuration</h4>
             <span className="text-accent font-bold ml-auto">
               {((best.overall_score ?? 0) * 100).toFixed(1)}%
             </span>
@@ -298,8 +287,8 @@ function ExpandedReport({ report }: { report: any }) {
               { label: "Distance", value: best.params.distance_metric || "cosine" },
             ].map((item) => (
               <div key={item.label} className="text-center">
-                <p className="text-xs text-slate-400">{item.label}</p>
-                <p className="text-sm font-medium text-white">{item.value}</p>
+                <p className="text-xs text-t-secondary">{item.label}</p>
+                <p className="text-sm font-medium text-primary">{item.value}</p>
               </div>
             ))}
           </div>
@@ -309,15 +298,15 @@ function ExpandedReport({ report }: { report: any }) {
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={radarData}>
-                  <PolarGrid stroke="#232338" />
+                  <PolarGrid stroke="var(--border)" />
                   <PolarAngleAxis
                     dataKey="metric"
-                    tick={{ fill: "#94a3b8", fontSize: 11 }}
+                    tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                   />
                   <PolarRadiusAxis
                     angle={30}
                     domain={[0, 100]}
-                    tick={{ fill: "#64748b", fontSize: 9 }}
+                    tick={{ fill: "var(--text-muted)", fontSize: 9 }}
                   />
                   <Radar
                     name="Score"
@@ -336,19 +325,19 @@ function ExpandedReport({ report }: { report: any }) {
       {/* Bar chart */}
       {barData.length > 1 && (
         <div>
-          <h4 className="text-sm font-semibold text-white mb-3">Top Configurations</h4>
+          <h4 className="text-sm font-semibold text-primary mb-3">Top Configurations</h4>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#232338" />
-                <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 11 }} />
-                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} domain={[0, 100]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} domain={[0, 100]} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#1a1a2e",
-                    border: "1px solid #232338",
+                    backgroundColor: "var(--surface-100)",
+                    border: "1px solid var(--surface-200)",
                     borderRadius: "8px",
-                    color: "#e2e8f0",
+                    color: "var(--text-primary)",
                     fontSize: 12,
                   }}
                 />
@@ -365,14 +354,14 @@ function ExpandedReport({ report }: { report: any }) {
       {/* Results table */}
       {completed.length > 0 && (
         <div>
-          <h4 className="text-sm font-semibold text-white mb-3">All Results</h4>
+          <h4 className="text-sm font-semibold text-primary mb-3">All Results</h4>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-surface-200/50">
                   {["#", "Chunk", "Overlap", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Score", "Time"].map(
                     (h) => (
-                      <th key={h} className="px-2 py-2 text-left text-xs font-medium text-slate-400 uppercase">
+                      <th key={h} className="px-2 py-2 text-left text-xs font-medium text-t-secondary uppercase">
                         {h}
                       </th>
                     )
@@ -385,26 +374,26 @@ function ExpandedReport({ report }: { report: any }) {
                     key={c.id}
                     className={`hover:bg-surface-50 transition-colors ${i === 0 ? "bg-accent/5" : ""}`}
                   >
-                    <td className="px-2 py-2 text-slate-300">
+                    <td className="px-2 py-2 text-t-secondary">
                       {i === 0 ? <Trophy className="w-3.5 h-3.5 text-amber-400 inline" /> : i + 1}
                     </td>
-                    <td className="px-2 py-2 text-white">{c.params.chunk_size}</td>
-                    <td className="px-2 py-2 text-white">{c.params.chunk_overlap}%</td>
-                    <td className="px-2 py-2 text-white truncate max-w-[120px]">{c.params.embedding_model}</td>
-                    <td className="px-2 py-2 text-slate-400 text-xs">{c.params.embedding_dimensions || "def"}</td>
-                    <td className="px-2 py-2 text-white">{c.params.top_k}</td>
-                    <td className="px-2 py-2 text-white capitalize">{c.params.search_type}</td>
-                    <td className="px-2 py-2 text-slate-400 text-xs">{c.params.distance_metric || "cos"}</td>
-                    <td className="px-2 py-2 text-white">
+                    <td className="px-2 py-2 text-primary">{c.params.chunk_size}</td>
+                    <td className="px-2 py-2 text-primary">{c.params.chunk_overlap}%</td>
+                    <td className="px-2 py-2 text-primary truncate max-w-[120px]">{c.params.embedding_model}</td>
+                    <td className="px-2 py-2 text-t-secondary text-xs">{c.params.embedding_dimensions || "def"}</td>
+                    <td className="px-2 py-2 text-primary">{c.params.top_k}</td>
+                    <td className="px-2 py-2 text-primary capitalize">{c.params.search_type}</td>
+                    <td className="px-2 py-2 text-t-secondary text-xs">{c.params.distance_metric || "cos"}</td>
+                    <td className="px-2 py-2 text-primary">
                       {c.faithfulness != null ? `${(c.faithfulness * 100).toFixed(1)}%` : "-"}
                     </td>
-                    <td className="px-2 py-2 text-white">
+                    <td className="px-2 py-2 text-primary">
                       {c.answer_relevancy != null ? `${(c.answer_relevancy * 100).toFixed(1)}%` : "-"}
                     </td>
-                    <td className="px-2 py-2 text-white">
+                    <td className="px-2 py-2 text-primary">
                       {c.context_precision != null ? `${(c.context_precision * 100).toFixed(1)}%` : "-"}
                     </td>
-                    <td className="px-2 py-2 text-white">
+                    <td className="px-2 py-2 text-primary">
                       {c.context_recall != null ? `${(c.context_recall * 100).toFixed(1)}%` : "-"}
                     </td>
                     <td className="px-2 py-2">
@@ -420,7 +409,7 @@ function ExpandedReport({ report }: { report: any }) {
                         {c.overall_score != null ? `${(c.overall_score * 100).toFixed(1)}%` : "-"}
                       </span>
                     </td>
-                    <td className="px-2 py-2 text-slate-400">
+                    <td className="px-2 py-2 text-t-secondary">
                       {c.duration_seconds != null ? `${c.duration_seconds.toFixed(1)}s` : "-"}
                     </td>
                   </tr>
