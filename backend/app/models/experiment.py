@@ -35,6 +35,7 @@ class ExperimentCombination(Base):
     # Aggregate
     overall_score = Column(Float)
     detailed_results = Column(JSON)
+    error_message = Column(Text)
     duration_seconds = Column(Float)
     created_at = Column(DateTime, server_default=func.now())
     completed_at = Column(DateTime)

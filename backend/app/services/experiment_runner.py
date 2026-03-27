@@ -1,10 +1,14 @@
 """Experiment runner that orchestrates the full grid search execution."""
 
+import logging
 import time
+import traceback
 from datetime import datetime
 from typing import Optional, Dict, Any
 
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.models.document import Document as DocumentModel
 from app.models.dataset import Dataset, DatasetItem
@@ -64,8 +68,10 @@ async def run_single_combination(
         combination.status = "completed"
 
     except Exception as e:
+        logger.error(f"Combination {combination.id} failed: {e}\n{traceback.format_exc()}")
         combination.status = "failed"
-        combination.detailed_results = {"error": str(e)}
+        combination.error_message = str(e)
+        combination.detailed_results = {"error": str(e), "traceback": traceback.format_exc()}
 
     finally:
         combination.duration_seconds = time.time() - start_time
@@ -131,5 +137,5 @@ async def run_experiment(
         if combination.status == "failed":
             all_success = False
 
-    experiment.status = "completed" if all_success else "completed"
+    experiment.status = "completed" if all_success else "completed_with_errors"
     db.commit()
