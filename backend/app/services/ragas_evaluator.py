@@ -3,6 +3,7 @@
 from typing import List, Dict, Any, Optional
 
 from datasets import Dataset as HFDataset
+from sqlalchemy.orm import Session
 from ragas import evaluate
 from ragas.metrics import (
     faithfulness,
@@ -46,6 +47,7 @@ async def evaluate_rag_results(
     rag_results: List[Dict[str, Any]],
     ground_truths: List[str],
     optional_metrics: Optional[List[str]] = None,
+    db: Optional[Session] = None,
 ) -> Dict[str, Any]:
     """Evaluate RAG pipeline results using RAGAS.
 
@@ -53,6 +55,7 @@ async def evaluate_rag_results(
         rag_results: List of dicts with 'question', 'answer', 'contexts'
         ground_truths: List of expected answers (ground truth)
         optional_metrics: Names of optional metrics to include
+        db: Database session to resolve provider-configured LLM/embeddings
 
     Returns:
         Dict with metric scores and detailed per-question results
@@ -68,8 +71,24 @@ async def evaluate_rag_results(
     dataset = HFDataset.from_dict(eval_data)
     metrics = get_metrics(optional_metrics)
 
+    # Resolve LLM and embeddings from configured providers
+    llm = None
+    embeddings = None
+    if db:
+        from app.services.llm_factory import get_llm, get_embeddings
+        try:
+            llm = get_llm(db)
+            embeddings = get_embeddings(db)
+        except Exception:
+            pass  # Fall back to RAGAS defaults (env vars)
+
     # Run RAGAS evaluation
-    result = evaluate(dataset=dataset, metrics=metrics)
+    eval_kwargs: Dict[str, Any] = {"dataset": dataset, "metrics": metrics}
+    if llm:
+        eval_kwargs["llm"] = llm
+    if embeddings:
+        eval_kwargs["embeddings"] = embeddings
+    result = evaluate(**eval_kwargs)
 
     # Extract scores
     scores = {}

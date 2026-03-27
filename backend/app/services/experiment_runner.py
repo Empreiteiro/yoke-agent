@@ -53,6 +53,7 @@ async def run_single_combination(
             rag_results=rag_results,
             ground_truths=ground_truths,
             optional_metrics=optional_metrics,
+            db=db,
         )
 
         # Update combination with results
