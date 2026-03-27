@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 
 class RAGParams(BaseModel):
@@ -40,7 +40,7 @@ class CombinationResponse(BaseModel):
     answer_correctness: Optional[float] = None
     overall_score: Optional[float] = None
     duration_seconds: Optional[float] = None
-    detailed_results: Optional[dict] = None
+    detailed_results: Optional[Any] = None
     error_message: Optional[str] = None
     created_at: datetime
     completed_at: Optional[datetime] = None
