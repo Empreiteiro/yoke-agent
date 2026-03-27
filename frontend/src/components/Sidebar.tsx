@@ -9,6 +9,8 @@ import {
   BarChart3,
   Zap,
   Settings,
+  Clock,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +36,10 @@ interface SidebarProps {
   onStepClick: (id: string) => void;
   showSettings?: boolean;
   onSettingsClick?: () => void;
+  showHistory?: boolean;
+  onHistoryClick?: () => void;
+  showLogs?: boolean;
+  onLogsClick?: () => void;
 }
 
 export default function Sidebar({
@@ -43,7 +49,12 @@ export default function Sidebar({
   onStepClick,
   showSettings = false,
   onSettingsClick,
+  showHistory = false,
+  onHistoryClick,
+  showLogs = false,
+  onLogsClick,
 }: SidebarProps) {
+  const isAnySpecialView = showSettings || showHistory || showLogs;
   return (
     <aside className="w-72 bg-surface-50 border-r border-surface-200/50 flex flex-col">
       <div className="p-6 border-b border-surface-200/50">
@@ -61,7 +72,7 @@ export default function Sidebar({
       <nav className="flex-1 p-4 space-y-1">
         {steps.map((step) => {
           const Icon = iconMap[step.icon] || Database;
-          const isActive = currentStep === step.id && !showSettings;
+          const isActive = currentStep === step.id && !isAnySpecialView;
           const isCompleted = completedSteps.has(step.id);
 
           return (
@@ -99,8 +110,52 @@ export default function Sidebar({
         })}
       </nav>
 
-      {/* Settings button */}
-      <div className="p-4 space-y-3 border-t border-surface-200/50">
+      {/* Bottom section: History, Logs, Settings */}
+      <div className="p-4 space-y-1 border-t border-surface-200/50">
+        <button
+          onClick={onHistoryClick}
+          className={cn(
+            "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
+            showHistory
+              ? "bg-accent/10 text-accent border border-accent/20"
+              : "text-slate-400 hover:bg-surface-100 hover:text-slate-300"
+          )}
+        >
+          <div
+            className={cn(
+              "w-8 h-8 rounded-lg flex items-center justify-center",
+              showHistory
+                ? "bg-accent/20 text-accent"
+                : "bg-surface-200 text-slate-500"
+            )}
+          >
+            <Clock className="w-4 h-4" />
+          </div>
+          <span>History</span>
+        </button>
+
+        <button
+          onClick={onLogsClick}
+          className={cn(
+            "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
+            showLogs
+              ? "bg-accent/10 text-accent border border-accent/20"
+              : "text-slate-400 hover:bg-surface-100 hover:text-slate-300"
+          )}
+        >
+          <div
+            className={cn(
+              "w-8 h-8 rounded-lg flex items-center justify-center",
+              showLogs
+                ? "bg-accent/20 text-accent"
+                : "bg-surface-200 text-slate-500"
+            )}
+          >
+            <FileText className="w-4 h-4" />
+          </div>
+          <span>Logs</span>
+        </button>
+
         <button
           onClick={onSettingsClick}
           className={cn(
@@ -123,7 +178,7 @@ export default function Sidebar({
           <span>Providers</span>
         </button>
 
-        <div className="px-4 py-3 rounded-xl bg-surface-100 border border-surface-200/50">
+        <div className="px-4 py-3 rounded-xl bg-surface-100 border border-surface-200/50 mt-2">
           <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
             <span>Progress</span>
             <span>

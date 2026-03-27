@@ -6,7 +6,8 @@ from typing import List, Dict, Optional
 from langchain.schema import Document, HumanMessage, SystemMessage
 from sqlalchemy.orm import Session
 
-from app.services.llm_factory import get_llm
+from app.services.llm_factory import get_llm, _resolve_provider
+from app.services.token_tracker import log_llm_response
 
 
 SYSTEM_PROMPT = """You are an expert at creating evaluation datasets for RAG (Retrieval-Augmented Generation) systems.
@@ -58,6 +59,21 @@ async def generate_qa_pairs(
     ]
 
     response = await llm.ainvoke(messages)
+
+    # Log token usage for dataset generation
+    try:
+        provider = _resolve_provider(db, provider_id, capability="llm")
+        log_llm_response(
+            db=db,
+            response=response,
+            operation="dataset_generation",
+            provider_name=provider.name,
+            model_name=model or provider.default_llm_model or "unknown",
+            metadata={"num_questions_requested": num_questions, "num_documents": len(documents)},
+        )
+    except Exception:
+        pass  # Don't fail generation on logging errors
+
     content = response.content.strip()
 
     # Parse JSON from response (handle markdown code blocks)

@@ -52,6 +52,7 @@ class ExperimentResponse(BaseModel):
     name: str
     description: Optional[str] = None
     dataset_id: int
+    dataset_name: Optional[str] = None
     status: str
     vectorstore_type: str
     combinations: list[CombinationResponse] = []

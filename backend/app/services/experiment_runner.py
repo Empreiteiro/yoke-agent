@@ -37,8 +37,11 @@ async def run_single_combination(
             documents=source_documents,
             questions=questions,
             params=combination.params,
+            db=db,
             vectorstore_type=vectorstore_type,
             vectorstore_config=vectorstore_config,
+            experiment_id=combination.experiment_id,
+            combination_id=combination.id,
         )
 
         # Evaluate with RAGAS

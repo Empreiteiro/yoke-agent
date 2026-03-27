@@ -6,8 +6,9 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 from sqlalchemy.orm import Session
 
-from app.services.llm_factory import get_llm, get_embeddings
+from app.services.llm_factory import get_llm, get_embeddings, _resolve_provider
 from app.services.vectorstore_factory import create_vectorstore_backend
+from app.services.token_tracker import log_llm_response, log_embedding_usage
 
 
 def chunk_documents(
@@ -35,6 +36,8 @@ async def run_rag_pipeline(
     vectorstore_config: Dict[str, Any] | None = None,
     llm_provider_id: Optional[int] = None,
     embedding_provider_id: Optional[int] = None,
+    experiment_id: Optional[int] = None,
+    combination_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """Run a RAG pipeline with the given parameters and return answers for each question.
 
@@ -63,10 +66,30 @@ async def run_rag_pipeline(
     # 2. Create embeddings via provider factory
     embeddings = get_embeddings(db, provider_id=embedding_provider_id, model=embedding_model)
 
+    # Resolve provider info for token logging
+    emb_provider = _resolve_provider(db, embedding_provider_id, capability="embedding")
+    llm_provider = _resolve_provider(db, llm_provider_id, capability="llm")
+
     # 3. Create vector store and index
     collection_name = f"exp_{chunk_size}_{chunk_overlap}_{top_k}_{search_type}"
     backend = create_vectorstore_backend(vectorstore_type, vectorstore_config)
     backend.create_collection(collection_name, chunks, embeddings)
+
+    # Log embedding token usage
+    chunk_texts = [c.page_content for c in chunks]
+    try:
+        log_embedding_usage(
+            db=db,
+            texts=chunk_texts,
+            operation="rag_pipeline",
+            provider_name=emb_provider.name,
+            model_name=embedding_model,
+            experiment_id=experiment_id,
+            combination_id=combination_id,
+            metadata={"num_chunks": len(chunks), "chunk_size": chunk_size},
+        )
+    except Exception:
+        pass  # Don't fail pipeline on logging errors
 
     # 4. Create LLM via provider factory
     llm = get_llm(db, provider_id=llm_provider_id, temperature=0)
@@ -97,6 +120,21 @@ Question: {question}
 Answer:"""
 
         response = await llm.ainvoke(prompt)
+
+        # Log LLM token usage per question
+        try:
+            log_llm_response(
+                db=db,
+                response=response,
+                operation="rag_pipeline",
+                provider_name=llm_provider.name,
+                model_name=llm_provider.default_llm_model or "unknown",
+                experiment_id=experiment_id,
+                combination_id=combination_id,
+                metadata={"question": question[:100]},
+            )
+        except Exception:
+            pass
 
         results.append({
             "question": question,
