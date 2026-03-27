@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Database, Loader2, CheckCircle, AlertCircle, List, Plus, FileText } from "lucide-react";
+import { Database, Loader2, CheckCircle, AlertCircle, List, Plus, FileText, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepDatasetProps {
@@ -102,6 +102,18 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
       setError(err.message);
       setGenerating(false);
       setProgress(null);
+    }
+  };
+
+  const handleDeleteDataset = async (datasetId: number) => {
+    try {
+      await api.deleteDataset(datasetId);
+      setExistingDatasets((prev) => prev.filter((d) => d.id !== datasetId));
+      if (selectedDatasetId === datasetId) {
+        setSelectedDatasetId(null);
+      }
+    } catch (err) {
+      console.error("Failed to delete dataset:", err);
     }
   };
 
@@ -234,12 +246,12 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                 <p className="text-sm text-t-secondary mb-2">
                   Select a previously generated dataset to reuse:
                 </p>
-                <div className="space-y-2 max-h-80 overflow-y-auto">
+                <div className="space-y-2">
                   {existingDatasets.map((ds: any) => (
-                    <button
+                    <div
                       key={ds.id}
                       onClick={() => setSelectedDatasetId(ds.id)}
-                      className={`w-full text-left px-4 py-4 rounded-xl border transition-colors ${
+                      className={`w-full text-left px-4 py-4 rounded-xl border transition-colors cursor-pointer ${
                         selectedDatasetId === ds.id
                           ? "bg-accent/5 border-accent/30"
                           : "bg-surface-50 border-surface-200/50 hover:border-surface-200"
@@ -264,17 +276,29 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                             <span>{new Date(ds.created_at).toLocaleDateString()}</span>
                           </div>
                         </div>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
-                            ds.status === "approved"
-                              ? "bg-emerald-500/10 text-emerald-400"
-                              : "bg-accent/10 text-accent"
-                          }`}
-                        >
-                          {ds.status}
-                        </span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full ${
+                              ds.status === "approved"
+                                ? "bg-emerald-500/10 text-emerald-400"
+                                : "bg-accent/10 text-accent"
+                            }`}
+                          >
+                            {ds.status}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDataset(ds.id);
+                            }}
+                            className="p-1.5 text-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                            title="Delete dataset"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
 

@@ -104,6 +104,16 @@ def get_dataset(dataset_id: int, db: Session = Depends(get_db)):
     return dataset
 
 
+@router.delete("/{dataset_id}")
+def delete_dataset(dataset_id: int, db: Session = Depends(get_db)):
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    db.delete(dataset)
+    db.commit()
+    return {"detail": "Dataset deleted", "dataset_id": dataset_id}
+
+
 @router.post("/{dataset_id}/generate")
 async def generate_dataset(
     dataset_id: int,
