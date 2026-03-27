@@ -99,4 +99,33 @@ export const api = {
   testProvider: (id: number) =>
     request<any>(`/providers/${id}/test`, { method: "POST" }),
   getAvailableModels: () => request<any>("/providers/models/available"),
+
+  // Token Usage
+  listTokenUsage: (params?: {
+    days?: number;
+    operation?: string;
+    model_type?: string;
+    model_name?: string;
+    experiment_id?: number;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.days) searchParams.set("days", params.days.toString());
+    if (params?.operation) searchParams.set("operation", params.operation);
+    if (params?.model_type) searchParams.set("model_type", params.model_type);
+    if (params?.model_name) searchParams.set("model_name", params.model_name);
+    if (params?.experiment_id) searchParams.set("experiment_id", params.experiment_id.toString());
+    if (params?.limit) searchParams.set("limit", params.limit.toString());
+    if (params?.offset) searchParams.set("offset", params.offset.toString());
+    const qs = searchParams.toString();
+    return request<any[]>(`/token-usage/${qs ? `?${qs}` : ""}`);
+  },
+  getTokenUsageSummary: (params?: { days?: number; experiment_id?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.days) searchParams.set("days", params.days.toString());
+    if (params?.experiment_id) searchParams.set("experiment_id", params.experiment_id.toString());
+    const qs = searchParams.toString();
+    return request<any>(`/token-usage/summary${qs ? `?${qs}` : ""}`);
+  },
 };

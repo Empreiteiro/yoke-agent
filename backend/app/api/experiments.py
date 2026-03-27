@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db, SessionLocal
 from app.models.experiment import Experiment, ExperimentCombination
+from app.models.dataset import Dataset
 from app.schemas.experiment import (
     ExperimentCreate,
     ExperimentResponse,
@@ -43,7 +44,15 @@ def create_experiment(data: ExperimentCreate, db: Session = Depends(get_db)):
 
 @router.get("/", response_model=list[ExperimentResponse])
 def list_experiments(db: Session = Depends(get_db)):
-    return db.query(Experiment).order_by(Experiment.created_at.desc()).all()
+    experiments = db.query(Experiment).order_by(Experiment.created_at.desc()).all()
+    # Enrich with dataset names
+    result = []
+    for exp in experiments:
+        dataset = db.query(Dataset).filter(Dataset.id == exp.dataset_id).first()
+        exp_dict = ExperimentResponse.model_validate(exp).model_dump()
+        exp_dict["dataset_name"] = dataset.name if dataset else None
+        result.append(exp_dict)
+    return result
 
 
 @router.get("/{experiment_id}", response_model=ExperimentResponse)

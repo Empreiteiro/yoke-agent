@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api import documents, datasets, experiments, vectorstores, providers
+from app.api import documents, datasets, experiments, vectorstores, providers, token_usage
 
 
 @asynccontextmanager
@@ -33,6 +33,7 @@ app.include_router(datasets.router, prefix="/api/datasets", tags=["datasets"])
 app.include_router(experiments.router, prefix="/api/experiments", tags=["experiments"])
 app.include_router(vectorstores.router, prefix="/api/vectorstores", tags=["vectorstores"])
 app.include_router(providers.router, prefix="/api/providers", tags=["providers"])
+app.include_router(token_usage.router, prefix="/api/token-usage", tags=["token-usage"])
 
 
 @app.get("/api/health")
