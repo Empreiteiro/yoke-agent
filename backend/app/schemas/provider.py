@@ -10,6 +10,7 @@ PROVIDER_CATALOG = {
         "supports_llm": True,
         "supports_embedding": True,
         "llm_models": [
+            "gpt-5.4", "gpt-5.4-mini",
             "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
             "gpt-4o", "gpt-4o-mini",
             "o3", "o3-mini", "o4-mini",
