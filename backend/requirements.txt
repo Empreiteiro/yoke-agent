@@ -11,6 +11,7 @@ langchain-community==0.3.1
 langchain-huggingface==0.1.0
 chromadb==0.5.7
 ragas==0.2.3
+nltk>=3.8.1
 datasets==3.0.1
 python-dotenv==1.0.1
 aiofiles==24.1.0
