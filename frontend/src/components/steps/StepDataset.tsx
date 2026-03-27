@@ -137,36 +137,35 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
 
   return (
     <div className="space-y-6">
-      {/* Mode toggle */}
-      <div className="flex gap-2 p-1 bg-surface-50 rounded-xl border border-surface-200/50 w-fit">
-        <button
-          onClick={() => setMode("new")}
-          className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors ${
-            mode === "new"
-              ? "bg-accent/10 text-accent border border-accent/20"
-              : "text-t-secondary hover:text-t-hover"
-          }`}
-        >
-          <Plus className="w-4 h-4" />
-          Create New
-        </button>
-        <button
-          onClick={() => setMode("existing")}
-          className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors ${
-            mode === "existing"
-              ? "bg-accent/10 text-accent border border-accent/20"
-              : "text-t-secondary hover:text-t-hover"
-          }`}
-        >
-          <List className="w-4 h-4" />
-          Use Existing
-        </button>
-      </div>
-
       {mode === "new" ? (
         /* Create new dataset */
         <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
           <div className="space-y-4">
+            {/* Mode toggle */}
+            <div className="flex gap-2 p-1 bg-surface-50 rounded-xl border border-surface-200/50 w-fit">
+              <button
+                onClick={() => setMode("new")}
+                className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors ${
+                  mode === "new"
+                    ? "bg-accent/10 text-accent border border-accent/20"
+                    : "text-t-secondary hover:text-t-hover"
+                }`}
+              >
+                <Plus className="w-4 h-4" />
+                Create New
+              </button>
+              <button
+                onClick={() => setMode("existing")}
+                className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors ${
+                  mode === "existing"
+                    ? "bg-accent/10 text-accent border border-accent/20"
+                    : "text-t-secondary hover:text-t-hover"
+                }`}
+              >
+                <List className="w-4 h-4" />
+                Use Existing
+              </button>
+            </div>
             <div>
               <label className="block text-sm font-medium text-t-hover mb-2">
                 Dataset Name <span className="text-muted font-normal">(optional)</span>
@@ -310,6 +309,32 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
         /* Use existing dataset */
         <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
           <div className="space-y-4">
+            {/* Mode toggle */}
+            <div className="flex gap-2 p-1 bg-surface-50 rounded-xl border border-surface-200/50 w-fit">
+              <button
+                onClick={() => setMode("new")}
+                className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors ${
+                  mode === "new"
+                    ? "bg-accent/10 text-accent border border-accent/20"
+                    : "text-t-secondary hover:text-t-hover"
+                }`}
+              >
+                <Plus className="w-4 h-4" />
+                Create New
+              </button>
+              <button
+                onClick={() => setMode("existing")}
+                className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors ${
+                  mode === "existing"
+                    ? "bg-accent/10 text-accent border border-accent/20"
+                    : "text-t-secondary hover:text-t-hover"
+                }`}
+              >
+                <List className="w-4 h-4" />
+                Use Existing
+              </button>
+            </div>
+
             {loadingDatasets ? (
               <div className="flex items-center justify-center py-12 text-t-secondary">
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
