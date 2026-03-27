@@ -53,6 +53,7 @@ def list_experiments(db: Session = Depends(get_db)):
         dataset = db.query(Dataset).filter(Dataset.id == exp.dataset_id).first()
         exp_dict = ExperimentResponse.model_validate(exp).model_dump()
         exp_dict["dataset_name"] = dataset.name if dataset else None
+        exp_dict["dataset_questions"] = len(dataset.items) if dataset else 0
         result.append(exp_dict)
     return result
 

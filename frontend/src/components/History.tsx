@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Trash2,
   Square,
+  Download,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import {
@@ -132,6 +133,21 @@ export default function History() {
     }
   };
 
+  const handleDownloadReport = async (exp: any) => {
+    try {
+      const report = await api.getExperimentReport(exp.id);
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${exp.name || "experiment"}-report.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to download report:", err);
+    }
+  };
+
   const handleStop = async (expId: number) => {
     setStoppingId(expId);
     try {
@@ -232,7 +248,10 @@ export default function History() {
                     <div className="flex items-center gap-4 text-xs text-t-secondary">
                       <span>{formatDate(exp.created_at)}</span>
                       {exp.dataset_name && (
-                        <span>Dataset: {exp.dataset_name}</span>
+                        <span>
+                          Dataset: {exp.dataset_name}
+                          {exp.dataset_questions > 0 && ` (${exp.dataset_questions} questions)`}
+                        </span>
                       )}
                       <span>
                         {completedCount}/{totalCount} combinations
@@ -327,10 +346,21 @@ export default function History() {
                             </button>
                           </>
                         ) : null}
+
+                        {/* Download report */}
+                        {completedCount > 0 && (
+                          <button
+                            onClick={() => handleDownloadReport(exp)}
+                            className="p-1.5 rounded-lg text-muted hover:text-accent hover:bg-accent/10 transition-colors"
+                            title="Download report"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     );
                   })()}
-                </button>}
+                </button>
 
                 {/* Expanded details */}
                 {isExpanded && (
