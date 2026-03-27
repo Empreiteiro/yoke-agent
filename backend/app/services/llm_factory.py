@@ -14,7 +14,7 @@ def get_llm(
     temperature: float = 0.0,
 ):
     """Create a LangChain LLM instance from a provider configuration."""
-    provider = _resolve_provider(db, provider_id, capability="llm")
+    provider = _resolve_provider(db, provider_id, capability="llm", model=model)
     model_name = model or provider.default_llm_model or (provider.llm_models[0] if provider.llm_models else None)
 
     if not model_name:
@@ -102,7 +102,7 @@ def get_embeddings(
     model: Optional[str] = None,
 ):
     """Create a LangChain Embeddings instance from a provider configuration."""
-    provider = _resolve_provider(db, provider_id, capability="embedding")
+    provider = _resolve_provider(db, provider_id, capability="embedding", model=model)
     model_name = model or provider.default_embedding_model or (provider.embedding_models[0] if provider.embedding_models else None)
 
     if not model_name:
@@ -163,8 +163,9 @@ def _resolve_provider(
     db: Session,
     provider_id: Optional[int],
     capability: str = "llm",
+    model: Optional[str] = None,
 ) -> Provider:
-    """Find the right provider: by ID, or fall back to the first active one."""
+    """Find the right provider: by ID, by model match, or fall back to the first active one."""
     if provider_id:
         provider = db.query(Provider).filter(
             Provider.id == provider_id,
@@ -181,10 +182,18 @@ def _resolve_provider(
     elif capability == "embedding":
         query = query.filter(Provider.supports_embedding == True)
 
-    provider = query.first()
-    if not provider:
+    providers = query.all()
+    if not providers:
         raise ValueError(
             f"No active {capability} provider configured. "
             "Please add a provider in Settings → Providers."
         )
-    return provider
+
+    # If a model name is given, prefer the provider whose model list contains it
+    if model:
+        for p in providers:
+            model_list = p.llm_models if capability == "llm" else p.embedding_models
+            if model_list and model in model_list:
+                return p
+
+    return providers[0]
