@@ -14,6 +14,7 @@ import {
   Play,
   RotateCcw,
   Trash2,
+  Square,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import {
@@ -53,6 +54,8 @@ export default function History() {
   const [loadingReport, setLoadingReport] = useState(false);
   const [resumingId, setResumingId] = useState<number | null>(null);
   const [pollingId, setPollingId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [stoppingId, setStoppingId] = useState<number | null>(null);
 
   useEffect(() => {
     loadExperiments();
@@ -124,6 +127,21 @@ export default function History() {
       }
     } catch (err) {
       console.error("Failed to delete experiment:", err);
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  };
+
+  const handleStop = async (expId: number) => {
+    setStoppingId(expId);
+    try {
+      await api.stopExperiment(expId);
+      const data = await api.getExperiment(expId);
+      setExperiments((prev) => prev.map((e) => (e.id === expId ? data : e)));
+    } catch (err) {
+      console.error("Failed to stop experiment:", err);
+    } finally {
+      setStoppingId(null);
     }
   };
 
@@ -240,65 +258,79 @@ export default function History() {
                     </div>
                   )}
 
-                  <div
-                    className="flex-shrink-0 p-2 rounded-lg text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (exp.status === "running") return;
-                      handleDelete(exp.id);
-                    }}
-                    title={exp.status === "running" ? "Stop the experiment before deleting" : "Delete experiment"}
-                  >
-                    <Trash2 className={`w-4 h-4 ${exp.status === "running" ? "opacity-30 cursor-not-allowed" : ""}`} />
-                  </div>
-                </button>
-
-                {/* Resume actions */}
-                {(() => {
-                  const stoppedCount = (exp.combinations || []).filter((c: any) => c.status === "stopped").length;
-                  const failedCount = (exp.combinations || []).filter((c: any) => c.status === "failed").length;
-                  const stuckCount = (exp.combinations || []).filter((c: any) => c.status === "running").length;
-                  const incompleteCount = stoppedCount + failedCount + stuckCount;
-                  const canResume = incompleteCount > 0 && exp.status !== "running";
-                  return canResume;
-                })() && (
-                  (() => {
-                    const stoppedCount = (exp.combinations || []).filter((c: any) => c.status === "stopped").length;
-                    const failedCount = (exp.combinations || []).filter((c: any) => c.status === "failed").length;
-                    const stuckCount = (exp.combinations || []).filter((c: any) => c.status === "running").length;
+                  {/* Action buttons */}
+                  {(() => {
+                    const combos = exp.combinations || [];
+                    const stoppedCount = combos.filter((c: any) => c.status === "stopped").length;
+                    const failedCount = combos.filter((c: any) => c.status === "failed").length;
+                    const stuckCount = combos.filter((c: any) => c.status === "running").length;
                     const resumableCount = stoppedCount + stuckCount;
+                    const incompleteCount = stoppedCount + failedCount + stuckCount;
+                    const canResume = incompleteCount > 0 && exp.status !== "running";
+                    const isRunning = exp.status === "running";
                     const isResuming = resumingId === exp.id || pollingId === exp.id;
+
                     return (
-                      <div className="flex items-center gap-2 px-5 pb-4 -mt-1">
+                      <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {/* Delete */}
+                        <button
+                          onClick={() => { if (!isRunning) setConfirmDeleteId(exp.id); }}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            isRunning
+                              ? "text-muted/30 cursor-not-allowed"
+                              : "text-muted hover:text-red-400 hover:bg-red-500/10"
+                          }`}
+                          title={isRunning ? "Stop first" : "Delete"}
+                          disabled={isRunning}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Stop (only when running) */}
+                        {isRunning && (
+                          <button
+                            onClick={() => handleStop(exp.id)}
+                            disabled={stoppingId === exp.id}
+                            className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                            title="Stop experiment"
+                          >
+                            {stoppingId === exp.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Square className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
+
+                        {/* Resume / Retry */}
                         {isResuming ? (
-                          <span className="flex items-center gap-2 text-xs text-accent">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            Running...
+                          <span className="p-1.5">
+                            <Loader2 className="w-3.5 h-3.5 text-accent animate-spin" />
                           </span>
-                        ) : (
+                        ) : canResume ? (
                           <>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleResume(exp.id, false); }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent bg-accent/10 border border-accent/20 rounded-lg hover:bg-accent/20 transition-colors"
-                            >
-                              <Play className="w-3 h-3" />
-                              {resumableCount > 0 ? `Resume (${resumableCount})` : "Resume"}
-                            </button>
                             {failedCount > 0 && (
                               <button
-                                onClick={(e) => { e.stopPropagation(); handleResume(exp.id, true); }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-400 bg-orange-500/10 border border-orange-500/20 rounded-lg hover:bg-orange-500/20 transition-colors"
+                                onClick={() => handleResume(exp.id, true)}
+                                className="p-1.5 rounded-lg text-orange-400 hover:bg-orange-500/10 transition-colors"
+                                title={`Retry failed (${failedCount})`}
                               >
-                                <RotateCcw className="w-3 h-3" />
-                                Retry Failed ({failedCount})
+                                <RotateCcw className="w-3.5 h-3.5" />
                               </button>
                             )}
+                            <button
+                              onClick={() => handleResume(exp.id, false)}
+                              className="p-1.5 rounded-lg text-accent hover:bg-accent/10 transition-colors"
+                              title={resumableCount > 0 ? `Resume (${resumableCount})` : "Resume"}
+                            >
+                              <Play className="w-3.5 h-3.5" />
+                            </button>
                           </>
-                        )}
+                        ) : null}
                       </div>
                     );
-                  })()
-                )}
+                  })()}
+                </button>}
 
                 {/* Expanded details */}
                 {isExpanded && (
@@ -320,6 +352,32 @@ export default function History() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-surface-100 border border-surface-200/50 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl">
+            <h3 className="text-primary font-semibold mb-2">Delete experiment?</h3>
+            <p className="text-sm text-t-secondary mb-5">
+              This will permanently remove the experiment and all its results. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="px-4 py-2 text-sm text-t-secondary hover:text-primary bg-surface-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(confirmDeleteId)}
+                className="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
