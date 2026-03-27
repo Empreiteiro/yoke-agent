@@ -1,5 +1,8 @@
 """RAGAS evaluation service for RAG pipeline results."""
 
+import nest_asyncio
+nest_asyncio.apply()
+
 from typing import List, Dict, Any, Optional
 
 from datasets import Dataset as HFDataset
