@@ -12,7 +12,7 @@ class RAGParams(BaseModel):
 
 
 class ExperimentCreate(BaseModel):
-    name: str
+    name: Optional[str] = None
     description: Optional[str] = None
     dataset_id: int
     vectorstore_type: str = "chromadb"

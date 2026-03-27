@@ -45,14 +45,14 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
   };
 
   const handleCreate = async () => {
-    if (!name.trim()) return;
+    // name is optional — backend generates a random name if empty
     setError(null);
     setGenerating(true);
     setProgress("Creating dataset...");
 
     try {
       const dataset = await api.createDataset({
-        name: name.trim(),
+        name: name.trim() || undefined,
         description: description.trim() || undefined,
         document_ids: documentIds,
       });
@@ -96,7 +96,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-t-hover mb-2">
-              Dataset Name
+              Dataset Name <span className="text-muted font-normal">(optional)</span>
             </label>
             <input
               type="text"
@@ -148,7 +148,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
 
           <button
             onClick={handleCreate}
-            disabled={generating || !name.trim()}
+            disabled={generating}
             className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {generating ? (

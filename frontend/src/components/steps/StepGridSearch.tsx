@@ -84,12 +84,12 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
   };
 
   const handleSubmit = async () => {
-    if (!datasetId || !experimentName.trim()) return;
+    if (!datasetId) return;
     setLoading(true);
 
     try {
       const exp = await api.createExperiment({
-        name: experimentName,
+        name: experimentName.trim() || undefined,
         dataset_id: datasetId,
         vectorstore_type: vectorStoreType,
       });
@@ -141,7 +141,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-t-hover mb-2">Experiment Name</label>
+            <label className="block text-sm font-medium text-t-hover mb-2">Experiment Name <span className="text-muted font-normal">(optional)</span></label>
             <input
               type="text"
               value={experimentName}
@@ -381,7 +381,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
           </div>
           <button
             onClick={handleSubmit}
-            disabled={loading || !experimentName.trim() || totalCombinations === 0}
+            disabled={loading || totalCombinations === 0}
             className="px-8 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
           >
             {loading ? (
