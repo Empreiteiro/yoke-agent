@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Grid3X3, Plus, X, Settings2, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Grid3X3, Plus, X, Settings2, Loader2, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepGridSearchProps {
@@ -23,12 +23,6 @@ const AVAILABLE_METRICS = [
   { id: "answer_correctness", label: "Answer Correctness", description: "Factual correctness of the generated answer" },
 ];
 
-const EMBEDDING_OPTIONS = [
-  "text-embedding-3-small",
-  "text-embedding-3-large",
-  "text-embedding-ada-002",
-];
-
 export default function StepGridSearch({ datasetId, onComplete }: StepGridSearchProps) {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [experimentName, setExperimentName] = useState("");
@@ -36,6 +30,22 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
   const [loading, setLoading] = useState(false);
   const [newChunkSize, setNewChunkSize] = useState("");
   const [newTopK, setNewTopK] = useState("");
+  const [availableEmbeddings, setAvailableEmbeddings] = useState<Array<{provider_name: string; model: string}>>([]);
+  const [noProviders, setNoProviders] = useState(false);
+
+  useEffect(() => {
+    api.getAvailableModels().then((data) => {
+      if (data.embedding_models && data.embedding_models.length > 0) {
+        setAvailableEmbeddings(data.embedding_models);
+        setNoProviders(false);
+      } else {
+        setAvailableEmbeddings([]);
+        setNoProviders(true);
+      }
+    }).catch(() => {
+      setNoProviders(true);
+    });
+  }, []);
 
   const totalCombinations =
     config.chunk_sizes.length *
@@ -222,19 +232,27 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
           {/* Embedding models */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-3">Embedding Models</label>
+            {noProviders && (
+              <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                No providers configured. Go to Settings → Providers to add one.
+              </div>
+            )}
             {renderChips("embedding_models", config.embedding_models, "secondary")}
-            <div className="flex gap-2 mt-2">
-              {EMBEDDING_OPTIONS.filter((m) => !config.embedding_models.includes(m)).map(
-                (model) => (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {availableEmbeddings
+                .filter((em) => !config.embedding_models.includes(em.model))
+                .map((em) => (
                   <button
-                    key={model}
-                    onClick={() => addToArray("embedding_models", model)}
+                    key={`${em.provider_name}-${em.model}`}
+                    onClick={() => addToArray("embedding_models", em.model)}
                     className="px-3 py-1.5 bg-surface-200 text-slate-300 text-xs rounded-lg hover:bg-surface-300 transition-colors"
+                    title={`Provider: ${em.provider_name}`}
                   >
-                    + {model}
+                    + {em.model}
+                    <span className="ml-1 text-slate-500">({em.provider_name})</span>
                   </button>
-                )
-              )}
+                ))}
             </div>
           </div>
 

@@ -8,6 +8,7 @@ import {
   Play,
   BarChart3,
   Zap,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,8 @@ interface SidebarProps {
   currentStep: string;
   completedSteps: Set<string>;
   onStepClick: (id: string) => void;
+  showSettings?: boolean;
+  onSettingsClick?: () => void;
 }
 
 export default function Sidebar({
@@ -38,6 +41,8 @@ export default function Sidebar({
   currentStep,
   completedSteps,
   onStepClick,
+  showSettings = false,
+  onSettingsClick,
 }: SidebarProps) {
   return (
     <aside className="w-72 bg-surface-50 border-r border-surface-200/50 flex flex-col">
@@ -54,9 +59,9 @@ export default function Sidebar({
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        {steps.map((step, index) => {
+        {steps.map((step) => {
           const Icon = iconMap[step.icon] || Database;
-          const isActive = currentStep === step.id;
+          const isActive = currentStep === step.id && !showSettings;
           const isCompleted = completedSteps.has(step.id);
 
           return (
@@ -94,7 +99,30 @@ export default function Sidebar({
         })}
       </nav>
 
-      <div className="p-4 border-t border-surface-200/50">
+      {/* Settings button */}
+      <div className="p-4 space-y-3 border-t border-surface-200/50">
+        <button
+          onClick={onSettingsClick}
+          className={cn(
+            "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
+            showSettings
+              ? "bg-accent/10 text-accent border border-accent/20"
+              : "text-slate-400 hover:bg-surface-100 hover:text-slate-300"
+          )}
+        >
+          <div
+            className={cn(
+              "w-8 h-8 rounded-lg flex items-center justify-center",
+              showSettings
+                ? "bg-accent/20 text-accent"
+                : "bg-surface-200 text-slate-500"
+            )}
+          >
+            <Settings className="w-4 h-4" />
+          </div>
+          <span>Providers</span>
+        </button>
+
         <div className="px-4 py-3 rounded-xl bg-surface-100 border border-surface-200/50">
           <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
             <span>Progress</span>
