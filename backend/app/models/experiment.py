@@ -10,7 +10,7 @@ class Experiment(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text)
     dataset_id = Column(Integer, ForeignKey("datasets.id"), nullable=False)
-    status = Column(String(50), default="pending")  # pending, proposing, configured, running, completed, failed
+    status = Column(String(50), default="pending")  # pending, proposing, configured, running, completed, failed, stopped
     vectorstore_type = Column(String(50), default="chromadb")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -23,7 +23,7 @@ class ExperimentCombination(Base):
     id = Column(Integer, primary_key=True, index=True)
     experiment_id = Column(Integer, ForeignKey("experiments.id"), nullable=False)
     params = Column(JSON, nullable=False)
-    status = Column(String(50), default="pending")  # pending, running, completed, failed
+    status = Column(String(50), default="pending")  # pending, running, completed, failed, stopped
     # RAGAS metrics - fixed
     faithfulness = Column(Float)
     answer_relevancy = Column(Float)

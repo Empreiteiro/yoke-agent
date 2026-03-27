@@ -123,7 +123,15 @@ async def run_experiment(
     )
 
     all_success = True
+    was_stopped = False
     for combination in pending:
+        # Check if experiment was stopped before running next combination
+        db.refresh(experiment)
+        if experiment.status == "stopped":
+            was_stopped = True
+            logger.info(f"Experiment {experiment_id} was stopped by user")
+            break
+
         await run_single_combination(
             combination=combination,
             source_documents=source_documents,
@@ -137,5 +145,6 @@ async def run_experiment(
         if combination.status == "failed":
             all_success = False
 
-    experiment.status = "completed" if all_success else "completed_with_errors"
-    db.commit()
+    if not was_stopped:
+        experiment.status = "completed" if all_success else "completed_with_errors"
+        db.commit()

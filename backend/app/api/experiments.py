@@ -157,6 +157,28 @@ async def run_experiment_endpoint(
     return {"detail": "Experiment execution started", "experiment_id": experiment_id}
 
 
+@router.post("/{experiment_id}/stop")
+def stop_experiment(experiment_id: int, db: Session = Depends(get_db)):
+    """Stop a running experiment. Marks pending combinations as stopped."""
+    exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    if exp.status != "running":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Experiment is not running. Current status: {exp.status}",
+        )
+
+    exp.status = "stopped"
+    # Mark all pending combinations as stopped
+    db.query(ExperimentCombination).filter(
+        ExperimentCombination.experiment_id == experiment_id,
+        ExperimentCombination.status == "pending",
+    ).update({"status": "stopped"})
+    db.commit()
+    return {"detail": "Experiment stopped", "experiment_id": experiment_id}
+
+
 @router.get("/{experiment_id}/report", response_model=ExperimentReport)
 def get_experiment_report(experiment_id: int, db: Session = Depends(get_db)):
     exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()

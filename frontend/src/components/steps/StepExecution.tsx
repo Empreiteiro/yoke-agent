@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Play, Loader2, CheckCircle, XCircle, Clock, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Play, Loader2, CheckCircle, XCircle, Clock, AlertCircle, ChevronDown, ChevronUp, Square, StopCircle } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepExecutionProps {
@@ -14,6 +14,8 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
   const [running, setRunning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [expandedError, setExpandedError] = useState<number | null>(null);
+  const [stopping, setStopping] = useState(false);
+  const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (experimentId) loadExperiment();
@@ -34,19 +36,34 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
   const handleRun = async () => {
     if (!experimentId) return;
     setRunning(true);
+    setStopping(false);
     try {
       await api.runExperiment(experimentId);
       const interval = setInterval(async () => {
         const data = await api.getExperiment(experimentId);
         setExperiment(data);
-        if (data.status === "completed" || data.status === "completed_with_errors" || data.status === "failed") {
+        if (data.status === "completed" || data.status === "completed_with_errors" || data.status === "failed" || data.status === "stopped") {
           clearInterval(interval);
+          setPollInterval(null);
           setRunning(false);
+          setStopping(false);
         }
       }, 3000);
+      setPollInterval(interval);
     } catch (err) {
       console.error("Failed to run experiment:", err);
       setRunning(false);
+    }
+  };
+
+  const handleStop = async () => {
+    if (!experimentId) return;
+    setStopping(true);
+    try {
+      await api.stopExperiment(experimentId);
+    } catch (err) {
+      console.error("Failed to stop experiment:", err);
+      setStopping(false);
     }
   };
 
@@ -65,6 +82,8 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
   const total = combinations.length;
   const progress = total > 0 ? ((completed + failed) / total) * 100 : 0;
   const isDone = experiment?.status === "completed" || experiment?.status === "completed_with_errors";
+  const isStopped = experiment?.status === "stopped";
+  const stopped = combinations.filter((c: any) => c.status === "stopped").length;
 
   // Get first error message for summary
   const firstError = combinations.find((c: any) => c.status === "failed");
@@ -77,20 +96,36 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
   return (
     <div className="space-y-6">
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
-        <div className="flex items-center justify-end mb-6">
-          {!isDone && (
-            <button
-              onClick={handleRun}
-              disabled={running}
-              className="px-6 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-            >
-              {running ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Play className="w-4 h-4" />
+        <div className="flex items-center justify-end gap-3 mb-6">
+          {!isDone && !isStopped && (
+            <>
+              {running && (
+                <button
+                  onClick={handleStop}
+                  disabled={stopping}
+                  className="px-6 py-3 bg-red-500/10 border border-red-500/30 text-red-400 font-medium rounded-xl hover:bg-red-500/20 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {stopping ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Square className="w-4 h-4" />
+                  )}
+                  {stopping ? "Stopping..." : "Stop"}
+                </button>
               )}
-              {running ? "Running..." : "Start Execution"}
-            </button>
+              <button
+                onClick={handleRun}
+                disabled={running}
+                className="px-6 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+              >
+                {running ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+                {running ? "Running..." : "Start Execution"}
+              </button>
+            </>
           )}
         </div>
 
@@ -118,6 +153,11 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
             <span className="flex items-center gap-1 text-t-secondary">
               <Clock className="w-3 h-3" /> {pending} pending
             </span>
+            {stopped > 0 && (
+              <span className="flex items-center gap-1 text-orange-400">
+                <StopCircle className="w-3 h-3" /> {stopped} stopped
+              </span>
+            )}
           </div>
         </div>
 
@@ -182,6 +222,8 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
                     </div>
                   ) : combo.status === "running" ? (
                     <Loader2 className="w-4 h-4 text-accent animate-spin" />
+                  ) : combo.status === "stopped" ? (
+                    <StopCircle className="w-4 h-4 text-orange-400" />
                   ) : (
                     <Clock className="w-4 h-4 text-muted" />
                   )}
@@ -200,7 +242,16 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
         </div>
       </div>
 
-      {isDone && (
+      {isStopped && completed > 0 && (
+        <div className="flex items-start gap-3 p-4 bg-orange-500/5 border border-orange-500/20 rounded-xl">
+          <StopCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-orange-400">
+            Experiment stopped. {completed} combination(s) completed before stopping.
+          </p>
+        </div>
+      )}
+
+      {(isDone || (isStopped && completed > 0)) && (
         <button
           onClick={onComplete}
           className="w-full py-3 px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 text-primary font-medium rounded-xl hover:opacity-90 transition-opacity"
