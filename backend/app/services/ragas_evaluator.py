@@ -98,15 +98,16 @@ async def evaluate_rag_results(
             executor, lambda: evaluate(**eval_kwargs)
         )
 
-    # Extract scores
+    # Extract scores — EvaluationResult supports [] access
+    result_dict = dict(result) if not isinstance(result, dict) else result
     scores = {}
     for metric_name in FIXED_METRICS:
-        scores[metric_name] = result.get(metric_name)
+        scores[metric_name] = result_dict.get(metric_name)
 
     if optional_metrics:
         for metric_name in optional_metrics:
             if metric_name in OPTIONAL_METRICS:
-                scores[metric_name] = result.get(metric_name)
+                scores[metric_name] = result_dict.get(metric_name)
 
     # Calculate overall score (average of fixed metrics)
     fixed_scores = [v for k, v in scores.items() if k in FIXED_METRICS and v is not None]
