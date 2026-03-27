@@ -25,12 +25,12 @@ export default function PipelineHeader({
       <div className="px-6 py-4 max-w-6xl mx-auto">
         <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
+            <div className="flex items-center gap-2 text-xs text-muted mb-1">
               <span>Step {currentIndex + 1} of {steps.length}</span>
               <span className="text-surface-300">|</span>
               <span className="text-accent">{step?.label}</span>
             </div>
-            <h2 className="text-xl font-semibold text-white">{step?.label}</h2>
+            <h2 className="text-xl font-semibold text-primary">{step?.label}</h2>
           </div>
           <div className="flex items-center gap-2">
             {steps.map((s, i) => (

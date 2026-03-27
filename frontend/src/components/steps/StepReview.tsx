@@ -93,7 +93,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-slate-400">
+      <div className="flex items-center justify-center py-20 text-t-secondary">
         Loading dataset...
       </div>
     );
@@ -104,15 +104,15 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-lg font-semibold text-white">
+            <h3 className="text-lg font-semibold text-primary">
               Review Evaluation Dataset
             </h3>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-t-secondary">
               Review, edit, add, or remove Q&A pairs. Import additional items from a JSON file.
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <label className="px-4 py-2 bg-surface-200 text-slate-300 text-sm font-medium rounded-xl hover:bg-surface-300 transition-colors cursor-pointer flex items-center gap-2">
+            <label className="px-4 py-2 bg-surface-200 text-t-hover text-sm font-medium rounded-xl hover:bg-surface-300 transition-colors cursor-pointer flex items-center gap-2">
               <Upload className="w-4 h-4" />
               Import JSON
               <input type="file" accept=".json" onChange={handleImport} className="hidden" />
@@ -130,32 +130,32 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
         {/* Add form */}
         {showAddForm && (
           <div className="mb-6 p-4 bg-surface-50 rounded-xl border border-accent/20">
-            <h4 className="text-sm font-medium text-white mb-3">Add New Q&A Pair</h4>
+            <h4 className="text-sm font-medium text-primary mb-3">Add New Q&A Pair</h4>
             <div className="space-y-3">
               <input
                 type="text"
                 value={newItem.question}
                 onChange={(e) => setNewItem((prev) => ({ ...prev, question: e.target.value }))}
                 placeholder="Question"
-                className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:border-accent/50"
+                className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50"
               />
               <textarea
                 value={newItem.ground_truth}
                 onChange={(e) => setNewItem((prev) => ({ ...prev, ground_truth: e.target.value }))}
                 placeholder="Expected answer (ground truth)"
                 rows={2}
-                className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:border-accent/50 resize-none"
+                className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50 resize-none"
               />
               <div className="flex gap-2">
                 <button
                   onClick={handleAddItem}
-                  className="px-4 py-2 bg-accent text-white text-sm rounded-lg hover:bg-accent-dark"
+                  className="px-4 py-2 bg-accent text-primary text-sm rounded-lg hover:bg-accent-dark"
                 >
                   Add
                 </button>
                 <button
                   onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 bg-surface-200 text-slate-300 text-sm rounded-lg hover:bg-surface-300"
+                  className="px-4 py-2 bg-surface-200 text-t-hover text-sm rounded-lg hover:bg-surface-300"
                 >
                   Cancel
                 </button>
@@ -177,13 +177,13 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
                     type="text"
                     value={editData.question}
                     onChange={(e) => setEditData((prev) => ({ ...prev, question: e.target.value }))}
-                    className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-white text-sm focus:outline-none focus:border-accent/50"
+                    className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
                   />
                   <textarea
                     value={editData.ground_truth}
                     onChange={(e) => setEditData((prev) => ({ ...prev, ground_truth: e.target.value }))}
                     rows={2}
-                    className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-white text-sm focus:outline-none focus:border-accent/50 resize-none"
+                    className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50 resize-none"
                   />
                   <div className="flex gap-2">
                     <button
@@ -194,7 +194,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
                     </button>
                     <button
                       onClick={() => setEditingId(null)}
-                      className="p-1.5 bg-surface-200 text-slate-400 rounded-lg hover:bg-surface-300"
+                      className="p-1.5 bg-surface-200 text-t-secondary rounded-lg hover:bg-surface-300"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -205,28 +205,28 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-mono text-slate-500">Q{index + 1}</span>
+                        <span className="text-xs font-mono text-muted">Q{index + 1}</span>
                         {item.is_manual === 1 && (
                           <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full">
                             manual
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-white mb-2">{item.question}</p>
-                      <p className="text-sm text-slate-400">{item.ground_truth}</p>
+                      <p className="text-sm text-primary mb-2">{item.question}</p>
+                      <p className="text-sm text-t-secondary">{item.ground_truth}</p>
                     </div>
                     <div className="flex items-center gap-1 ml-4">
                       <button
                         onClick={() => startEdit(item)}
                         className="p-1.5 hover:bg-surface-200 rounded-lg transition-colors"
                       >
-                        <Edit3 className="w-3.5 h-3.5 text-slate-400" />
+                        <Edit3 className="w-3.5 h-3.5 text-t-secondary" />
                       </button>
                       <button
                         onClick={() => handleDeleteItem(item.id)}
                         className="p-1.5 hover:bg-red-500/10 rounded-lg transition-colors"
                       >
-                        <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-red-400" />
+                        <Trash2 className="w-3.5 h-3.5 text-t-secondary hover:text-red-400" />
                       </button>
                     </div>
                   </div>
@@ -237,7 +237,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
         </div>
 
         {(!dataset?.items || dataset.items.length === 0) && (
-          <div className="text-center py-12 text-slate-500">
+          <div className="text-center py-12 text-muted">
             No items in dataset yet. Generate or add items manually.
           </div>
         )}
@@ -246,7 +246,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
       {dataset?.items?.length > 0 && (
         <button
           onClick={handleApprove}
-          className="w-full py-3 px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-medium rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+          className="w-full py-3 px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 text-primary font-medium rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
         >
           <CheckCircle className="w-4 h-4" />
           Approve Dataset & Continue

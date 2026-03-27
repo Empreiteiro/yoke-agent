@@ -46,8 +46,8 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
             <Sparkles className="w-5 h-5 text-accent" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-white">Generate Evaluation Dataset</h3>
-            <p className="text-sm text-slate-400">
+            <h3 className="text-lg font-semibold text-primary">Generate Evaluation Dataset</h3>
+            <p className="text-sm text-t-secondary">
               An LLM will analyze your documents and generate question-answer pairs for evaluation.
             </p>
           </div>
@@ -55,7 +55,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-t-hover mb-2">
               Dataset Name
             </label>
             <input
@@ -63,12 +63,12 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Product Documentation QA"
-              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25"
+              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary placeholder-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-t-hover mb-2">
               Description (optional)
             </label>
             <textarea
@@ -76,13 +76,13 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the purpose of this evaluation dataset..."
               rows={3}
-              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 resize-none"
+              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary placeholder-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 resize-none"
             />
           </div>
 
           <div className="bg-surface-50 rounded-xl p-4 border border-surface-200/50">
-            <p className="text-sm text-slate-400">
-              <span className="text-white font-medium">{documentIds.length}</span> document(s) selected for analysis
+            <p className="text-sm text-t-secondary">
+              <span className="text-primary font-medium">{documentIds.length}</span> document(s) selected for analysis
             </p>
           </div>
 
@@ -93,7 +93,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
           <button
             onClick={handleCreate}
             disabled={generating || !name.trim()}
-            className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-white font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {generating ? (
               <>
