@@ -211,17 +211,17 @@ async def resume_experiment(
     exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
-    if exp.status not in ("stopped", "failed", "completed_with_errors"):
+    if exp.status not in ("stopped", "failed", "completed", "completed_with_errors"):
         raise HTTPException(
             status_code=400,
             detail=f"Experiment cannot be resumed. Current status: {exp.status}",
         )
 
-    # Reset stopped combinations back to pending
+    # Reset stopped and stuck (running) combinations back to pending
     db.query(ExperimentCombination).filter(
         ExperimentCombination.experiment_id == experiment_id,
-        ExperimentCombination.status == "stopped",
-    ).update({"status": "pending"})
+        ExperimentCombination.status.in_(["stopped", "running"]),
+    ).update({"status": "pending"}, synchronize_session="fetch")
 
     # Optionally retry failed combinations
     if retry_failed:

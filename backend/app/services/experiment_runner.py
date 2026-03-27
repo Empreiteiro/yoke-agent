@@ -147,5 +147,20 @@ async def run_experiment(
             all_success = False
 
     if not was_stopped:
+        # Check for stuck combinations (still "running" after loop finished)
+        stuck = (
+            db.query(ExperimentCombination)
+            .filter(
+                ExperimentCombination.experiment_id == experiment_id,
+                ExperimentCombination.status == "running",
+            )
+            .all()
+        )
+        for combo in stuck:
+            combo.status = "failed"
+            combo.error_message = "Combination timed out or got stuck during execution"
+            combo.completed_at = datetime.utcnow()
+            all_success = False
+
         experiment.status = "completed" if all_success else "completed_with_errors"
         db.commit()

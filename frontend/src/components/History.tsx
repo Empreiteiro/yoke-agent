@@ -228,10 +228,19 @@ export default function History() {
                 </button>
 
                 {/* Resume actions */}
-                {["stopped", "failed", "completed_with_errors"].includes(exp.status) && (
+                {(() => {
+                  const stoppedCount = (exp.combinations || []).filter((c: any) => c.status === "stopped").length;
+                  const failedCount = (exp.combinations || []).filter((c: any) => c.status === "failed").length;
+                  const stuckCount = (exp.combinations || []).filter((c: any) => c.status === "running").length;
+                  const incompleteCount = stoppedCount + failedCount + stuckCount;
+                  const canResume = incompleteCount > 0 && exp.status !== "running";
+                  return canResume;
+                })() && (
                   (() => {
                     const stoppedCount = (exp.combinations || []).filter((c: any) => c.status === "stopped").length;
                     const failedCount = (exp.combinations || []).filter((c: any) => c.status === "failed").length;
+                    const stuckCount = (exp.combinations || []).filter((c: any) => c.status === "running").length;
+                    const resumableCount = stoppedCount + stuckCount;
                     const isResuming = resumingId === exp.id || pollingId === exp.id;
                     return (
                       <div className="flex items-center gap-2 px-5 pb-4 -mt-1">
@@ -247,7 +256,7 @@ export default function History() {
                               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent bg-accent/10 border border-accent/20 rounded-lg hover:bg-accent/20 transition-colors"
                             >
                               <Play className="w-3 h-3" />
-                              {stoppedCount > 0 ? `Resume (${stoppedCount})` : "Resume"}
+                              {resumableCount > 0 ? `Resume (${resumableCount})` : "Resume"}
                             </button>
                             {failedCount > 0 && (
                               <button
