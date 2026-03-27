@@ -1,6 +1,7 @@
 """Dataset management API routes with LLM generation and HITL support."""
 
 import asyncio
+import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
 import json
@@ -16,6 +17,8 @@ from app.schemas.dataset import (
 )
 from app.services.document_loader import load_documents
 from app.services.dataset_generator import generate_qa_pairs
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -40,7 +43,8 @@ async def _generate_dataset_task(dataset_id: int):
         documents = load_documents(filepaths)
 
         if not documents:
-            dataset.status = "draft"
+            dataset.status = "error"
+            dataset.error_message = "No documents found to generate dataset from."
             db.commit()
             return
 
@@ -58,11 +62,14 @@ async def _generate_dataset_task(dataset_id: int):
             db.add(item)
 
         dataset.status = "generated"
+        dataset.error_message = None
         db.commit()
-    except Exception:
+    except Exception as e:
+        logger.error(f"Dataset generation failed for dataset {dataset_id}: {e}")
         dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
         if dataset:
-            dataset.status = "draft"
+            dataset.status = "error"
+            dataset.error_message = str(e)
             db.commit()
     finally:
         db.close()

@@ -110,7 +110,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-surface-50">
       <Sidebar
         steps={STEPS}
         currentStep={currentStep}
@@ -135,29 +135,31 @@ export default function Home() {
           setShowHistory(false);
         }}
       />
-      <main className="flex-1 overflow-y-auto">
-        {showSettings ? (
-          <div className="p-6 max-w-6xl mx-auto">
-            <SettingsProviders onBack={() => setShowSettings(false)} />
-          </div>
-        ) : showHistory ? (
-          <div className="p-6 max-w-6xl mx-auto">
-            <History onBack={() => setShowHistory(false)} />
-          </div>
-        ) : showLogs ? (
-          <div className="p-6 max-w-6xl mx-auto">
-            <Logs onBack={() => setShowLogs(false)} />
-          </div>
-        ) : (
-          <>
-            <PipelineHeader
-              steps={STEPS}
-              currentStep={currentStep}
-              completedSteps={completedSteps}
-            />
-            <div className="p-6 max-w-6xl mx-auto">{renderStep()}</div>
-          </>
-        )}
+      <main className="flex-1 overflow-y-auto p-3 pl-0">
+        <div className="h-full bg-surface-100 rounded-2xl border border-surface-200/30 overflow-y-auto">
+          {showSettings ? (
+            <div className="p-6 max-w-6xl mx-auto">
+              <SettingsProviders onBack={() => setShowSettings(false)} />
+            </div>
+          ) : showHistory ? (
+            <div className="p-6 max-w-6xl mx-auto">
+              <History onBack={() => setShowHistory(false)} />
+            </div>
+          ) : showLogs ? (
+            <div className="p-6 max-w-6xl mx-auto">
+              <Logs onBack={() => setShowLogs(false)} />
+            </div>
+          ) : (
+            <>
+              <PipelineHeader
+                steps={STEPS}
+                currentStep={currentStep}
+                completedSteps={completedSteps}
+              />
+              <div className="p-6 max-w-6xl mx-auto">{renderStep()}</div>
+            </>
+          )}
+        </div>
       </main>
     </div>
   );

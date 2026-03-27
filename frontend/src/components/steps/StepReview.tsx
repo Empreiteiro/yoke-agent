@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { CheckCircle, Plus, Upload, Trash2, Edit3, Save, X, Loader2 } from "lucide-react";
+import { CheckCircle, Plus, Upload, Trash2, Edit3, Save, X, Loader2, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepReviewProps {
@@ -119,6 +119,9 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
     );
   }
 
+  const itemCount = dataset?.items?.length ?? 0;
+  const hasError = dataset?.status === "error";
+
   return (
     <div className="space-y-6">
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
@@ -146,6 +149,20 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
             </button>
           </div>
         </div>
+
+        {/* Error message from generation */}
+        {hasError && dataset?.error_message && (
+          <div className="mb-4 flex items-start gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
+            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-red-400 font-medium">Dataset generation failed</p>
+              <p className="text-sm text-red-400/80 mt-1">{dataset.error_message}</p>
+              <p className="text-sm text-slate-400 mt-2">
+                You can add items manually or import a JSON file to continue.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Add form */}
         {showAddForm && (
@@ -266,20 +283,24 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
           ))}
         </div>
 
-        {(!dataset?.items || dataset.items.length === 0) && (
+        {(!dataset?.items || dataset.items.length === 0) && !isGenerating && !hasError && (
           <div className="text-center py-12 text-muted">
-            No items in dataset yet. Generate or add items manually.
+            No items in dataset yet. Add items manually or import a JSON file.
           </div>
         )}
       </div>
 
-      {dataset?.items?.length > 0 && (
+      {/* Always show the approve button when not generating */}
+      {!isGenerating && (
         <button
           onClick={handleApprove}
-          className="w-full py-3 px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 text-primary font-medium rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+          disabled={itemCount === 0}
+          className="w-full py-3 px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           <CheckCircle className="w-4 h-4" />
-          Approve Dataset & Continue
+          {itemCount > 0
+            ? `Approve Dataset (${itemCount} items) & Continue`
+            : "Add items to continue"}
         </button>
       )}
     </div>

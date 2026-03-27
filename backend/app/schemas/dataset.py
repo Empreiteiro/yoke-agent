@@ -40,6 +40,7 @@ class DatasetResponse(BaseModel):
     name: str
     description: Optional[str] = None
     status: str
+    error_message: Optional[str] = None
     document_ids: Optional[list[int]] = None
     items: list[DatasetItemResponse] = []
     created_at: datetime
