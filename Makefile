@@ -1,6 +1,6 @@
 .PHONY: help install install-backend install-frontend dev dev-backend dev-frontend \
        build start stop clean lint lint-backend lint-frontend test test-backend \
-       db-reset docker-up docker-down setup
+       db-reset docker-up docker-down setup check-deps
 
 # --- Configuration ---
 BACKEND_DIR   = backend
@@ -60,9 +60,22 @@ install-frontend: ## Install frontend Node.js dependencies
 	@echo "$(CYAN)Installing frontend dependencies...$(RESET)"
 	cd $(FRONTEND_DIR) && $(NPM) install
 
+# --- Dependency Check ---
+
+check-deps: ## Verify all backend dependencies are installed
+	@echo "$(CYAN)Checking backend dependencies...$(RESET)"
+	@if [ ! -d $(VENV_DIR) ]; then \
+		echo "$(YELLOW)No virtual environment found. Run 'make setup' first.$(RESET)"; \
+		exit 1; \
+	fi
+	@$(VENV_PIP) install --quiet --dry-run -r $(BACKEND_DIR)/requirements.txt 2>/dev/null || \
+		( echo "$(YELLOW)Missing dependencies detected. Installing...$(RESET)" && \
+		  $(VENV_PIP) install -r $(BACKEND_DIR)/requirements.txt )
+	@echo "$(GREEN)All dependencies OK.$(RESET)"
+
 # --- Development ---
 
-dev: ## Start both backend and frontend in development mode
+dev: check-deps ## Start both backend and frontend in development mode
 	@if [ ! -d $(VENV_DIR) ]; then \
 		echo "$(YELLOW)No virtual environment found. Running 'make setup' first...$(RESET)"; \
 		$(MAKE) setup; \
