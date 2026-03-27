@@ -30,7 +30,7 @@ class DatasetItemUpdate(BaseModel):
 
 
 class DatasetCreate(BaseModel):
-    name: str
+    name: Optional[str] = None
     description: Optional[str] = None
     document_ids: list[int]
 

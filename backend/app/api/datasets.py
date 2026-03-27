@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
 import json
@@ -79,7 +80,7 @@ async def _generate_dataset_task(dataset_id: int):
 @router.post("/", response_model=DatasetResponse)
 def create_dataset(data: DatasetCreate, db: Session = Depends(get_db)):
     dataset = Dataset(
-        name=data.name,
+        name=data.name or f"dataset-{uuid.uuid4().hex[:8]}",
         description=data.description,
         document_ids=data.document_ids,
         status="draft",

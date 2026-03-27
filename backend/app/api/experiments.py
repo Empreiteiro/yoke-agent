@@ -2,6 +2,7 @@
 
 import asyncio
 import itertools
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
@@ -31,7 +32,7 @@ def _run_experiment_sync(experiment_id: int):
 @router.post("/", response_model=ExperimentResponse)
 def create_experiment(data: ExperimentCreate, db: Session = Depends(get_db)):
     experiment = Experiment(
-        name=data.name,
+        name=data.name or f"experiment-{uuid.uuid4().hex[:8]}",
         description=data.description,
         dataset_id=data.dataset_id,
         vectorstore_type=data.vectorstore_type,
