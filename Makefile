@@ -6,15 +6,18 @@
 BACKEND_DIR   = backend
 FRONTEND_DIR  = frontend
 PYTHON        = python3
-PIP           = pip
 NPM           = npm
 UVICORN_PORT  = 8000
 FRONTEND_PORT = 3000
 VENV_DIR      = $(BACKEND_DIR)/.venv
+VENV_PIP      = $(VENV_DIR)/bin/pip
+VENV_PYTHON   = $(VENV_DIR)/bin/python
+VENV_UVICORN  = $(VENV_DIR)/bin/uvicorn
 
 # Colors
 CYAN  = \033[36m
 GREEN = \033[32m
+YELLOW = \033[33m
 RESET = \033[0m
 
 help: ## Show this help message
@@ -28,24 +31,30 @@ help: ## Show this help message
 
 # --- Setup & Install ---
 
-setup: ## First-time setup: create venv, install all dependencies, copy .env
+setup: ## First-time setup: create venv, install all deps, copy .env
 	@echo "$(CYAN)Setting up project...$(RESET)"
 	$(PYTHON) -m venv $(VENV_DIR)
-	$(VENV_DIR)/bin/pip install --upgrade pip
-	$(VENV_DIR)/bin/pip install -r $(BACKEND_DIR)/requirements.txt
+	$(VENV_PIP) install --upgrade pip
+	$(VENV_PIP) install -r $(BACKEND_DIR)/requirements.txt
 	cd $(FRONTEND_DIR) && $(NPM) install
 	@if [ ! -f $(BACKEND_DIR)/.env ]; then \
 		cp $(BACKEND_DIR)/.env.example $(BACKEND_DIR)/.env; \
 		echo "$(GREEN)Created $(BACKEND_DIR)/.env from .env.example$(RESET)"; \
-		echo "$(CYAN)>>> Edit $(BACKEND_DIR)/.env and add your OPENAI_API_KEY$(RESET)"; \
+		echo "$(YELLOW)>>> Edit $(BACKEND_DIR)/.env and add your OPENAI_API_KEY$(RESET)"; \
 	fi
-	@echo "$(GREEN)Setup complete!$(RESET)"
+	@echo ""
+	@echo "$(GREEN)Setup complete! Run 'make dev' to start developing.$(RESET)"
 
 install: install-backend install-frontend ## Install all dependencies
 
-install-backend: ## Install backend Python dependencies
+install-backend: ## Install backend Python dependencies (uses venv)
 	@echo "$(CYAN)Installing backend dependencies...$(RESET)"
-	cd $(BACKEND_DIR) && $(PIP) install -r requirements.txt
+	@if [ ! -d $(VENV_DIR) ]; then \
+		echo "$(YELLOW)Virtual environment not found. Creating...$(RESET)"; \
+		$(PYTHON) -m venv $(VENV_DIR); \
+	fi
+	$(VENV_PIP) install --upgrade pip
+	$(VENV_PIP) install -r $(BACKEND_DIR)/requirements.txt
 
 install-frontend: ## Install frontend Node.js dependencies
 	@echo "$(CYAN)Installing frontend dependencies...$(RESET)"
@@ -54,14 +63,19 @@ install-frontend: ## Install frontend Node.js dependencies
 # --- Development ---
 
 dev: ## Start both backend and frontend in development mode
+	@if [ ! -d $(VENV_DIR) ]; then \
+		echo "$(YELLOW)No virtual environment found. Running 'make setup' first...$(RESET)"; \
+		$(MAKE) setup; \
+	fi
+	@echo ""
 	@echo "$(CYAN)Starting development servers...$(RESET)"
-	@echo "  Backend  → http://localhost:$(UVICORN_PORT)"
-	@echo "  Frontend → http://localhost:$(FRONTEND_PORT)"
+	@echo "  Backend  -> http://localhost:$(UVICORN_PORT)"
+	@echo "  Frontend -> http://localhost:$(FRONTEND_PORT)"
 	@echo ""
 	@$(MAKE) dev-backend & $(MAKE) dev-frontend & wait
 
 dev-backend: ## Start backend dev server with hot reload
-	cd $(BACKEND_DIR) && uvicorn app.main:app --reload --port $(UVICORN_PORT)
+	cd $(BACKEND_DIR) && ../$(VENV_UVICORN) app.main:app --reload --port $(UVICORN_PORT)
 
 dev-frontend: ## Start frontend dev server
 	cd $(FRONTEND_DIR) && $(NPM) run dev
@@ -77,7 +91,7 @@ start: ## Start both servers in production mode
 	@$(MAKE) start-backend & $(MAKE) start-frontend & wait
 
 start-backend: ## Start backend in production mode
-	cd $(BACKEND_DIR) && uvicorn app.main:app --host 0.0.0.0 --port $(UVICORN_PORT) --workers 4
+	cd $(BACKEND_DIR) && ../$(VENV_UVICORN) app.main:app --host 0.0.0.0 --port $(UVICORN_PORT) --workers 4
 
 start-frontend: ## Start frontend in production mode
 	cd $(FRONTEND_DIR) && $(NPM) run start
@@ -88,7 +102,7 @@ lint: lint-backend lint-frontend ## Run all linters
 
 lint-backend: ## Lint backend Python code
 	@echo "$(CYAN)Linting backend...$(RESET)"
-	cd $(BACKEND_DIR) && $(PYTHON) -m ruff check . || true
+	cd $(BACKEND_DIR) && ../$(VENV_PYTHON) -m ruff check . || true
 
 lint-frontend: ## Lint frontend TypeScript code
 	@echo "$(CYAN)Linting frontend...$(RESET)"
@@ -98,7 +112,7 @@ test: test-backend ## Run all tests
 
 test-backend: ## Run backend tests
 	@echo "$(CYAN)Running backend tests...$(RESET)"
-	cd $(BACKEND_DIR) && $(PYTHON) -m pytest -v || true
+	cd $(BACKEND_DIR) && ../$(VENV_PYTHON) -m pytest -v || true
 
 # --- Database ---
 
