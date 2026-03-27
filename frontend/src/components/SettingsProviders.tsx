@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
+  Pencil,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -263,11 +264,13 @@ export default function SettingsProviders({ onBack }: { onBack: () => void }) {
                   >
                     {provider.is_active ? "Active" : "Inactive"}
                   </button>
-                  {/* Expand */}
+                  {/* Edit / Expand */}
                   <button
                     onClick={() => setExpandedId(expandedId === provider.id ? null : provider.id)}
-                    className="p-2 hover:bg-surface-200 rounded-lg transition-colors"
+                    className="flex items-center gap-1 px-2.5 py-1.5 hover:bg-surface-200 rounded-lg transition-colors"
+                    title={expandedId === provider.id ? "Collapse" : "Edit provider"}
                   >
+                    <Pencil className="w-3.5 h-3.5 text-slate-400" />
                     {expandedId === provider.id ? (
                       <ChevronUp className="w-4 h-4 text-slate-400" />
                     ) : (
@@ -601,7 +604,7 @@ function AddProviderForm({
   );
 }
 
-/* ==================== Provider Details (expanded) ==================== */
+/* ==================== Provider Details (expanded — full inline edit) ==================== */
 
 function ProviderDetails({
   provider,
@@ -612,112 +615,249 @@ function ProviderDetails({
   catalog?: CatalogEntry;
   onUpdate: (p: Provider) => void;
 }) {
+  const [name, setName] = useState(provider.name);
   const [apiKey, setApiKey] = useState("");
+  const [baseUrl, setBaseUrl] = useState(provider.base_url || "");
   const [showKey, setShowKey] = useState(false);
+  const [llmModels, setLlmModels] = useState<string[]>(provider.llm_models);
+  const [embModels, setEmbModels] = useState<string[]>(provider.embedding_models);
+  const [defaultLlm, setDefaultLlm] = useState(provider.default_llm_model || "");
+  const [defaultEmb, setDefaultEmb] = useState(provider.default_embedding_model || "");
+  const [customLlm, setCustomLlm] = useState("");
+  const [customEmb, setCustomEmb] = useState("");
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleUpdateKey = async () => {
-    if (!apiKey) return;
+  const markDirty = () => setDirty(true);
+
+  const toggleModel = (model: string, list: string[], setter: (v: string[]) => void) => {
+    setter(list.includes(model) ? list.filter((m) => m !== model) : [...list, model]);
+    markDirty();
+  };
+
+  const addModel = (value: string, list: string[], setter: (v: string[]) => void, clearFn: (v: string) => void) => {
+    if (value.trim() && !list.includes(value.trim())) {
+      setter([...list, value.trim()]);
+      clearFn("");
+      markDirty();
+    }
+  };
+
+  const removeModel = (model: string, list: string[], setter: (v: string[]) => void) => {
+    setter(list.filter((m) => m !== model));
+    markDirty();
+  };
+
+  const handleSave = async () => {
     setSaving(true);
+    setError(null);
     try {
-      const updated = await api.updateProvider(provider.id, { api_key: apiKey });
+      const payload: any = {
+        name,
+        base_url: baseUrl || undefined,
+        llm_models: llmModels,
+        embedding_models: embModels,
+        default_llm_model: defaultLlm || (llmModels[0] ?? undefined),
+        default_embedding_model: defaultEmb || (embModels[0] ?? undefined),
+      };
+      if (apiKey) payload.api_key = apiKey;
+      const updated = await api.updateProvider(provider.id, payload);
       onUpdate(updated);
       setApiKey("");
+      setDirty(false);
+    } catch (e: any) {
+      setError(e.message);
     } finally {
       setSaving(false);
     }
   };
 
+  const catalogModels = catalog?.llm_models || [];
+  const catalogEmbModels = catalog?.embedding_models || [];
+
   return (
-    <div className="px-6 pb-5 pt-2 border-t border-surface-200/50 space-y-4">
-      {/* Models summary */}
-      <div className="grid grid-cols-2 gap-4">
-        {provider.supports_llm && (
-          <div>
-            <p className="text-xs font-medium text-slate-400 mb-1.5">LLM Models</p>
-            <div className="flex flex-wrap gap-1.5">
-              {provider.llm_models.map((m) => (
-                <span
-                  key={m}
-                  className={`px-2 py-0.5 rounded text-xs ${
-                    m === provider.default_llm_model
-                      ? "bg-cyan-500/20 text-cyan-300"
-                      : "bg-surface-200 text-slate-400"
-                  }`}
-                >
-                  {m}
-                  {m === provider.default_llm_model && " ★"}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-        {provider.supports_embedding && (
-          <div>
-            <p className="text-xs font-medium text-slate-400 mb-1.5">Embedding Models</p>
-            <div className="flex flex-wrap gap-1.5">
-              {provider.embedding_models.map((m) => (
-                <span
-                  key={m}
-                  className={`px-2 py-0.5 rounded text-xs ${
-                    m === provider.default_embedding_model
-                      ? "bg-emerald-500/20 text-emerald-300"
-                      : "bg-surface-200 text-slate-400"
-                  }`}
-                >
-                  {m}
-                  {m === provider.default_embedding_model && " ★"}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+    <div className="px-6 pb-5 pt-3 border-t border-surface-200/50 space-y-5">
+      {/* Display Name */}
+      <div>
+        <label className="block text-xs font-medium text-slate-400 mb-1">Display Name</label>
+        <input
+          value={name}
+          onChange={(e) => { setName(e.target.value); markDirty(); }}
+          className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-sm focus:outline-none focus:border-accent"
+        />
       </div>
 
-      {/* Update API Key */}
+      {/* API Key */}
       {catalog?.requires_api_key && (
         <div>
-          <p className="text-xs font-medium text-slate-400 mb-1.5">
-            Update API Key {provider.has_api_key && <span className="text-emerald-400">(currently set)</span>}
-          </p>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input
-                type={showKey ? "text" : "password"}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter new API key..."
-                className="w-full px-3 py-2 pr-8 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-xs focus:outline-none focus:border-accent"
-              />
-              <button
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2"
-              >
-                {showKey ? (
-                  <EyeOff className="w-3.5 h-3.5 text-slate-500" />
-                ) : (
-                  <Eye className="w-3.5 h-3.5 text-slate-500" />
-                )}
-              </button>
-            </div>
+          <label className="block text-xs font-medium text-slate-400 mb-1">
+            API Key {provider.has_api_key && <span className="text-emerald-400">(currently set)</span>}
+          </label>
+          <div className="relative">
+            <input
+              type={showKey ? "text" : "password"}
+              value={apiKey}
+              onChange={(e) => { setApiKey(e.target.value); markDirty(); }}
+              placeholder="Enter new API key to update..."
+              className="w-full px-3 py-2 pr-8 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-sm focus:outline-none focus:border-accent"
+            />
             <button
-              onClick={handleUpdateKey}
-              disabled={!apiKey || saving}
-              className="px-4 py-2 bg-accent text-white rounded-lg text-xs hover:bg-accent/90 disabled:opacity-50"
+              onClick={() => setShowKey(!showKey)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2"
             >
-              {saving ? "..." : "Update"}
+              {showKey ? <EyeOff className="w-3.5 h-3.5 text-slate-500" /> : <Eye className="w-3.5 h-3.5 text-slate-500" />}
             </button>
           </div>
         </div>
       )}
 
       {/* Base URL */}
-      {provider.base_url && (
+      {catalog?.supports_base_url && (
         <div>
-          <p className="text-xs font-medium text-slate-400 mb-1">Base URL</p>
-          <code className="text-xs text-slate-300 bg-surface-50 px-2 py-1 rounded">
-            {provider.base_url}
-          </code>
+          <label className="block text-xs font-medium text-slate-400 mb-1">Base URL</label>
+          <input
+            value={baseUrl}
+            onChange={(e) => { setBaseUrl(e.target.value); markDirty(); }}
+            placeholder={catalog.default_base_url || "https://..."}
+            className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-sm focus:outline-none focus:border-accent"
+          />
+        </div>
+      )}
+
+      {/* LLM Models */}
+      {provider.supports_llm && (
+        <div>
+          <label className="block text-xs font-medium text-slate-400 mb-2">
+            <Brain className="w-3.5 h-3.5 inline mr-1 text-cyan-400" />
+            LLM Models
+            {defaultLlm && <span className="text-slate-500 ml-2">(default: {defaultLlm})</span>}
+          </label>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {llmModels.map((m) => (
+              <span
+                key={m}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all ${
+                  m === defaultLlm
+                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                    : "bg-surface-200 text-slate-300 border border-surface-200"
+                }`}
+                onClick={() => { setDefaultLlm(m); markDirty(); }}
+                title="Click to set as default"
+              >
+                {m === defaultLlm && "★ "}{m}
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeModel(m, llmModels, setLlmModels); }}
+                  className="hover:text-red-400 ml-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+          {/* Add from catalog */}
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {catalogModels.filter((m) => !llmModels.includes(m)).map((m) => (
+              <button
+                key={m}
+                onClick={() => toggleModel(m, llmModels, setLlmModels)}
+                className="px-2.5 py-1 bg-surface-50 text-slate-500 text-xs rounded-lg border border-dashed border-surface-300 hover:border-cyan-500/30 hover:text-cyan-400 transition-all"
+              >
+                + {m}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={customLlm}
+              onChange={(e) => setCustomLlm(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addModel(customLlm, llmModels, setLlmModels, setCustomLlm)}
+              placeholder="Add custom model..."
+              className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-xs focus:outline-none focus:border-accent"
+            />
+            <button
+              onClick={() => addModel(customLlm, llmModels, setLlmModels, setCustomLlm)}
+              className="px-3 py-1.5 bg-surface-200 text-slate-300 rounded-lg text-xs hover:bg-surface-300"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Embedding Models */}
+      {provider.supports_embedding && (
+        <div>
+          <label className="block text-xs font-medium text-slate-400 mb-2">
+            <Box className="w-3.5 h-3.5 inline mr-1 text-emerald-400" />
+            Embedding Models
+            {defaultEmb && <span className="text-slate-500 ml-2">(default: {defaultEmb})</span>}
+          </label>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {embModels.map((m) => (
+              <span
+                key={m}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all ${
+                  m === defaultEmb
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                    : "bg-surface-200 text-slate-300 border border-surface-200"
+                }`}
+                onClick={() => { setDefaultEmb(m); markDirty(); }}
+                title="Click to set as default"
+              >
+                {m === defaultEmb && "★ "}{m}
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeModel(m, embModels, setEmbModels); }}
+                  className="hover:text-red-400 ml-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {catalogEmbModels.filter((m) => !embModels.includes(m)).map((m) => (
+              <button
+                key={m}
+                onClick={() => toggleModel(m, embModels, setEmbModels)}
+                className="px-2.5 py-1 bg-surface-50 text-slate-500 text-xs rounded-lg border border-dashed border-surface-300 hover:border-emerald-500/30 hover:text-emerald-400 transition-all"
+              >
+                + {m}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={customEmb}
+              onChange={(e) => setCustomEmb(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addModel(customEmb, embModels, setEmbModels, setCustomEmb)}
+              placeholder="Add custom model..."
+              className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-xs focus:outline-none focus:border-accent"
+            />
+            <button
+              onClick={() => addModel(customEmb, embModels, setEmbModels, setCustomEmb)}
+              className="px-3 py-1.5 bg-surface-200 text-slate-300 rounded-lg text-xs hover:bg-surface-300"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && <p className="text-xs text-red-400">{error}</p>}
+
+      {/* Save button */}
+      {dirty && (
+        <div className="flex justify-end pt-1">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-5 py-2 bg-accent text-white rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
         </div>
       )}
     </div>
