@@ -33,9 +33,6 @@ nltk>=3.8.1
 # Vector store
 chromadb==0.5.7
 
-# Async compatibility
-nest_asyncio>=1.6.0
-
 # Utilities
 python-dotenv==1.0.1
 aiofiles==24.1.0

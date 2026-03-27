@@ -1,8 +1,7 @@
 """RAGAS evaluation service for RAG pipeline results."""
 
-import nest_asyncio
-nest_asyncio.apply()
-
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Optional
 
 from datasets import Dataset as HFDataset
@@ -85,13 +84,19 @@ async def evaluate_rag_results(
         except Exception:
             pass  # Fall back to RAGAS defaults (env vars)
 
-    # Run RAGAS evaluation
+    # Run RAGAS evaluation in a separate thread to avoid uvloop conflicts.
+    # RAGAS internally uses asyncio.run() which clashes with the running uvloop.
     eval_kwargs: Dict[str, Any] = {"dataset": dataset, "metrics": metrics}
     if llm:
         eval_kwargs["llm"] = llm
     if embeddings:
         eval_kwargs["embeddings"] = embeddings
-    result = evaluate(**eval_kwargs)
+
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        result = await loop.run_in_executor(
+            executor, lambda: evaluate(**eval_kwargs)
+        )
 
     # Extract scores
     scores = {}
