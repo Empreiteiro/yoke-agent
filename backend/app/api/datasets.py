@@ -1,0 +1,214 @@
+"""Dataset management API routes with LLM generation and HITL support."""
+
+import asyncio
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from sqlalchemy.orm import Session
+import json
+
+from app.core.database import get_db, SessionLocal
+from app.models.document import Document
+from app.models.dataset import Dataset, DatasetItem
+from app.schemas.dataset import (
+    DatasetCreate,
+    DatasetResponse,
+    DatasetItemCreate,
+    DatasetItemUpdate,
+)
+from app.services.document_loader import load_documents
+from app.services.dataset_generator import generate_qa_pairs
+
+router = APIRouter()
+
+
+def _generate_dataset_sync(dataset_id: int):
+    """Synchronous wrapper for background dataset generation."""
+    asyncio.run(_generate_dataset_task(dataset_id))
+
+
+async def _generate_dataset_task(dataset_id: int):
+    """Background task to generate dataset items using LLM."""
+    db = SessionLocal()
+    try:
+        dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        if not dataset:
+            return
+
+        doc_models = db.query(Document).filter(
+            Document.id.in_(dataset.document_ids or [])
+        ).all()
+        filepaths = [doc.filepath for doc in doc_models]
+        documents = load_documents(filepaths)
+
+        if not documents:
+            dataset.status = "draft"
+            db.commit()
+            return
+
+        pairs = await generate_qa_pairs(documents, num_questions=10)
+
+        for pair in pairs:
+            item = DatasetItem(
+                dataset_id=dataset_id,
+                question=pair.get("question", ""),
+                ground_truth=pair.get("ground_truth", ""),
+                context=pair.get("context", ""),
+                source_document=pair.get("source_document", ""),
+                is_manual=0,
+            )
+            db.add(item)
+
+        dataset.status = "generated"
+        db.commit()
+    except Exception:
+        dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        if dataset:
+            dataset.status = "draft"
+            db.commit()
+    finally:
+        db.close()
+
+
+@router.post("/", response_model=DatasetResponse)
+def create_dataset(data: DatasetCreate, db: Session = Depends(get_db)):
+    dataset = Dataset(
+        name=data.name,
+        description=data.description,
+        document_ids=data.document_ids,
+        status="draft",
+    )
+    db.add(dataset)
+    db.commit()
+    db.refresh(dataset)
+    return dataset
+
+
+@router.get("/", response_model=list[DatasetResponse])
+def list_datasets(db: Session = Depends(get_db)):
+    return db.query(Dataset).order_by(Dataset.created_at.desc()).all()
+
+
+@router.get("/{dataset_id}", response_model=DatasetResponse)
+def get_dataset(dataset_id: int, db: Session = Depends(get_db)):
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    return dataset
+
+
+@router.post("/{dataset_id}/generate")
+async def generate_dataset(
+    dataset_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    dataset.status = "generating"
+    db.commit()
+
+    background_tasks.add_task(_generate_dataset_sync, dataset_id)
+    return {"detail": "Dataset generation started", "dataset_id": dataset_id}
+
+
+@router.post("/{dataset_id}/items", response_model=DatasetResponse)
+def add_dataset_item(dataset_id: int, item: DatasetItemCreate, db: Session = Depends(get_db)):
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    db_item = DatasetItem(
+        dataset_id=dataset_id,
+        question=item.question,
+        ground_truth=item.ground_truth,
+        context=item.context,
+        source_document=item.source_document,
+        is_manual=1,
+    )
+    db.add(db_item)
+    db.commit()
+    db.refresh(dataset)
+    return dataset
+
+
+@router.put("/{dataset_id}/items/{item_id}")
+def update_dataset_item(
+    dataset_id: int, item_id: int, item: DatasetItemUpdate, db: Session = Depends(get_db)
+):
+    db_item = (
+        db.query(DatasetItem)
+        .filter(DatasetItem.id == item_id, DatasetItem.dataset_id == dataset_id)
+        .first()
+    )
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Dataset item not found")
+
+    if item.question is not None:
+        db_item.question = item.question
+    if item.ground_truth is not None:
+        db_item.ground_truth = item.ground_truth
+    if item.context is not None:
+        db_item.context = item.context
+
+    db.commit()
+    return {"detail": "Item updated"}
+
+
+@router.delete("/{dataset_id}/items/{item_id}")
+def delete_dataset_item(dataset_id: int, item_id: int, db: Session = Depends(get_db)):
+    db_item = (
+        db.query(DatasetItem)
+        .filter(DatasetItem.id == item_id, DatasetItem.dataset_id == dataset_id)
+        .first()
+    )
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Dataset item not found")
+    db.delete(db_item)
+    db.commit()
+    return {"detail": "Item deleted"}
+
+
+@router.post("/{dataset_id}/import")
+async def import_dataset_items(
+    dataset_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    content = await file.read()
+    try:
+        items = json.loads(content)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON file")
+
+    if not isinstance(items, list):
+        raise HTTPException(status_code=400, detail="JSON must be an array of items")
+
+    for item_data in items:
+        db_item = DatasetItem(
+            dataset_id=dataset_id,
+            question=item_data.get("question", ""),
+            ground_truth=item_data.get("ground_truth", ""),
+            context=item_data.get("context"),
+            source_document=item_data.get("source_document"),
+            is_manual=1,
+        )
+        db.add(db_item)
+
+    db.commit()
+    db.refresh(dataset)
+    return {"detail": f"Imported {len(items)} items", "dataset_id": dataset_id}
+
+
+@router.post("/{dataset_id}/approve")
+def approve_dataset(dataset_id: int, db: Session = Depends(get_db)):
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    dataset.status = "approved"
+    db.commit()
+    return {"detail": "Dataset approved", "dataset_id": dataset_id}
