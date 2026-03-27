@@ -44,7 +44,7 @@ async def _generate_dataset_task(dataset_id: int):
             db.commit()
             return
 
-        pairs = await generate_qa_pairs(documents, num_questions=10)
+        pairs = await generate_qa_pairs(documents, db=db, num_questions=10)
 
         for pair in pairs:
             item = DatasetItem(
