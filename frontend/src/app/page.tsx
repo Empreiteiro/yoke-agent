@@ -72,9 +72,13 @@ export default function Home() {
         return (
           <StepDataset
             documentIds={pipelineData.documentIds}
-            onComplete={(datasetId) =>
-              handleStepComplete("dataset", { datasetId })
-            }
+            onComplete={(datasetId, reused) => {
+              if (reused) {
+                // When reusing a dataset, mark upload as completed too
+                setCompletedSteps((prev) => new Set([...prev, "upload"]));
+              }
+              handleStepComplete("dataset", { datasetId });
+            }}
           />
         );
       case "review":
