@@ -62,15 +62,13 @@ install-frontend: ## Install frontend Node.js dependencies
 
 # --- Dependency Check ---
 
-check-deps: ## Verify all backend dependencies are installed
+check-deps: ## Verify and install all backend dependencies
 	@echo "$(CYAN)Checking backend dependencies...$(RESET)"
 	@if [ ! -d $(VENV_DIR) ]; then \
 		echo "$(YELLOW)No virtual environment found. Run 'make setup' first.$(RESET)"; \
 		exit 1; \
 	fi
-	@$(VENV_PIP) install --quiet --dry-run -r $(BACKEND_DIR)/requirements.txt 2>/dev/null || \
-		( echo "$(YELLOW)Missing dependencies detected. Installing...$(RESET)" && \
-		  $(VENV_PIP) install -r $(BACKEND_DIR)/requirements.txt )
+	@$(VENV_PIP) install --quiet -r $(BACKEND_DIR)/requirements.txt
 	@echo "$(GREEN)All dependencies OK.$(RESET)"
 
 # --- Development ---

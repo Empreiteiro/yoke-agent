@@ -65,7 +65,8 @@ async def _generate_dataset_task(dataset_id: int):
         dataset.error_message = None
         db.commit()
     except Exception as e:
-        logger.error(f"Dataset generation failed for dataset {dataset_id}: {e}")
+        import traceback
+        logger.error(f"Dataset generation failed for dataset {dataset_id}: {e}\n{traceback.format_exc()}")
         dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
         if dataset:
             dataset.status = "error"
