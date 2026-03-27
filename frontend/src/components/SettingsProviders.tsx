@@ -5,7 +5,7 @@ import {
   Settings,
   Plus,
   Trash2,
-  TestTube,
+  Zap,
   Check,
   X,
   AlertCircle,
@@ -205,27 +205,19 @@ export default function SettingsProviders() {
               <div className="flex items-center gap-4 px-6 py-4">
                 <span className="text-2xl">{PROVIDER_ICONS[provider.provider_type] || "⚙️"}</span>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-primary truncate">{provider.name}</h3>
-                    <span className="px-2 py-0.5 text-xs rounded-full bg-surface-200 text-t-secondary">
-                      {catalog[provider.provider_type]?.label || provider.provider_type}
-                    </span>
-                  </div>
+                  <h3 className="font-semibold text-primary truncate">{provider.name}</h3>
                   <div className="flex items-center gap-3 mt-1">
                     {provider.supports_llm && (
-                      <span className="flex items-center gap-1 text-xs text-cyan-400">
+                      <span className="flex items-center gap-1 text-xs text-accent font-medium">
                         <Brain className="w-3 h-3" />
                         {provider.llm_models.length} LLM{provider.llm_models.length !== 1 ? "s" : ""}
                       </span>
                     )}
                     {provider.supports_embedding && (
-                      <span className="flex items-center gap-1 text-xs text-emerald-400">
+                      <span className="flex items-center gap-1 text-xs text-secondary font-medium">
                         <Box className="w-3 h-3" />
                         {provider.embedding_models.length} Embedding{provider.embedding_models.length !== 1 ? "s" : ""}
                       </span>
-                    )}
-                    {provider.has_api_key && (
-                      <span className="text-xs text-muted">🔑 Key set</span>
                     )}
                   </div>
                 </div>
@@ -244,7 +236,7 @@ export default function SettingsProviders() {
                     ) : testResult[provider.id]?.success === false ? (
                       <AlertCircle className="w-4 h-4 text-red-400" />
                     ) : (
-                      <TestTube className="w-4 h-4 text-t-secondary" />
+                      <Zap className="w-4 h-4 text-t-secondary" />
                     )}
                   </button>
                   {/* Toggle active */}
