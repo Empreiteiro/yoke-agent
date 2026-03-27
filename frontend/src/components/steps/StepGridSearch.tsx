@@ -134,28 +134,28 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
             <Settings2 className="w-5 h-5 text-accent" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-white">Experiment Setup</h3>
-            <p className="text-sm text-slate-400">Name your experiment and select a vector store.</p>
+            <h3 className="text-lg font-semibold text-primary">Experiment Setup</h3>
+            <p className="text-sm text-t-secondary">Name your experiment and select a vector store.</p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Experiment Name</label>
+            <label className="block text-sm font-medium text-t-hover mb-2">Experiment Name</label>
             <input
               type="text"
               value={experimentName}
               onChange={(e) => setExperimentName(e.target.value)}
               placeholder="e.g., Documentation RAG v1"
-              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-accent/50"
+              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary placeholder-muted focus:outline-none focus:border-accent/50"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Vector Store</label>
+            <label className="block text-sm font-medium text-t-hover mb-2">Vector Store</label>
             <select
               value={vectorStoreType}
               onChange={(e) => setVectorStoreType(e.target.value)}
-              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-white focus:outline-none focus:border-accent/50"
+              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary focus:outline-none focus:border-accent/50"
             >
               <option value="chromadb">ChromaDB (Default)</option>
               <option value="pinecone">Pinecone</option>
@@ -174,10 +174,10 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
             <Grid3X3 className="w-5 h-5 text-secondary" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-white">RAG Hyperparameters</h3>
-            <p className="text-sm text-slate-400">
+            <h3 className="text-lg font-semibold text-primary">RAG Hyperparameters</h3>
+            <p className="text-sm text-t-secondary">
               Configure the grid search space. Total combinations:{" "}
-              <span className="text-white font-semibold">{totalCombinations}</span>
+              <span className="text-primary font-semibold">{totalCombinations}</span>
             </p>
           </div>
         </div>
@@ -185,7 +185,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         <div className="space-y-6">
           {/* Chunk sizes */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-3">Chunk Size (tokens)</label>
+            <label className="block text-sm font-medium text-t-hover mb-3">Chunk Size (tokens)</label>
             {renderChips("chunk_sizes", config.chunk_sizes)}
             <div className="flex gap-2 mt-2">
               <input
@@ -193,7 +193,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                 value={newChunkSize}
                 onChange={(e) => setNewChunkSize(e.target.value)}
                 placeholder="Add size..."
-                className="px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-sm w-32 focus:outline-none focus:border-accent/50"
+                className="px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm w-32 focus:outline-none focus:border-accent/50"
               />
               <button
                 onClick={() => {
@@ -204,14 +204,14 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                 }}
                 className="p-2 bg-surface-200 rounded-lg hover:bg-surface-300 transition-colors"
               >
-                <Plus className="w-4 h-4 text-slate-300" />
+                <Plus className="w-4 h-4 text-t-hover" />
               </button>
             </div>
           </div>
 
           {/* Chunk overlap */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-3">Chunk Overlap (%)</label>
+            <label className="block text-sm font-medium text-t-hover mb-3">Chunk Overlap (%)</label>
             {renderChips("chunk_overlaps", config.chunk_overlaps)}
             <div className="flex gap-2 mt-2">
               {[5, 10, 15, 20, 25, 30].map((val) => (
@@ -221,7 +221,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                     if (!config.chunk_overlaps.includes(val)) addToArray("chunk_overlaps", val);
                   }}
                   disabled={config.chunk_overlaps.includes(val)}
-                  className="px-3 py-1.5 bg-surface-200 text-slate-300 text-xs rounded-lg hover:bg-surface-300 disabled:opacity-30 transition-colors"
+                  className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 disabled:opacity-30 transition-colors"
                 >
                   {val}%
                 </button>
@@ -231,7 +231,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
           {/* Embedding models */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-3">Embedding Models</label>
+            <label className="block text-sm font-medium text-t-hover mb-3">Embedding Models</label>
             {noProviders && (
               <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -246,11 +246,11 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                   <button
                     key={`${em.provider_name}-${em.model}`}
                     onClick={() => addToArray("embedding_models", em.model)}
-                    className="px-3 py-1.5 bg-surface-200 text-slate-300 text-xs rounded-lg hover:bg-surface-300 transition-colors"
+                    className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 transition-colors"
                     title={`Provider: ${em.provider_name}`}
                   >
                     + {em.model}
-                    <span className="ml-1 text-slate-500">({em.provider_name})</span>
+                    <span className="ml-1 text-muted">({em.provider_name})</span>
                   </button>
                 ))}
             </div>
@@ -258,7 +258,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
           {/* Top-K */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-3">Top-K (retrieved docs)</label>
+            <label className="block text-sm font-medium text-t-hover mb-3">Top-K (retrieved docs)</label>
             {renderChips("top_k_values", config.top_k_values)}
             <div className="flex gap-2 mt-2">
               <input
@@ -266,7 +266,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                 value={newTopK}
                 onChange={(e) => setNewTopK(e.target.value)}
                 placeholder="Add value..."
-                className="px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-sm w-32 focus:outline-none focus:border-accent/50"
+                className="px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm w-32 focus:outline-none focus:border-accent/50"
               />
               <button
                 onClick={() => {
@@ -277,14 +277,14 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                 }}
                 className="p-2 bg-surface-200 rounded-lg hover:bg-surface-300 transition-colors"
               >
-                <Plus className="w-4 h-4 text-slate-300" />
+                <Plus className="w-4 h-4 text-t-hover" />
               </button>
             </div>
           </div>
 
           {/* Search type */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-3">Search Type</label>
+            <label className="block text-sm font-medium text-t-hover mb-3">Search Type</label>
             <div className="flex gap-3">
               {["vector", "hybrid", "mmr"].map((type) => (
                 <label
@@ -306,7 +306,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                     }}
                     className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
                   />
-                  <span className="text-sm text-slate-300 capitalize">{type}</span>
+                  <span className="text-sm text-t-hover capitalize">{type}</span>
                 </label>
               ))}
             </div>
@@ -316,8 +316,8 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
       {/* RAGAS Metrics */}
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
-        <h3 className="text-lg font-semibold text-white mb-2">Evaluation Metrics (RAGAS)</h3>
-        <p className="text-sm text-slate-400 mb-6">
+        <h3 className="text-lg font-semibold text-primary mb-2">Evaluation Metrics (RAGAS)</h3>
+        <p className="text-sm text-t-secondary mb-6">
           Core metrics are always included. Select additional optional metrics.
         </p>
 
@@ -334,10 +334,10 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
             >
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-sm font-medium text-white">{metric.label}</span>
+                <span className="text-sm font-medium text-primary">{metric.label}</span>
                 <span className="text-xs text-emerald-400 ml-auto">Required</span>
               </div>
-              <p className="text-xs text-slate-400">{metric.desc}</p>
+              <p className="text-xs text-t-secondary">{metric.desc}</p>
             </div>
           ))}
         </div>
@@ -359,10 +359,10 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                     config.optional_metrics.includes(metric.id) ? "bg-accent" : "bg-surface-300"
                   }`}
                 />
-                <span className="text-sm font-medium text-white">{metric.label}</span>
-                <span className="text-xs text-slate-500 ml-auto">Optional</span>
+                <span className="text-sm font-medium text-primary">{metric.label}</span>
+                <span className="text-xs text-muted ml-auto">Optional</span>
               </div>
-              <p className="text-xs text-slate-400">{metric.description}</p>
+              <p className="text-xs text-t-secondary">{metric.description}</p>
             </button>
           ))}
         </div>
@@ -372,17 +372,17 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
       <div className="bg-surface-100 rounded-2xl border border-accent/20 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-white font-medium">
+            <p className="text-primary font-medium">
               Ready to configure {totalCombinations} experiment combinations
             </p>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-t-secondary">
               {4 + config.optional_metrics.length} metrics will be evaluated per combination
             </p>
           </div>
           <button
             onClick={handleSubmit}
             disabled={loading || !experimentName.trim() || totalCombinations === 0}
-            className="px-8 py-3 bg-gradient-to-r from-accent to-accent-dark text-white font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+            className="px-8 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />

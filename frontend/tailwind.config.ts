@@ -10,22 +10,32 @@ const config: Config = {
     extend: {
       colors: {
         surface: {
-          DEFAULT: "#0a0a0f",
-          50: "#12121a",
-          100: "#1a1a2e",
-          200: "#232338",
-          300: "#2d2d44",
+          DEFAULT: "var(--surface)",
+          50: "var(--surface-50)",
+          100: "var(--surface-100)",
+          200: "var(--surface-200)",
+          300: "var(--surface-300)",
         },
         accent: {
-          DEFAULT: "#8b5cf6",
-          light: "#a78bfa",
-          dark: "#7c3aed",
+          DEFAULT: "var(--accent)",
+          light: "var(--accent-light)",
+          dark: "var(--accent-dark)",
         },
         secondary: {
-          DEFAULT: "#06b6d4",
-          light: "#22d3ee",
-          dark: "#0891b2",
+          DEFAULT: "var(--secondary)",
+          light: "var(--secondary-light)",
+          dark: "var(--secondary-dark)",
         },
+        primary: "var(--text-primary)",
+        "t-secondary": "var(--text-secondary)",
+        muted: "var(--text-muted)",
+        "t-hover": "var(--text-hover)",
+      },
+      borderColor: {
+        themed: "var(--border)",
+      },
+      backgroundColor: {
+        "input-themed": "var(--input-bg)",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],

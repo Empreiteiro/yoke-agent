@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Database, Loader2, Sparkles } from "lucide-react";
+import { Database, Loader2, Sparkles, CheckCircle, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepDatasetProps {
@@ -13,13 +13,38 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [datasetId, setDatasetId] = useState<number | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const pollForCompletion = async (datasetId: number): Promise<boolean> => {
+    const maxAttempts = 120; // 2 minutes max
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      try {
+        const dataset = await api.getDataset(datasetId);
+        if (dataset.status === "generated") {
+          const itemCount = dataset.items?.length ?? 0;
+          setProgress(`Generated ${itemCount} Q&A pairs successfully!`);
+          return true;
+        }
+        if (dataset.status === "draft") {
+          // Generation failed and status was reset
+          return false;
+        }
+        // Still generating
+        setProgress(`Generating Q&A pairs from your documents...`);
+      } catch {
+        // Network error, keep polling
+      }
+    }
+    return false;
+  };
 
   const handleCreate = async () => {
     if (!name.trim()) return;
     setError(null);
     setGenerating(true);
+    setProgress("Creating dataset...");
 
     try {
       const dataset = await api.createDataset({
@@ -27,14 +52,28 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
         description: description.trim() || undefined,
         document_ids: documentIds,
       });
-      setDatasetId(dataset.id);
+
+      setProgress("Starting Q&A generation with LLM...");
       await api.generateDataset(dataset.id);
-      // In real implementation, we'd poll for completion
-      onComplete(dataset.id);
+
+      setProgress("Generating Q&A pairs from your documents...");
+      const success = await pollForCompletion(dataset.id);
+
+      if (success) {
+        setTimeout(() => onComplete(dataset.id), 1000);
+      } else {
+        setError(
+          "Dataset generation failed. Please check that you have an LLM provider configured in Settings. You can still proceed and add items manually."
+        );
+        setGenerating(false);
+        setProgress(null);
+        // Still allow proceeding with the dataset (manual items)
+        onComplete(dataset.id);
+      }
     } catch (err: any) {
       setError(err.message);
-    } finally {
       setGenerating(false);
+      setProgress(null);
     }
   };
 
@@ -46,8 +85,8 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
             <Sparkles className="w-5 h-5 text-accent" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-white">Generate Evaluation Dataset</h3>
-            <p className="text-sm text-slate-400">
+            <h3 className="text-lg font-semibold text-primary">Generate Evaluation Dataset</h3>
+            <p className="text-sm text-t-secondary">
               An LLM will analyze your documents and generate question-answer pairs for evaluation.
             </p>
           </div>
@@ -55,7 +94,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-t-hover mb-2">
               Dataset Name
             </label>
             <input
@@ -63,12 +102,13 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Product Documentation QA"
-              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25"
+              disabled={generating}
+              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary placeholder-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 disabled:opacity-50"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-t-hover mb-2">
               Description (optional)
             </label>
             <textarea
@@ -76,24 +116,39 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the purpose of this evaluation dataset..."
               rows={3}
-              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 resize-none"
+              disabled={generating}
+              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary placeholder-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 resize-none disabled:opacity-50"
             />
           </div>
 
           <div className="bg-surface-50 rounded-xl p-4 border border-surface-200/50">
-            <p className="text-sm text-slate-400">
-              <span className="text-white font-medium">{documentIds.length}</span> document(s) selected for analysis
+            <p className="text-sm text-t-secondary">
+              <span className="text-primary font-medium">{documentIds.length}</span> document(s) selected for analysis
             </p>
           </div>
 
+          {progress && (
+            <div className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-xl">
+              {generating ? (
+                <Loader2 className="w-5 h-5 text-accent animate-spin flex-shrink-0" />
+              ) : (
+                <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+              )}
+              <p className="text-sm text-t-hover">{progress}</p>
+            </div>
+          )}
+
           {error && (
-            <p className="text-sm text-red-400">{error}</p>
+            <div className="flex items-start gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-400">{error}</p>
+            </div>
           )}
 
           <button
             onClick={handleCreate}
             disabled={generating || !name.trim()}
-            className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-white font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {generating ? (
               <>

@@ -142,19 +142,19 @@ export default function SettingsProviders({ onBack }: { onBack: () => void }) {
             onClick={onBack}
             className="p-2 hover:bg-surface-200 rounded-lg transition-colors"
           >
-            <ChevronDown className="w-5 h-5 text-slate-400 rotate-90" />
+            <ChevronDown className="w-5 h-5 text-t-secondary rotate-90" />
           </button>
           <Settings className="w-6 h-6 text-accent" />
           <div>
-            <h2 className="text-xl font-bold text-white">LLM & Embedding Providers</h2>
-            <p className="text-sm text-slate-400">
+            <h2 className="text-xl font-bold text-primary">LLM & Embedding Providers</h2>
+            <p className="text-sm text-t-secondary">
               Configure AI providers for dataset generation, RAG pipeline, and evaluation
             </p>
           </div>
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent/90 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-accent text-primary rounded-xl hover:bg-accent/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
           Add Provider
@@ -186,16 +186,16 @@ export default function SettingsProviders({ onBack }: { onBack: () => void }) {
       {/* Provider List */}
       {providers.length === 0 && !showAddForm ? (
         <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-12 text-center">
-          <Sparkles className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">
+          <Sparkles className="w-12 h-12 text-muted mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-primary mb-2">
             No providers configured
           </h3>
-          <p className="text-sm text-slate-400 mb-6">
+          <p className="text-sm text-t-secondary mb-6">
             Add an AI provider to start using the pipeline. OpenAI, Anthropic, Google, Ollama, and more are supported.
           </p>
           <button
             onClick={() => setShowAddForm(true)}
-            className="px-6 py-3 bg-accent text-white rounded-xl hover:bg-accent/90 transition-colors"
+            className="px-6 py-3 bg-accent text-primary rounded-xl hover:bg-accent/90 transition-colors"
           >
             Add your first provider
           </button>
@@ -212,8 +212,8 @@ export default function SettingsProviders({ onBack }: { onBack: () => void }) {
                 <span className="text-2xl">{PROVIDER_ICONS[provider.provider_type] || "⚙️"}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-white truncate">{provider.name}</h3>
-                    <span className="px-2 py-0.5 text-xs rounded-full bg-surface-200 text-slate-400">
+                    <h3 className="font-semibold text-primary truncate">{provider.name}</h3>
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-surface-200 text-t-secondary">
                       {catalog[provider.provider_type]?.label || provider.provider_type}
                     </span>
                   </div>
@@ -231,7 +231,7 @@ export default function SettingsProviders({ onBack }: { onBack: () => void }) {
                       </span>
                     )}
                     {provider.has_api_key && (
-                      <span className="text-xs text-slate-500">🔑 Key set</span>
+                      <span className="text-xs text-muted">🔑 Key set</span>
                     )}
                   </div>
                 </div>
@@ -250,7 +250,7 @@ export default function SettingsProviders({ onBack }: { onBack: () => void }) {
                     ) : testResult[provider.id]?.success === false ? (
                       <AlertCircle className="w-4 h-4 text-red-400" />
                     ) : (
-                      <TestTube className="w-4 h-4 text-slate-400" />
+                      <TestTube className="w-4 h-4 text-t-secondary" />
                     )}
                   </button>
                   {/* Toggle active */}
@@ -259,7 +259,7 @@ export default function SettingsProviders({ onBack }: { onBack: () => void }) {
                     className={`px-3 py-1 text-xs rounded-full transition-colors ${
                       provider.is_active
                         ? "bg-emerald-500/20 text-emerald-400"
-                        : "bg-surface-200 text-slate-500"
+                        : "bg-surface-200 text-muted"
                     }`}
                   >
                     {provider.is_active ? "Active" : "Inactive"}
@@ -270,11 +270,11 @@ export default function SettingsProviders({ onBack }: { onBack: () => void }) {
                     className="flex items-center gap-1 px-2.5 py-1.5 hover:bg-surface-200 rounded-lg transition-colors"
                     title={expandedId === provider.id ? "Collapse" : "Edit provider"}
                   >
-                    <Pencil className="w-3.5 h-3.5 text-slate-400" />
+                    <Pencil className="w-3.5 h-3.5 text-t-secondary" />
                     {expandedId === provider.id ? (
-                      <ChevronUp className="w-4 h-4 text-slate-400" />
+                      <ChevronUp className="w-4 h-4 text-t-secondary" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-400" />
+                      <ChevronDown className="w-4 h-4 text-t-secondary" />
                     )}
                   </button>
                   {/* Delete */}
@@ -282,7 +282,7 @@ export default function SettingsProviders({ onBack }: { onBack: () => void }) {
                     onClick={() => handleDelete(provider.id)}
                     className="p-2 hover:bg-red-500/10 rounded-lg transition-colors"
                   >
-                    <Trash2 className="w-4 h-4 text-slate-500 hover:text-red-400" />
+                    <Trash2 className="w-4 h-4 text-muted hover:text-red-400" />
                   </button>
                 </div>
               </div>
@@ -395,15 +395,15 @@ function AddProviderForm({
   return (
     <div className="bg-surface-100 rounded-2xl border border-accent/30 p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-white">Add Provider</h3>
+        <h3 className="text-lg font-semibold text-primary">Add Provider</h3>
         <button onClick={onCancel} className="p-1 hover:bg-surface-200 rounded-lg">
-          <X className="w-5 h-5 text-slate-400" />
+          <X className="w-5 h-5 text-t-secondary" />
         </button>
       </div>
 
       {/* Provider type selection */}
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">
+        <label className="block text-sm font-medium text-t-hover mb-2">
           Provider Type
         </label>
         <div className="grid grid-cols-4 gap-2">
@@ -413,8 +413,8 @@ function AddProviderForm({
               onClick={() => setProviderType(key)}
               className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition-all ${
                 providerType === key
-                  ? "border-accent bg-accent/10 text-white"
-                  : "border-surface-200/50 text-slate-400 hover:border-surface-300"
+                  ? "border-accent bg-accent/10 text-primary"
+                  : "border-surface-200/50 text-t-secondary hover:border-surface-300"
               }`}
             >
               <span>{PROVIDER_ICONS[key]}</span>
@@ -428,25 +428,25 @@ function AddProviderForm({
         <>
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Display Name</label>
+            <label className="block text-sm font-medium text-t-hover mb-1">Display Name</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-white text-sm focus:outline-none focus:border-accent"
+              className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-sm focus:outline-none focus:border-accent"
             />
           </div>
 
           {/* API Key */}
           {entry.requires_api_key && (
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">API Key</label>
+              <label className="block text-sm font-medium text-t-hover mb-1">API Key</label>
               <div className="relative">
                 <input
                   type={showKey ? "text" : "password"}
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="sk-..."
-                  className="w-full px-4 py-2.5 pr-10 bg-surface-50 border border-surface-200/50 rounded-xl text-white text-sm focus:outline-none focus:border-accent"
+                  className="w-full px-4 py-2.5 pr-10 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-sm focus:outline-none focus:border-accent"
                 />
                 <button
                   type="button"
@@ -454,9 +454,9 @@ function AddProviderForm({
                   className="absolute right-3 top-1/2 -translate-y-1/2"
                 >
                   {showKey ? (
-                    <EyeOff className="w-4 h-4 text-slate-500" />
+                    <EyeOff className="w-4 h-4 text-muted" />
                   ) : (
-                    <Eye className="w-4 h-4 text-slate-500" />
+                    <Eye className="w-4 h-4 text-muted" />
                   )}
                 </button>
               </div>
@@ -466,12 +466,12 @@ function AddProviderForm({
           {/* Base URL */}
           {entry.supports_base_url && (
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Base URL</label>
+              <label className="block text-sm font-medium text-t-hover mb-1">Base URL</label>
               <input
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
                 placeholder={entry.default_base_url || "https://..."}
-                className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-white text-sm focus:outline-none focus:border-accent"
+                className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-sm focus:outline-none focus:border-accent"
               />
             </div>
           )}
@@ -479,7 +479,7 @@ function AddProviderForm({
           {/* LLM Models */}
           {entry.supports_llm && (
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-t-hover mb-2">
                 <Brain className="w-4 h-4 inline mr-1 text-cyan-400" />
                 LLM Models
               </label>
@@ -491,7 +491,7 @@ function AddProviderForm({
                     className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                       selectedLlmModels.includes(m)
                         ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                        : "bg-surface-50 text-slate-400 border border-surface-200/50"
+                        : "bg-surface-50 text-t-secondary border border-surface-200/50"
                     }`}
                   >
                     {m}
@@ -515,11 +515,11 @@ function AddProviderForm({
                   onChange={(e) => setCustomModel(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addCustomModel(customModel, selectedLlmModels, setSelectedLlmModels, setCustomModel)}
                   placeholder="Add custom model..."
-                  className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-xs focus:outline-none focus:border-accent"
+                  className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
                 />
                 <button
                   onClick={() => addCustomModel(customModel, selectedLlmModels, setSelectedLlmModels, setCustomModel)}
-                  className="px-3 py-1.5 bg-surface-200 text-slate-300 rounded-lg text-xs hover:bg-surface-300"
+                  className="px-3 py-1.5 bg-surface-200 text-t-hover rounded-lg text-xs hover:bg-surface-300"
                 >
                   Add
                 </button>
@@ -530,7 +530,7 @@ function AddProviderForm({
           {/* Embedding Models */}
           {entry.supports_embedding && (
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-t-hover mb-2">
                 <Box className="w-4 h-4 inline mr-1 text-emerald-400" />
                 Embedding Models
               </label>
@@ -542,7 +542,7 @@ function AddProviderForm({
                     className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                       selectedEmbModels.includes(m)
                         ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                        : "bg-surface-50 text-slate-400 border border-surface-200/50"
+                        : "bg-surface-50 text-t-secondary border border-surface-200/50"
                     }`}
                   >
                     {m}
@@ -566,11 +566,11 @@ function AddProviderForm({
                   onChange={(e) => setCustomEmbModel(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addCustomModel(customEmbModel, selectedEmbModels, setSelectedEmbModels, setCustomEmbModel)}
                   placeholder="Add custom model..."
-                  className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-xs focus:outline-none focus:border-accent"
+                  className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
                 />
                 <button
                   onClick={() => addCustomModel(customEmbModel, selectedEmbModels, setSelectedEmbModels, setCustomEmbModel)}
-                  className="px-3 py-1.5 bg-surface-200 text-slate-300 rounded-lg text-xs hover:bg-surface-300"
+                  className="px-3 py-1.5 bg-surface-200 text-t-hover rounded-lg text-xs hover:bg-surface-300"
                 >
                   Add
                 </button>
@@ -586,14 +586,14 @@ function AddProviderForm({
           <div className="flex justify-end gap-3 pt-2">
             <button
               onClick={onCancel}
-              className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
+              className="px-4 py-2 text-sm text-t-secondary hover:text-primary transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={saving || !name || !providerType}
-              className="px-6 py-2 bg-accent text-white rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50"
+              className="px-6 py-2 bg-accent text-primary rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save Provider"}
             </button>
@@ -680,18 +680,18 @@ function ProviderDetails({
     <div className="px-6 pb-5 pt-3 border-t border-surface-200/50 space-y-5">
       {/* Display Name */}
       <div>
-        <label className="block text-xs font-medium text-slate-400 mb-1">Display Name</label>
+        <label className="block text-xs font-medium text-t-secondary mb-1">Display Name</label>
         <input
           value={name}
           onChange={(e) => { setName(e.target.value); markDirty(); }}
-          className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-sm focus:outline-none focus:border-accent"
+          className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent"
         />
       </div>
 
       {/* API Key */}
       {catalog?.requires_api_key && (
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1">
+          <label className="block text-xs font-medium text-t-secondary mb-1">
             API Key {provider.has_api_key && <span className="text-emerald-400">(currently set)</span>}
           </label>
           <div className="relative">
@@ -700,13 +700,13 @@ function ProviderDetails({
               value={apiKey}
               onChange={(e) => { setApiKey(e.target.value); markDirty(); }}
               placeholder="Enter new API key to update..."
-              className="w-full px-3 py-2 pr-8 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-sm focus:outline-none focus:border-accent"
+              className="w-full px-3 py-2 pr-8 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent"
             />
             <button
               onClick={() => setShowKey(!showKey)}
               className="absolute right-2.5 top-1/2 -translate-y-1/2"
             >
-              {showKey ? <EyeOff className="w-3.5 h-3.5 text-slate-500" /> : <Eye className="w-3.5 h-3.5 text-slate-500" />}
+              {showKey ? <EyeOff className="w-3.5 h-3.5 text-muted" /> : <Eye className="w-3.5 h-3.5 text-muted" />}
             </button>
           </div>
         </div>
@@ -715,12 +715,12 @@ function ProviderDetails({
       {/* Base URL */}
       {catalog?.supports_base_url && (
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1">Base URL</label>
+          <label className="block text-xs font-medium text-t-secondary mb-1">Base URL</label>
           <input
             value={baseUrl}
             onChange={(e) => { setBaseUrl(e.target.value); markDirty(); }}
             placeholder={catalog.default_base_url || "https://..."}
-            className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-sm focus:outline-none focus:border-accent"
+            className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent"
           />
         </div>
       )}
@@ -728,10 +728,10 @@ function ProviderDetails({
       {/* LLM Models */}
       {provider.supports_llm && (
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-2">
+          <label className="block text-xs font-medium text-t-secondary mb-2">
             <Brain className="w-3.5 h-3.5 inline mr-1 text-cyan-400" />
             LLM Models
-            {defaultLlm && <span className="text-slate-500 ml-2">(default: {defaultLlm})</span>}
+            {defaultLlm && <span className="text-muted ml-2">(default: {defaultLlm})</span>}
           </label>
           <div className="flex flex-wrap gap-1.5 mb-2">
             {llmModels.map((m) => (
@@ -740,7 +740,7 @@ function ProviderDetails({
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all ${
                   m === defaultLlm
                     ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                    : "bg-surface-200 text-slate-300 border border-surface-200"
+                    : "bg-surface-200 text-t-hover border border-surface-200"
                 }`}
                 onClick={() => { setDefaultLlm(m); markDirty(); }}
                 title="Click to set as default"
@@ -761,7 +761,7 @@ function ProviderDetails({
               <button
                 key={m}
                 onClick={() => toggleModel(m, llmModels, setLlmModels)}
-                className="px-2.5 py-1 bg-surface-50 text-slate-500 text-xs rounded-lg border border-dashed border-surface-300 hover:border-cyan-500/30 hover:text-cyan-400 transition-all"
+                className="px-2.5 py-1 bg-surface-50 text-muted text-xs rounded-lg border border-dashed border-surface-300 hover:border-cyan-500/30 hover:text-cyan-400 transition-all"
               >
                 + {m}
               </button>
@@ -773,11 +773,11 @@ function ProviderDetails({
               onChange={(e) => setCustomLlm(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addModel(customLlm, llmModels, setLlmModels, setCustomLlm)}
               placeholder="Add custom model..."
-              className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-xs focus:outline-none focus:border-accent"
+              className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
             />
             <button
               onClick={() => addModel(customLlm, llmModels, setLlmModels, setCustomLlm)}
-              className="px-3 py-1.5 bg-surface-200 text-slate-300 rounded-lg text-xs hover:bg-surface-300"
+              className="px-3 py-1.5 bg-surface-200 text-t-hover rounded-lg text-xs hover:bg-surface-300"
             >
               Add
             </button>
@@ -788,10 +788,10 @@ function ProviderDetails({
       {/* Embedding Models */}
       {provider.supports_embedding && (
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-2">
+          <label className="block text-xs font-medium text-t-secondary mb-2">
             <Box className="w-3.5 h-3.5 inline mr-1 text-emerald-400" />
             Embedding Models
-            {defaultEmb && <span className="text-slate-500 ml-2">(default: {defaultEmb})</span>}
+            {defaultEmb && <span className="text-muted ml-2">(default: {defaultEmb})</span>}
           </label>
           <div className="flex flex-wrap gap-1.5 mb-2">
             {embModels.map((m) => (
@@ -800,7 +800,7 @@ function ProviderDetails({
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all ${
                   m === defaultEmb
                     ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                    : "bg-surface-200 text-slate-300 border border-surface-200"
+                    : "bg-surface-200 text-t-hover border border-surface-200"
                 }`}
                 onClick={() => { setDefaultEmb(m); markDirty(); }}
                 title="Click to set as default"
@@ -820,7 +820,7 @@ function ProviderDetails({
               <button
                 key={m}
                 onClick={() => toggleModel(m, embModels, setEmbModels)}
-                className="px-2.5 py-1 bg-surface-50 text-slate-500 text-xs rounded-lg border border-dashed border-surface-300 hover:border-emerald-500/30 hover:text-emerald-400 transition-all"
+                className="px-2.5 py-1 bg-surface-50 text-muted text-xs rounded-lg border border-dashed border-surface-300 hover:border-emerald-500/30 hover:text-emerald-400 transition-all"
               >
                 + {m}
               </button>
@@ -832,11 +832,11 @@ function ProviderDetails({
               onChange={(e) => setCustomEmb(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addModel(customEmb, embModels, setEmbModels, setCustomEmb)}
               placeholder="Add custom model..."
-              className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-white text-xs focus:outline-none focus:border-accent"
+              className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
             />
             <button
               onClick={() => addModel(customEmb, embModels, setEmbModels, setCustomEmb)}
-              className="px-3 py-1.5 bg-surface-200 text-slate-300 rounded-lg text-xs hover:bg-surface-300"
+              className="px-3 py-1.5 bg-surface-200 text-t-hover rounded-lg text-xs hover:bg-surface-300"
             >
               Add
             </button>
@@ -853,7 +853,7 @@ function ProviderDetails({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2 bg-accent text-white rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2 bg-accent text-primary rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             {saving ? "Saving..." : "Save Changes"}
