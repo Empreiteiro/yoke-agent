@@ -67,7 +67,7 @@ async def run_rag_pipeline(
     embeddings = get_embeddings(db, provider_id=embedding_provider_id, model=embedding_model)
 
     # Resolve provider info for token logging
-    emb_provider = _resolve_provider(db, embedding_provider_id, capability="embedding")
+    emb_provider = _resolve_provider(db, embedding_provider_id, capability="embedding", model=embedding_model)
     llm_provider = _resolve_provider(db, llm_provider_id, capability="llm")
 
     # 3. Create vector store and index
