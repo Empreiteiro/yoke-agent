@@ -715,7 +715,7 @@ function ProviderDetails({
       {provider.supports_llm && (
         <div>
           <label className="block text-xs font-medium text-t-secondary mb-2">
-            <Brain className="w-3.5 h-3.5 inline mr-1 text-cyan-400" />
+            <Brain className="w-3.5 h-3.5 inline mr-1 text-accent" />
             LLM Models
             {defaultLlm && <span className="text-muted ml-2">(default: {defaultLlm})</span>}
           </label>
@@ -725,7 +725,7 @@ function ProviderDetails({
                 key={m}
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all ${
                   m === defaultLlm
-                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                    ? "bg-accent/15 text-accent border border-accent/30"
                     : "bg-surface-200 text-t-hover border border-surface-200"
                 }`}
                 onClick={() => { setDefaultLlm(m); markDirty(); }}
@@ -747,7 +747,7 @@ function ProviderDetails({
               <button
                 key={m}
                 onClick={() => toggleModel(m, llmModels, setLlmModels)}
-                className="px-2.5 py-1 bg-surface-50 text-muted text-xs rounded-lg border border-dashed border-surface-300 hover:border-cyan-500/30 hover:text-cyan-400 transition-all"
+                className="px-2.5 py-1 bg-surface-50 text-muted text-xs rounded-lg border border-dashed border-surface-300 hover:border-accent/30 hover:text-accent transition-all"
               >
                 + {m}
               </button>
@@ -775,7 +775,7 @@ function ProviderDetails({
       {provider.supports_embedding && (
         <div>
           <label className="block text-xs font-medium text-t-secondary mb-2">
-            <Box className="w-3.5 h-3.5 inline mr-1 text-emerald-400" />
+            <Box className="w-3.5 h-3.5 inline mr-1 text-secondary" />
             Embedding Models
             {defaultEmb && <span className="text-muted ml-2">(default: {defaultEmb})</span>}
           </label>
@@ -785,7 +785,7 @@ function ProviderDetails({
                 key={m}
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all ${
                   m === defaultEmb
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                    ? "bg-secondary/15 text-secondary border border-secondary/30"
                     : "bg-surface-200 text-t-hover border border-surface-200"
                 }`}
                 onClick={() => { setDefaultEmb(m); markDirty(); }}
@@ -806,7 +806,7 @@ function ProviderDetails({
               <button
                 key={m}
                 onClick={() => toggleModel(m, embModels, setEmbModels)}
-                className="px-2.5 py-1 bg-surface-50 text-muted text-xs rounded-lg border border-dashed border-surface-300 hover:border-emerald-500/30 hover:text-emerald-400 transition-all"
+                className="px-2.5 py-1 bg-surface-50 text-muted text-xs rounded-lg border border-dashed border-surface-300 hover:border-secondary/30 hover:text-secondary transition-all"
               >
                 + {m}
               </button>
