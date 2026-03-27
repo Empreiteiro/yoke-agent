@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { CheckCircle, Plus, Upload, Trash2, Edit3, Save, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { CheckCircle, Plus, Upload, Trash2, Edit3, Save, X, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepReviewProps {
@@ -16,9 +16,14 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
   const [editData, setEditData] = useState({ question: "", ground_truth: "" });
   const [newItem, setNewItem] = useState({ question: "", ground_truth: "", context: "" });
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (datasetId) loadDataset();
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, [datasetId]);
 
   const loadDataset = async () => {
@@ -26,6 +31,21 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
     try {
       const data = await api.getDataset(datasetId);
       setDataset(data);
+
+      // If still generating, poll for completion
+      if (data.status === "generating") {
+        setIsGenerating(true);
+        pollRef.current = setInterval(async () => {
+          try {
+            const updated = await api.getDataset(datasetId);
+            setDataset(updated);
+            if (updated.status !== "generating") {
+              setIsGenerating(false);
+              if (pollRef.current) clearInterval(pollRef.current);
+            }
+          } catch {}
+        }, 2000);
+      }
     } catch (err) {
       console.error("Failed to load dataset:", err);
     } finally {
@@ -161,6 +181,16 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Generation in progress indicator */}
+        {isGenerating && (
+          <div className="mb-4 flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-xl">
+            <Loader2 className="w-5 h-5 text-accent animate-spin flex-shrink-0" />
+            <p className="text-sm text-t-hover">
+              Generating Q&A pairs from your documents... This may take a moment.
+            </p>
           </div>
         )}
 
