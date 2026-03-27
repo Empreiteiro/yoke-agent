@@ -59,7 +59,7 @@ const PROVIDER_ICONS: Record<string, string> = {
   custom: "⚙️",
 };
 
-export default function SettingsProviders({ onBack }: { onBack: () => void }) {
+export default function SettingsProviders() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [catalog, setCatalog] = useState<Record<string, CatalogEntry>>({});
   const [loading, setLoading] = useState(true);
@@ -138,12 +138,6 @@ export default function SettingsProviders({ onBack }: { onBack: () => void }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="p-2 hover:bg-surface-200 rounded-lg transition-colors"
-          >
-            <ChevronDown className="w-5 h-5 text-t-secondary rotate-90" />
-          </button>
           <Settings className="w-6 h-6 text-accent" />
           <div>
             <h2 className="text-xl font-bold text-primary">LLM & Embedding Providers</h2>
