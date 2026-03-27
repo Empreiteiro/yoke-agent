@@ -10,11 +10,11 @@ interface StepGridSearchProps {
 }
 
 const DEFAULT_CONFIG = {
-  chunk_sizes: [256, 512, 1024],
+  chunk_sizes: [512, 1024],
   chunk_overlaps: [10, 20],
   embedding_models: ["text-embedding-3-small"],
-  top_k_values: [3, 5, 10],
-  search_types: ["vector", "hybrid"],
+  top_k_values: [3, 5],
+  search_types: ["vector"],
   optional_metrics: [] as string[],
 };
 

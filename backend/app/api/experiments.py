@@ -78,11 +78,11 @@ async def propose_grid_search(experiment_id: int, db: Session = Depends(get_db))
         "detail": "Grid search proposal generated",
         "experiment_id": experiment_id,
         "default_config": {
-            "chunk_sizes": [256, 512, 1024],
+            "chunk_sizes": [512, 1024],
             "chunk_overlaps": [10, 20],
             "embedding_models": ["text-embedding-3-small"],
-            "top_k_values": [3, 5, 10],
-            "search_types": ["vector", "hybrid"],
+            "top_k_values": [3, 5],
+            "search_types": ["vector"],
         },
     }
 
