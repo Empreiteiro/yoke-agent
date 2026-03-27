@@ -143,15 +143,15 @@ export default function Home() {
         <div className="h-full bg-surface-100 rounded-2xl border border-surface-200/30 overflow-y-auto">
           {showSettings ? (
             <div className="p-6 max-w-6xl mx-auto">
-              <SettingsProviders onBack={() => setShowSettings(false)} />
+              <SettingsProviders />
             </div>
           ) : showHistory ? (
             <div className="p-6 max-w-6xl mx-auto">
-              <History onBack={() => setShowHistory(false)} />
+              <History />
             </div>
           ) : showLogs ? (
             <div className="p-6 max-w-6xl mx-auto">
-              <Logs onBack={() => setShowLogs(false)} />
+              <Logs />
             </div>
           ) : (
             <>
