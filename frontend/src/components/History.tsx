@@ -287,13 +287,15 @@ function ExpandedReport({ report }: { report: any }) {
             </span>
           </div>
 
-          <div className="grid grid-cols-5 gap-3 mb-4">
+          <div className="grid grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
             {[
               { label: "Chunk Size", value: `${best.params.chunk_size}` },
               { label: "Overlap", value: `${best.params.chunk_overlap}%` },
               { label: "Embedding", value: best.params.embedding_model },
+              { label: "Dims", value: best.params.embedding_dimensions || "default" },
               { label: "Top-K", value: best.params.top_k },
               { label: "Search", value: best.params.search_type },
+              { label: "Distance", value: best.params.distance_metric || "cosine" },
             ].map((item) => (
               <div key={item.label} className="text-center">
                 <p className="text-xs text-slate-400">{item.label}</p>
@@ -368,7 +370,7 @@ function ExpandedReport({ report }: { report: any }) {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-surface-200/50">
-                  {["#", "Chunk", "Overlap", "Embedding", "K", "Search", "Faith.", "Relev.", "Prec.", "Recall", "Score", "Time"].map(
+                  {["#", "Chunk", "Overlap", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Score", "Time"].map(
                     (h) => (
                       <th key={h} className="px-2 py-2 text-left text-xs font-medium text-slate-400 uppercase">
                         {h}
@@ -389,8 +391,10 @@ function ExpandedReport({ report }: { report: any }) {
                     <td className="px-2 py-2 text-white">{c.params.chunk_size}</td>
                     <td className="px-2 py-2 text-white">{c.params.chunk_overlap}%</td>
                     <td className="px-2 py-2 text-white truncate max-w-[120px]">{c.params.embedding_model}</td>
+                    <td className="px-2 py-2 text-slate-400 text-xs">{c.params.embedding_dimensions || "def"}</td>
                     <td className="px-2 py-2 text-white">{c.params.top_k}</td>
                     <td className="px-2 py-2 text-white capitalize">{c.params.search_type}</td>
+                    <td className="px-2 py-2 text-slate-400 text-xs">{c.params.distance_metric || "cos"}</td>
                     <td className="px-2 py-2 text-white">
                       {c.faithfulness != null ? `${(c.faithfulness * 100).toFixed(1)}%` : "-"}
                     </td>

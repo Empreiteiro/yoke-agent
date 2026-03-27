@@ -59,21 +59,24 @@ async def run_rag_pipeline(
     embedding_model = params["embedding_model"]
     top_k = params["top_k"]
     search_type = params["search_type"]
+    embedding_dimensions = params.get("embedding_dimensions")
+    distance_metric = params.get("distance_metric", "cosine")
 
     # 1. Chunk documents
     chunks = chunk_documents(documents, chunk_size, chunk_overlap)
 
     # 2. Create embeddings via provider factory
-    embeddings = get_embeddings(db, provider_id=embedding_provider_id, model=embedding_model)
+    embeddings = get_embeddings(db, provider_id=embedding_provider_id, model=embedding_model, dimensions=embedding_dimensions)
 
     # Resolve provider info for token logging
     emb_provider = _resolve_provider(db, embedding_provider_id, capability="embedding", model=embedding_model)
     llm_provider = _resolve_provider(db, llm_provider_id, capability="llm")
 
     # 3. Create vector store and index
-    collection_name = f"exp_{chunk_size}_{chunk_overlap}_{top_k}_{search_type}"
+    dim_suffix = f"_{embedding_dimensions}" if embedding_dimensions else ""
+    collection_name = f"exp_{chunk_size}_{chunk_overlap}_{top_k}_{search_type}_{distance_metric}{dim_suffix}"
     backend = create_vectorstore_backend(vectorstore_type, vectorstore_config)
-    backend.create_collection(collection_name, chunks, embeddings)
+    backend.create_collection(collection_name, chunks, embeddings, distance_metric=distance_metric)
 
     # Log embedding token usage
     chunk_texts = [c.page_content for c in chunks]

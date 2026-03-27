@@ -116,6 +116,33 @@ PROVIDER_CATALOG = {
 }
 
 
+# --- Embedding model dimension capabilities ---
+EMBEDDING_DIMENSIONS = {
+    # OpenAI - text-embedding-3 supports custom dimensions
+    "text-embedding-3-small": {"default": 1536, "supports_custom": True, "supported": [512, 1024, 1536]},
+    "text-embedding-3-large": {"default": 3072, "supports_custom": True, "supported": [256, 1024, 3072]},
+    "text-embedding-ada-002": {"default": 1536, "supports_custom": False, "supported": [1536]},
+    # Google
+    "text-embedding-004": {"default": 768, "supports_custom": False, "supported": [768]},
+    "embedding-001": {"default": 768, "supports_custom": False, "supported": [768]},
+    # Cohere
+    "embed-english-v3.0": {"default": 1024, "supports_custom": False, "supported": [1024]},
+    "embed-multilingual-v3.0": {"default": 1024, "supports_custom": False, "supported": [1024]},
+    "embed-english-light-v3.0": {"default": 384, "supports_custom": False, "supported": [384]},
+    "embed-multilingual-light-v3.0": {"default": 384, "supports_custom": False, "supported": [384]},
+    # Ollama
+    "nomic-embed-text": {"default": 768, "supports_custom": False, "supported": [768]},
+    "mxbai-embed-large": {"default": 1024, "supports_custom": False, "supported": [1024]},
+    "all-minilm": {"default": 384, "supports_custom": False, "supported": [384]},
+    "snowflake-arctic-embed": {"default": 1024, "supports_custom": False, "supported": [1024]},
+    # HuggingFace
+    "sentence-transformers/all-MiniLM-L6-v2": {"default": 384, "supports_custom": False, "supported": [384]},
+    "BAAI/bge-small-en-v1.5": {"default": 384, "supports_custom": False, "supported": [384]},
+    "BAAI/bge-large-en-v1.5": {"default": 1024, "supports_custom": False, "supported": [1024]},
+    "intfloat/e5-large-v2": {"default": 1024, "supports_custom": False, "supported": [1024]},
+}
+
+
 class ProviderCreate(BaseModel):
     name: str
     provider_type: str

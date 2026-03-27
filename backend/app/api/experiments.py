@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db, SessionLocal
 from app.models.experiment import Experiment, ExperimentCombination
 from app.models.dataset import Dataset
+from app.schemas.provider import EMBEDDING_DIMENSIONS
 from app.schemas.experiment import (
     ExperimentCreate,
     ExperimentResponse,
@@ -100,38 +101,58 @@ def configure_grid(
         ExperimentCombination.experiment_id == experiment_id
     ).delete()
 
-    # Generate all combinations
-    combinations = list(
+    # Generate base combinations (without dimensions, which are per-model)
+    base_combos = list(
         itertools.product(
             config.chunk_sizes,
             config.chunk_overlaps,
             config.embedding_models,
             config.top_k_values,
             config.search_types,
+            config.distance_metrics,
         )
     )
 
-    for combo in combinations:
-        params = {
-            "chunk_size": combo[0],
-            "chunk_overlap": combo[1],
-            "embedding_model": combo[2],
-            "top_k": combo[3],
-            "search_type": combo[4],
-        }
-        db_combo = ExperimentCombination(
-            experiment_id=experiment_id,
-            params=params,
-        )
-        db.add(db_combo)
+    # Expand with embedding dimensions (respecting per-model limits)
+    combo_count = 0
+    for combo in base_combos:
+        embedding_model = combo[2]
+        model_info = EMBEDDING_DIMENSIONS.get(embedding_model)
+        default_dim = model_info["default"] if model_info else None
+
+        if config.embedding_dimensions:
+            # Filter to dimensions valid for this model
+            supported = model_info["supported"] if model_info else []
+            dims_for_model = [d for d in config.embedding_dimensions if d in supported]
+            if not dims_for_model:
+                dims_for_model = [default_dim]
+        else:
+            dims_for_model = [default_dim]
+
+        for dim in dims_for_model:
+            params = {
+                "chunk_size": combo[0],
+                "chunk_overlap": combo[1],
+                "embedding_model": embedding_model,
+                "top_k": combo[3],
+                "search_type": combo[4],
+                "distance_metric": combo[5],
+                "embedding_dimensions": dim,
+            }
+            db_combo = ExperimentCombination(
+                experiment_id=experiment_id,
+                params=params,
+            )
+            db.add(db_combo)
+            combo_count += 1
 
     exp.status = "configured"
     db.commit()
     db.refresh(exp)
     return {
-        "detail": f"Created {len(combinations)} combinations",
+        "detail": f"Created {combo_count} combinations",
         "experiment_id": experiment_id,
-        "total_combinations": len(combinations),
+        "total_combinations": combo_count,
     }
 
 

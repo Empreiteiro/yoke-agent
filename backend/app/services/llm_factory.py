@@ -100,6 +100,7 @@ def get_embeddings(
     db: Session,
     provider_id: Optional[int] = None,
     model: Optional[str] = None,
+    dimensions: Optional[int] = None,
 ):
     """Create a LangChain Embeddings instance from a provider configuration."""
     provider = _resolve_provider(db, provider_id, capability="embedding", model=model)
@@ -112,7 +113,10 @@ def get_embeddings(
 
     if ptype == "openai":
         from langchain_openai import OpenAIEmbeddings
-        return OpenAIEmbeddings(model=model_name, api_key=provider.api_key)
+        kwargs = {"model": model_name, "api_key": provider.api_key}
+        if dimensions is not None:
+            kwargs["dimensions"] = dimensions
+        return OpenAIEmbeddings(**kwargs)
 
     elif ptype == "google":
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -136,12 +140,15 @@ def get_embeddings(
     elif ptype == "azure_openai":
         from langchain_openai import AzureOpenAIEmbeddings
         extra = provider.extra_config or {}
-        return AzureOpenAIEmbeddings(
-            azure_deployment=model_name,
-            api_key=provider.api_key,
-            azure_endpoint=provider.base_url,
-            api_version=extra.get("api_version", "2024-02-01"),
-        )
+        kwargs = {
+            "azure_deployment": model_name,
+            "api_key": provider.api_key,
+            "azure_endpoint": provider.base_url,
+            "api_version": extra.get("api_version", "2024-02-01"),
+        }
+        if dimensions is not None:
+            kwargs["dimensions"] = dimensions
+        return AzureOpenAIEmbeddings(**kwargs)
 
     elif ptype == "huggingface":
         from langchain_huggingface import HuggingFaceEmbeddings

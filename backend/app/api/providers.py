@@ -11,6 +11,7 @@ from app.schemas.provider import (
     ProviderTestResult,
     AvailableModelsResponse,
     PROVIDER_CATALOG,
+    EMBEDDING_DIMENSIONS,
 )
 
 router = APIRouter()
@@ -160,3 +161,9 @@ def get_available_models(db: Session = Depends(get_db)):
         llm_models=llm_models,
         embedding_models=embedding_models,
     )
+
+
+@router.get("/models/embedding-dimensions")
+def get_embedding_dimensions():
+    """Return dimension capabilities for all known embedding models."""
+    return EMBEDDING_DIMENSIONS
