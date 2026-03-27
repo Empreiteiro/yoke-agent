@@ -111,7 +111,7 @@ export default function Sidebar({
               className={cn(
                 "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
                 isActive
-                  ? "bg-accent/10 text-accent border border-accent/20"
+                  ? "bg-accent/10 text-accent"
                   : isCompleted
                   ? "text-emerald-400 hover:bg-surface-100"
                   : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
@@ -145,7 +145,7 @@ export default function Sidebar({
             className={cn(
               "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
               showHistory
-                ? "bg-accent/10 text-accent border border-accent/20"
+                ? "bg-accent/10 text-accent"
                 : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
             )}
           >
@@ -167,7 +167,7 @@ export default function Sidebar({
             className={cn(
               "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
               showLogs
-                ? "bg-accent/10 text-accent border border-accent/20"
+                ? "bg-accent/10 text-accent"
                 : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
             )}
           >
@@ -189,7 +189,7 @@ export default function Sidebar({
             className={cn(
               "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
               showSettings
-                ? "bg-accent/10 text-accent border border-accent/20"
+                ? "bg-accent/10 text-accent"
                 : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
             )}
           >
