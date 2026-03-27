@@ -104,11 +104,13 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
   const pending = combinations.filter((c: any) => c.status === "pending").length;
   const total = combinations.length;
   const progress = total > 0 ? ((completed + failed) / total) * 100 : 0;
-  const isDone = experiment?.status === "completed" || experiment?.status === "completed_with_errors";
+  const stuck = combinations.filter((c: any) => c.status === "running").length;
+  const stopped = combinations.filter((c: any) => c.status === "stopped").length;
+  const incomplete = failed + stopped + stuck;
+  const isDone = (experiment?.status === "completed" || experiment?.status === "completed_with_errors") && incomplete === 0;
   const isStopped = experiment?.status === "stopped";
   const isFailed = experiment?.status === "failed" || experiment?.status === "completed_with_errors";
-  const canResume = isStopped || isFailed;
-  const stopped = combinations.filter((c: any) => c.status === "stopped").length;
+  const canResume = (isStopped || isFailed || incomplete > 0) && experiment?.status !== "running";
 
   // Get first error message for summary
   const firstError = combinations.find((c: any) => c.status === "failed");
@@ -143,7 +145,7 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
                   className="px-5 py-3 bg-orange-500/10 border border-orange-500/30 text-orange-400 font-medium rounded-xl hover:bg-orange-500/20 flex items-center gap-2 text-sm"
                 >
                   <RotateCcw className="w-4 h-4" />
-                  Resume & Retry Failed ({failed + stopped})
+                  Resume & Retry Failed ({failed + stopped + stuck})
                 </button>
               )}
               <button
@@ -151,7 +153,7 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
                 className="px-5 py-3 bg-accent/10 border border-accent/30 text-accent font-medium rounded-xl hover:bg-accent/20 flex items-center gap-2 text-sm"
               >
                 <Play className="w-4 h-4" />
-                {stopped > 0 ? `Resume (${stopped} remaining)` : `Retry Failed (${failed})`}
+                {stopped + stuck > 0 ? `Resume (${stopped + stuck} remaining)` : `Retry Failed (${failed})`}
               </button>
             </>
           ) : !isDone ? (
