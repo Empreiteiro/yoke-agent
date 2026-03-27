@@ -76,14 +76,28 @@ def _restore_env_vars(original: dict):
             os.environ[key] = value
 
 
-def _run_evaluate(dataset, metrics) -> dict:
+def _run_evaluate(dataset, metrics, all_metric_names: List[str]) -> dict:
     """Run RAGAS evaluate in an isolated context (own thread, own event loop)."""
     result = evaluate(dataset=dataset, metrics=metrics)
-    # Convert EvaluationResult to dict immediately
-    return {
-        "scores": dict(result) if not isinstance(result, dict) else result,
-        "pandas": result.to_pandas() if hasattr(result, "to_pandas") else None,
-    }
+
+    # Extract scores safely — EvaluationResult uses [] access, not .get()
+    scores = {}
+    for name in all_metric_names:
+        try:
+            scores[name] = result[name]
+        except (KeyError, TypeError, IndexError):
+            scores[name] = None
+
+    # Extract per-question details
+    detailed = []
+    try:
+        df = result.to_pandas()
+        for _, row in df.iterrows():
+            detailed.append(row.to_dict())
+    except Exception:
+        pass
+
+    return {"scores": scores, "detailed_results": detailed}
 
 
 async def evaluate_rag_results(
@@ -114,6 +128,11 @@ async def evaluate_rag_results(
     dataset = HFDataset.from_dict(eval_data)
     metrics = get_metrics(optional_metrics)
 
+    # Collect all metric names to extract
+    all_metric_names = list(FIXED_METRICS.keys())
+    if optional_metrics:
+        all_metric_names += [m for m in optional_metrics if m in OPTIONAL_METRICS]
+
     # Set provider API keys as env vars so RAGAS can create its own clients
     original_env = {}
     if db:
@@ -125,35 +144,19 @@ async def evaluate_rag_results(
         loop = asyncio.get_event_loop()
         with ThreadPoolExecutor(max_workers=1) as executor:
             raw = await loop.run_in_executor(
-                executor, lambda: _run_evaluate(dataset, metrics)
+                executor, lambda: _run_evaluate(dataset, metrics, all_metric_names)
             )
     finally:
         if original_env:
             _restore_env_vars(original_env)
 
-    # Extract scores
-    result_scores = raw["scores"]
-    scores = {}
-    for metric_name in FIXED_METRICS:
-        scores[metric_name] = result_scores.get(metric_name)
-
-    if optional_metrics:
-        for metric_name in optional_metrics:
-            if metric_name in OPTIONAL_METRICS:
-                scores[metric_name] = result_scores.get(metric_name)
+    scores = raw["scores"]
 
     # Calculate overall score (average of fixed metrics)
     fixed_scores = [v for k, v in scores.items() if k in FIXED_METRICS and v is not None]
     scores["overall_score"] = sum(fixed_scores) / len(fixed_scores) if fixed_scores else 0.0
 
-    # Get per-question details
-    detailed_results = []
-    df = raw.get("pandas")
-    if df is not None:
-        for _, row in df.iterrows():
-            detailed_results.append(row.to_dict())
-
     return {
         "scores": scores,
-        "detailed_results": detailed_results,
+        "detailed_results": raw["detailed_results"],
     }
