@@ -16,8 +16,8 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const pollForCompletion = async (datasetId: number): Promise<boolean> => {
-    const maxAttempts = 120; // 2 minutes max
+  const pollForCompletion = async (datasetId: number): Promise<{ success: boolean; errorMessage?: string }> => {
+    const maxAttempts = 120;
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise((r) => setTimeout(r, 2000));
       try {
@@ -25,19 +25,23 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
         if (dataset.status === "generated") {
           const itemCount = dataset.items?.length ?? 0;
           setProgress(`Generated ${itemCount} Q&A pairs successfully!`);
-          return true;
+          return { success: true };
+        }
+        if (dataset.status === "error") {
+          return {
+            success: false,
+            errorMessage: dataset.error_message || "Generation failed. Check your LLM provider configuration.",
+          };
         }
         if (dataset.status === "draft") {
-          // Generation failed and status was reset
-          return false;
+          return { success: false, errorMessage: "Generation failed unexpectedly." };
         }
-        // Still generating
         setProgress(`Generating Q&A pairs from your documents...`);
       } catch {
         // Network error, keep polling
       }
     }
-    return false;
+    return { success: false, errorMessage: "Generation timed out. Please try again." };
   };
 
   const handleCreate = async () => {
@@ -57,17 +61,14 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
       await api.generateDataset(dataset.id);
 
       setProgress("Generating Q&A pairs from your documents...");
-      const success = await pollForCompletion(dataset.id);
+      const result = await pollForCompletion(dataset.id);
 
-      if (success) {
+      if (result.success) {
         setTimeout(() => onComplete(dataset.id), 1000);
       } else {
-        setError(
-          "Dataset generation failed. Please check that you have an LLM provider configured in Settings. You can still proceed and add items manually."
-        );
+        setError(result.errorMessage || "Dataset generation failed.");
         setGenerating(false);
         setProgress(null);
-        // Still allow proceeding with the dataset (manual items)
         onComplete(dataset.id);
       }
     } catch (err: any) {

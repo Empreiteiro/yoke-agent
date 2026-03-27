@@ -1,15 +1,36 @@
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from sqlalchemy import inspect, text
 
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.api import documents, datasets, experiments, vectorstores, providers, token_usage
 
+logger = logging.getLogger(__name__)
+
+
+def _run_migrations(engine):
+    """Add missing columns to existing tables."""
+    inspector = inspect(engine)
+    migrations = [
+        ("datasets", "error_message", "TEXT"),
+    ]
+    with engine.connect() as conn:
+        for table, column, col_type in migrations:
+            if table in inspector.get_table_names():
+                existing = [c["name"] for c in inspector.get_columns(table)]
+                if column not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                    conn.commit()
+                    logger.info(f"Added column {table}.{column}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    _run_migrations(engine)
     yield
 
 

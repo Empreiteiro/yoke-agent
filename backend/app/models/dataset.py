@@ -9,7 +9,8 @@ class Dataset(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
-    status = Column(String(50), default="draft")  # draft, generated, reviewed, approved
+    status = Column(String(50), default="draft")  # draft, generating, generated, error, approved
+    error_message = Column(Text, nullable=True)
     document_ids = Column(JSON)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
