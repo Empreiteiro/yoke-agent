@@ -42,5 +42,5 @@ fastmcp>=2.0.0
 python-dotenv==1.0.1
 aiofiles==24.1.0
 httpx==0.27.2
-numpy==1.26.4
+numpy>=1.26.4
 pandas==2.2.3
