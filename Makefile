@@ -78,6 +78,9 @@ dev: check-deps ## Start both backend and frontend in development mode
 		echo "$(YELLOW)No virtual environment found. Running 'make setup' first...$(RESET)"; \
 		$(MAKE) setup; \
 	fi
+	@# Kill any stale processes on our ports
+	@-lsof -ti:$(UVICORN_PORT) | xargs kill -9 2>/dev/null || true
+	@-lsof -ti:$(FRONTEND_PORT) | xargs kill -9 2>/dev/null || true
 	@echo ""
 	@echo "$(CYAN)Starting development servers...$(RESET)"
 	@echo "  Backend  -> http://localhost:$(UVICORN_PORT)"
@@ -86,7 +89,7 @@ dev: check-deps ## Start both backend and frontend in development mode
 	@$(MAKE) dev-backend & $(MAKE) dev-frontend & wait
 
 dev-backend: ## Start backend dev server with hot reload
-	cd $(BACKEND_DIR) && ../$(VENV_UVICORN) app.main:app --reload --port $(UVICORN_PORT)
+	cd $(BACKEND_DIR) && ../$(VENV_UVICORN) app.main:app --reload --port $(UVICORN_PORT) --loop asyncio
 
 dev-frontend: ## Start frontend dev server
 	cd $(FRONTEND_DIR) && $(NPM) run dev
@@ -102,7 +105,7 @@ start: ## Start both servers in production mode
 	@$(MAKE) start-backend & $(MAKE) start-frontend & wait
 
 start-backend: ## Start backend in production mode
-	cd $(BACKEND_DIR) && ../$(VENV_UVICORN) app.main:app --host 0.0.0.0 --port $(UVICORN_PORT) --workers 4
+	cd $(BACKEND_DIR) && ../$(VENV_UVICORN) app.main:app --host 0.0.0.0 --port $(UVICORN_PORT) --workers 4 --loop asyncio
 
 start-frontend: ## Start frontend in production mode
 	cd $(FRONTEND_DIR) && $(NPM) run start
