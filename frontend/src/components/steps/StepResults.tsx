@@ -183,8 +183,18 @@ export default function StepResults({ experimentId }: StepResultsProps) {
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-primary">All Results</h3>
-          <div className="flex items-center gap-2 text-sm text-t-secondary">
-            <span>{report.summary.completed} of {report.summary.total_combinations} completed</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-t-secondary">{report.summary.completed} of {report.summary.total_combinations} completed</span>
+            {experimentId && (
+              <a
+                href={api.exportExperimentCSV(experimentId)}
+                download
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent bg-accent/10 border border-accent/20 rounded-lg hover:bg-accent/20 transition-colors"
+              >
+                <Download className="w-3 h-3" />
+                CSV
+              </a>
+            )}
           </div>
         </div>
 

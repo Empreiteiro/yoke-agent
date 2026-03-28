@@ -1,9 +1,12 @@
 """Experiment management API routes with grid search and execution."""
 
 import asyncio
+import csv
+import io
 import itertools
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db, SessionLocal
@@ -299,4 +302,56 @@ def get_experiment_report(experiment_id: int, db: Session = Depends(get_db)):
             "failed": failed_count,
             "pending": total - completed_count - failed_count,
         },
+    )
+
+
+@router.get("/{experiment_id}/export")
+def export_experiment(experiment_id: int, format: str = "csv", db: Session = Depends(get_db)):
+    """Export experiment results as CSV. One row per combination."""
+    exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+
+    completed = [c for c in exp.combinations if c.status == "completed"]
+    completed.sort(key=lambda c: c.overall_score or 0, reverse=True)
+
+    headers = [
+        "rank", "chunk_size", "chunk_overlap", "chunking_strategy", "embedding_model",
+        "embedding_dimensions", "top_k", "search_type", "distance_metric",
+        "faithfulness", "answer_relevancy", "context_precision", "context_recall",
+        "answer_similarity", "answer_correctness", "overall_score", "duration_seconds",
+    ]
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+
+    for i, c in enumerate(completed):
+        p = c.params or {}
+        writer.writerow([
+            i + 1,
+            p.get("chunk_size", ""),
+            p.get("chunk_overlap", ""),
+            p.get("chunking_strategy", "recursive"),
+            p.get("embedding_model", ""),
+            p.get("embedding_dimensions", ""),
+            p.get("top_k", ""),
+            p.get("search_type", ""),
+            p.get("distance_metric", "cosine"),
+            c.faithfulness,
+            c.answer_relevancy,
+            c.context_precision,
+            c.context_recall,
+            c.answer_similarity,
+            c.answer_correctness,
+            c.overall_score,
+            c.duration_seconds,
+        ])
+
+    output.seek(0)
+    filename = f"{exp.name or 'experiment'}-results.csv"
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
