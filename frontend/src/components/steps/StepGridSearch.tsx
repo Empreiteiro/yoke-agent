@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Grid3X3, Plus, X, Loader2, AlertCircle } from "lucide-react";
+import { Grid3X3, Plus, X, Loader2, AlertCircle, DollarSign } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepGridSearchProps {
@@ -48,6 +48,8 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
   const [availableEmbeddings, setAvailableEmbeddings] = useState<Array<{provider_name: string; model: string}>>([]);
   const [noProviders, setNoProviders] = useState(false);
   const [dimensionsMap, setDimensionsMap] = useState<Record<string, {default: number; supports_custom: boolean; supported: number[]}>>({});
+  const [costEstimate, setCostEstimate] = useState<any>(null);
+  const [tempExperimentId, setTempExperimentId] = useState<number | null>(null);
 
   useEffect(() => {
     api.getAvailableModels().then((data) => {
@@ -119,18 +121,44 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
     }));
   };
 
+  const handleEstimateCost = async () => {
+    if (!datasetId) return;
+    try {
+      // Create a temporary experiment to estimate against
+      if (!tempExperimentId) {
+        const exp = await api.createExperiment({
+          name: experimentName.trim() || `estimate-${Date.now()}`,
+          dataset_id: datasetId,
+          vectorstore_type: vectorStoreType,
+        });
+        setTempExperimentId(exp.id);
+        const estimate = await api.estimateCost(exp.id, config);
+        setCostEstimate(estimate);
+      } else {
+        const estimate = await api.estimateCost(tempExperimentId, config);
+        setCostEstimate(estimate);
+      }
+    } catch (err) {
+      console.error("Failed to estimate cost:", err);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!datasetId) return;
     setLoading(true);
 
     try {
-      const exp = await api.createExperiment({
-        name: experimentName.trim() || undefined,
-        dataset_id: datasetId,
-        vectorstore_type: vectorStoreType,
-      });
-      await api.configureGrid(exp.id, config);
-      onComplete(exp.id);
+      let expId = tempExperimentId;
+      if (!expId) {
+        const exp = await api.createExperiment({
+          name: experimentName.trim() || undefined,
+          dataset_id: datasetId,
+          vectorstore_type: vectorStoreType,
+        });
+        expId = exp.id;
+      }
+      await api.configureGrid(expId, config);
+      onComplete(expId);
     } catch (err) {
       console.error("Failed to configure grid search:", err);
     } finally {
@@ -530,6 +558,41 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
       </div>
 
+      {/* Cost estimate */}
+      {costEstimate && (
+        <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <DollarSign className="w-5 h-5 text-amber-400" />
+            <h3 className="text-sm font-semibold text-primary">Cost Estimate</h3>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="text-center">
+              <p className="text-xs text-t-secondary">Combinations</p>
+              <p className="text-lg font-bold text-primary">{costEstimate.total_combinations}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-t-secondary">Est. Tokens</p>
+              <p className="text-lg font-bold text-primary">
+                {costEstimate.estimated_total_tokens >= 1_000_000
+                  ? `${(costEstimate.estimated_total_tokens / 1_000_000).toFixed(1)}M`
+                  : `${(costEstimate.estimated_total_tokens / 1_000).toFixed(0)}K`}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-t-secondary">Questions</p>
+              <p className="text-lg font-bold text-primary">{costEstimate.num_questions}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-t-secondary">Est. Cost</p>
+              <p className="text-lg font-bold text-amber-400">${costEstimate.estimated_cost_usd}</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted mt-3 text-center">
+            Approximate values based on average pricing. Actual cost depends on provider and model.
+          </p>
+        </div>
+      )}
+
       {/* Submit */}
       <div className="bg-surface-100 rounded-2xl border border-accent/20 p-6">
         <div className="flex items-center justify-between">
@@ -541,18 +604,28 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               {4 + config.optional_metrics.length} metrics will be evaluated per combination
             </p>
           </div>
-          <button
-            onClick={handleSubmit}
-            disabled={loading || totalCombinations === 0}
-            className="px-8 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Grid3X3 className="w-4 h-4" />
-            )}
-            Configure Grid Search
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleEstimateCost}
+              disabled={totalCombinations === 0}
+              className="px-5 py-3 bg-surface-200 text-t-hover font-medium rounded-xl hover:bg-surface-300 disabled:opacity-50 flex items-center gap-2 text-sm"
+            >
+              <DollarSign className="w-4 h-4" />
+              Estimate Cost
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={loading || totalCombinations === 0}
+              className="px-8 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Grid3X3 className="w-4 h-4" />
+              )}
+              Configure Grid Search
+            </button>
+          </div>
         </div>
       </div>
     </div>
