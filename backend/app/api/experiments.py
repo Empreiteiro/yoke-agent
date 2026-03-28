@@ -413,6 +413,7 @@ def export_experiment(experiment_id: int, format: str = "csv", db: Session = Dep
         "embedding_dimensions", "top_k", "search_type", "distance_metric",
         "faithfulness", "answer_relevancy", "context_precision", "context_recall",
         "answer_similarity", "answer_correctness", "overall_score", "duration_seconds",
+        "total_tokens", "total_cost",
     ]
 
     output = io.StringIO()
@@ -439,6 +440,8 @@ def export_experiment(experiment_id: int, format: str = "csv", db: Session = Dep
             c.answer_correctness,
             c.overall_score,
             c.duration_seconds,
+            c.total_tokens,
+            c.total_cost,
         ])
 
     output.seek(0)

@@ -48,6 +48,8 @@ class CombinationResponse(BaseModel):
     answer_correctness: Optional[float] = None
     overall_score: Optional[float] = None
     duration_seconds: Optional[float] = None
+    total_tokens: Optional[int] = 0
+    total_cost: Optional[float] = 0.0
     detailed_results: Optional[Any] = None
     error_message: Optional[str] = None
     created_at: datetime

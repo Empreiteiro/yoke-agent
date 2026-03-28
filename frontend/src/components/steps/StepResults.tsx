@@ -202,7 +202,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-surface-200/50">
-                {["Rank", "Chunk", "Overlap", "Chunking", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Overall"].map(
+                {["Rank", "Chunk", "Overlap", "Chunking", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Overall", "Tokens", "Cost"].map(
                   (header) => (
                     <th
                       key={header}
@@ -272,11 +272,17 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                           {combo.overall_score != null ? `${(combo.overall_score * 100).toFixed(1)}%` : "-"}
                         </span>
                       </td>
+                      <td className="px-3 py-3 text-t-secondary text-xs">
+                        {combo.total_tokens ? (combo.total_tokens >= 1000 ? `${(combo.total_tokens / 1000).toFixed(1)}K` : combo.total_tokens) : "-"}
+                      </td>
+                      <td className="px-3 py-3 text-amber-400 text-xs">
+                        {combo.total_cost ? `$${combo.total_cost < 0.01 ? combo.total_cost.toFixed(4) : combo.total_cost.toFixed(2)}` : "-"}
+                      </td>
                     </tr>
                     {/* Per-question detail */}
                     {isExpanded && details.length > 0 && (
                       <tr>
-                        <td colSpan={14} className="p-0">
+                        <td colSpan={16} className="p-0">
                           <div className="bg-surface-50 border-y border-surface-200/30 px-6 py-4">
                             <h4 className="text-xs font-semibold text-t-secondary uppercase mb-3">
                               Per-Question Results ({details.length} questions)
@@ -350,7 +356,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                     )}
                     {isExpanded && details.length === 0 && (
                       <tr>
-                        <td colSpan={14} className="px-6 py-4 text-center text-sm text-muted bg-surface-50">
+                        <td colSpan={16} className="px-6 py-4 text-center text-sm text-muted bg-surface-50">
                           No per-question details available for this combination.
                         </td>
                       </tr>

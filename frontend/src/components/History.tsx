@@ -587,7 +587,7 @@ function ExpandedReport({ report }: { report: any }) {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-surface-200/50">
-                  {["#", "Chunk", "Overlap", "Chunking", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Score", "Time"].map(
+                  {["#", "Chunk", "Overlap", "Chunking", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Score", "Tokens", "Cost"].map(
                     (h) => (
                       <th key={h} className="px-2 py-2 text-left text-xs font-medium text-t-secondary uppercase">
                         {h}
@@ -645,13 +645,16 @@ function ExpandedReport({ report }: { report: any }) {
                             {c.overall_score != null ? `${(c.overall_score * 100).toFixed(1)}%` : "-"}
                           </span>
                         </td>
-                        <td className="px-2 py-2 text-t-secondary">
-                          {c.duration_seconds != null ? `${c.duration_seconds.toFixed(1)}s` : "-"}
+                        <td className="px-2 py-2 text-t-secondary text-xs">
+                          {c.total_tokens ? (c.total_tokens >= 1000 ? `${(c.total_tokens / 1000).toFixed(1)}K` : c.total_tokens) : "-"}
+                        </td>
+                        <td className="px-2 py-2 text-amber-400 text-xs">
+                          {c.total_cost ? `$${c.total_cost < 0.01 ? c.total_cost.toFixed(4) : c.total_cost.toFixed(2)}` : "-"}
                         </td>
                       </tr>
                       {isExpanded && details.length > 0 && (
                         <tr>
-                          <td colSpan={15} className="p-0">
+                          <td colSpan={16} className="p-0">
                             <div className="bg-surface-50 border-y border-surface-200/30 px-4 py-3">
                               <h4 className="text-xs font-semibold text-t-secondary uppercase mb-2">
                                 Per-Question Results ({details.length})
@@ -713,7 +716,7 @@ function ExpandedReport({ report }: { report: any }) {
                       )}
                       {isExpanded && details.length === 0 && (
                         <tr>
-                          <td colSpan={15} className="px-4 py-3 text-center text-xs text-muted bg-surface-50">
+                          <td colSpan={16} className="px-4 py-3 text-center text-xs text-muted bg-surface-50">
                             No per-question details available.
                           </td>
                         </tr>
