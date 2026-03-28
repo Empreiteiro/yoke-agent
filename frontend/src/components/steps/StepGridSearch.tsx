@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Grid3X3, Plus, X, Loader2, AlertCircle, DollarSign } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -121,27 +121,34 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
     }));
   };
 
-  const handleEstimateCost = async () => {
-    if (!datasetId) return;
-    try {
-      // Create a temporary experiment to estimate against
-      if (!tempExperimentId) {
-        const exp = await api.createExperiment({
-          name: experimentName.trim() || `estimate-${Date.now()}`,
-          dataset_id: datasetId,
-          vectorstore_type: vectorStoreType,
-        });
-        setTempExperimentId(exp.id);
-        const estimate = await api.estimateCost(exp.id, config);
-        setCostEstimate(estimate);
-      } else {
-        const estimate = await api.estimateCost(tempExperimentId, config);
-        setCostEstimate(estimate);
-      }
-    } catch (err) {
-      console.error("Failed to estimate cost:", err);
+  // Auto-update cost estimate when config changes (debounced)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (!datasetId || totalCombinations === 0) {
+      setCostEstimate(null);
+      return;
     }
-  };
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        let expId = tempExperimentId;
+        if (!expId) {
+          const exp = await api.createExperiment({
+            name: `estimate-${Date.now()}`,
+            dataset_id: datasetId,
+            vectorstore_type: vectorStoreType,
+          });
+          expId = exp.id;
+          setTempExperimentId(expId);
+        }
+        const estimate = await api.estimateCost(expId, config);
+        setCostEstimate(estimate);
+      } catch {
+        // silent
+      }
+    }, 800);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [config, datasetId, totalCombinations]);
 
   const handleSubmit = async () => {
     if (!datasetId) return;
@@ -558,14 +565,33 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
       </div>
 
-      {/* Cost estimate */}
-      {costEstimate && (
-        <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <DollarSign className="w-5 h-5 text-amber-400" />
-            <h3 className="text-sm font-semibold text-primary">Cost Estimate</h3>
+      {/* Submit + Cost estimate */}
+      <div className="bg-surface-100 rounded-2xl border border-accent/20 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-primary font-medium">
+              Ready to configure {totalCombinations} experiment combinations
+            </p>
+            <p className="text-sm text-t-secondary">
+              {4 + config.optional_metrics.length} metrics will be evaluated per combination
+            </p>
           </div>
-          <div className="grid grid-cols-4 gap-4">
+          <button
+            onClick={handleSubmit}
+            disabled={loading || totalCombinations === 0}
+            className="px-8 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+          >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Grid3X3 className="w-4 h-4" />
+              )}
+              Configure Grid Search
+            </button>
+          </div>
+
+        {costEstimate && (
+          <div className="grid grid-cols-4 gap-4 pt-4 border-t border-surface-200/30">
             <div className="text-center">
               <p className="text-xs text-t-secondary">Combinations</p>
               <p className="text-lg font-bold text-primary">{costEstimate.total_combinations}</p>
@@ -587,46 +613,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               <p className="text-lg font-bold text-amber-400">${costEstimate.estimated_cost_usd}</p>
             </div>
           </div>
-          <p className="text-xs text-muted mt-3 text-center">
-            Approximate values based on average pricing. Actual cost depends on provider and model.
-          </p>
-        </div>
-      )}
-
-      {/* Submit */}
-      <div className="bg-surface-100 rounded-2xl border border-accent/20 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-primary font-medium">
-              Ready to configure {totalCombinations} experiment combinations
-            </p>
-            <p className="text-sm text-t-secondary">
-              {4 + config.optional_metrics.length} metrics will be evaluated per combination
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleEstimateCost}
-              disabled={totalCombinations === 0}
-              className="px-5 py-3 bg-surface-200 text-t-hover font-medium rounded-xl hover:bg-surface-300 disabled:opacity-50 flex items-center gap-2 text-sm"
-            >
-              <DollarSign className="w-4 h-4" />
-              Estimate Cost
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={loading || totalCombinations === 0}
-              className="px-8 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Grid3X3 className="w-4 h-4" />
-              )}
-              Configure Grid Search
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
