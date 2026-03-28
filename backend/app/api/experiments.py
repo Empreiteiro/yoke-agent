@@ -127,6 +127,7 @@ def configure_grid(
             config.top_k_values,
             config.search_types,
             config.distance_metrics,
+            config.chunking_strategies,
         )
     )
 
@@ -154,6 +155,7 @@ def configure_grid(
                 "top_k": combo[3],
                 "search_type": combo[4],
                 "distance_metric": combo[5],
+                "chunking_strategy": combo[6],
                 "embedding_dimensions": dim,
             }
             db_combo = ExperimentCombination(

@@ -17,8 +17,15 @@ const DEFAULT_CONFIG = {
   search_types: ["vector"],
   embedding_dimensions: [] as number[],
   distance_metrics: ["cosine"],
+  chunking_strategies: ["recursive"],
   optional_metrics: [] as string[],
 };
+
+const CHUNKING_STRATEGIES = [
+  { id: "recursive", label: "Recursive Character", description: "Splits by paragraphs, lines, sentences" },
+  { id: "token", label: "Token-based", description: "Exact token count per chunk" },
+  { id: "semantic", label: "Semantic", description: "Groups by semantic similarity" },
+];
 
 const DISTANCE_METRICS = [
   { id: "cosine", label: "Cosine" },
@@ -79,6 +86,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
     config.top_k_values.length *
     config.search_types.length *
     config.distance_metrics.length *
+    config.chunking_strategies.length *
     dimensionMultiplier
   );
 
@@ -243,6 +251,41 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                 >
                   {val}%
                 </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Chunking Strategy */}
+          <div>
+            <label className="block text-sm font-medium text-t-hover mb-3">Chunking Strategy</label>
+            <div className="flex gap-3 flex-wrap">
+              {CHUNKING_STRATEGIES.map((cs) => (
+                <label
+                  key={cs.id}
+                  className="flex items-center gap-2 cursor-pointer"
+                  title={cs.description}
+                >
+                  <input
+                    type="checkbox"
+                    checked={config.chunking_strategies.includes(cs.id)}
+                    onChange={() => {
+                      if (config.chunking_strategies.includes(cs.id)) {
+                        setConfig((prev) => ({
+                          ...prev,
+                          chunking_strategies: prev.chunking_strategies.filter((s) => s !== cs.id),
+                        }));
+                      } else {
+                        setConfig((prev) => ({
+                          ...prev,
+                          chunking_strategies: [...prev.chunking_strategies, cs.id],
+                        }));
+                      }
+                    }}
+                    className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
+                  />
+                  <span className="text-sm text-t-hover">{cs.label}</span>
+                  <span className="text-xs text-muted">({cs.description})</span>
+                </label>
               ))}
             </div>
           </div>

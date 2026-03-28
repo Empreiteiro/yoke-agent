@@ -114,6 +114,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
             {[
               { label: "Chunk Size", value: `${best.params.chunk_size} tokens` },
               { label: "Overlap", value: `${best.params.chunk_overlap}%` },
+              { label: "Chunking", value: best.params.chunking_strategy || "recursive" },
               { label: "Embedding", value: best.params.embedding_model },
               { label: "Dims", value: best.params.embedding_dimensions || "default" },
               { label: "Top-K", value: best.params.top_k },
@@ -191,7 +192,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-surface-200/50">
-                {["Rank", "Chunk Size", "Overlap", "Embedding", "Dims", "Top-K", "Search", "Dist.", "Faithfulness", "Relevancy", "Precision", "Recall", "Overall"].map(
+                {["Rank", "Chunk", "Overlap", "Chunking", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Overall"].map(
                   (header) => (
                     <th
                       key={header}
@@ -230,6 +231,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                       </td>
                       <td className="px-3 py-3 text-primary">{combo.params.chunk_size}</td>
                       <td className="px-3 py-3 text-primary">{combo.params.chunk_overlap}%</td>
+                      <td className="px-3 py-3 text-t-secondary text-xs capitalize">{combo.params.chunking_strategy || "recursive"}</td>
                       <td className="px-3 py-3 text-primary text-xs">{combo.params.embedding_model}</td>
                       <td className="px-3 py-3 text-t-secondary text-xs">{combo.params.embedding_dimensions || "default"}</td>
                       <td className="px-3 py-3 text-primary">{combo.params.top_k}</td>
@@ -264,7 +266,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                     {/* Per-question detail */}
                     {isExpanded && details.length > 0 && (
                       <tr>
-                        <td colSpan={13} className="p-0">
+                        <td colSpan={14} className="p-0">
                           <div className="bg-surface-50 border-y border-surface-200/30 px-6 py-4">
                             <h4 className="text-xs font-semibold text-t-secondary uppercase mb-3">
                               Per-Question Results ({details.length} questions)
@@ -338,7 +340,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                     )}
                     {isExpanded && details.length === 0 && (
                       <tr>
-                        <td colSpan={13} className="px-6 py-4 text-center text-sm text-muted bg-surface-50">
+                        <td colSpan={14} className="px-6 py-4 text-center text-sm text-muted bg-surface-50">
                           No per-question details available for this combination.
                         </td>
                       </tr>
