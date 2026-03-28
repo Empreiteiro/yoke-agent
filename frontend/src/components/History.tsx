@@ -16,6 +16,7 @@ import {
   Trash2,
   Square,
   Download,
+  Database,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import {
@@ -57,6 +58,7 @@ export default function History() {
   const [pollingId, setPollingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [stoppingId, setStoppingId] = useState<number | null>(null);
+  const [savingCollectionId, setSavingCollectionId] = useState<number | null>(null);
 
   useEffect(() => {
     loadExperiments();
@@ -145,6 +147,20 @@ export default function History() {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Failed to download report:", err);
+    }
+  };
+
+  const handleSaveCollection = async (expId: number) => {
+    setSavingCollectionId(expId);
+    try {
+      await api.saveCollectionFromExperiment(expId);
+    } catch (err: any) {
+      // 409 = already saved, that's fine
+      if (!err.message?.includes("409")) {
+        console.error("Failed to save collection:", err);
+      }
+    } finally {
+      setTimeout(() => setSavingCollectionId(null), 2000);
     }
   };
 
@@ -347,15 +363,29 @@ export default function History() {
                           </>
                         ) : null}
 
-                        {/* Download report */}
+                        {/* Save collection + Download report */}
                         {completedCount > 0 && (
-                          <button
-                            onClick={() => handleDownloadReport(exp)}
-                            className="p-1.5 rounded-lg text-muted hover:text-accent hover:bg-accent/10 transition-colors"
-                            title="Download report"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleSaveCollection(exp.id)}
+                              disabled={savingCollectionId === exp.id}
+                              className="p-1.5 rounded-lg text-muted hover:text-secondary hover:bg-secondary/10 transition-colors disabled:opacity-50"
+                              title="Save winning collection"
+                            >
+                              {savingCollectionId === exp.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-secondary" />
+                              ) : (
+                                <Database className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleDownloadReport(exp)}
+                              className="p-1.5 rounded-lg text-muted hover:text-accent hover:bg-accent/10 transition-colors"
+                              title="Download report"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          </>
                         )}
                       </div>
                     );

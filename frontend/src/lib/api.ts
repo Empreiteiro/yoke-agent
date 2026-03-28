@@ -116,6 +116,8 @@ export const api = {
 
   // Collections
   listCollections: () => request<any[]>("/collections/"),
+  saveCollectionFromExperiment: (experimentId: number) =>
+    request<any>(`/collections/save-from-experiment/${experimentId}`, { method: "POST" }),
   deleteCollection: (id: number) => request<any>(`/collections/${id}`, { method: "DELETE" }),
   queryCollection: (id: number, data: { question: string; top_k?: number }) =>
     request<any>(`/collections/${id}/query`, { method: "POST", body: JSON.stringify(data) }),
