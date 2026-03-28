@@ -10,12 +10,16 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+import os
+
 from app.models.document import Document as DocumentModel
 from app.models.dataset import Dataset, DatasetItem
 from app.models.experiment import Experiment, ExperimentCombination
+from app.models.saved_collection import SavedCollection
 from app.services.document_loader import load_documents
-from app.services.rag_pipeline import run_rag_pipeline
+from app.services.rag_pipeline import run_rag_pipeline, chunk_documents
 from app.services.ragas_evaluator import evaluate_rag_results
+from app.services.llm_factory import get_embeddings
 
 
 async def run_single_combination(
@@ -164,3 +168,92 @@ async def run_experiment(
 
         experiment.status = "completed" if all_success else "completed_with_errors"
         db.commit()
+
+        # Save winning collection for later querying
+        try:
+            await _save_winning_collection(
+                experiment=experiment,
+                source_documents=source_documents,
+                db=db,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save winning collection for experiment {experiment_id}: {e}")
+
+
+async def _save_winning_collection(
+    experiment: Experiment,
+    source_documents: list,
+    db: Session,
+) -> None:
+    """Re-index the winning combination's documents into a persistent collection."""
+    completed = [
+        c for c in experiment.combinations
+        if c.status == "completed" and c.overall_score is not None
+    ]
+    if not completed:
+        return
+
+    best = max(completed, key=lambda c: c.overall_score)
+    params = best.params
+
+    # Skip if already saved for this experiment
+    existing = db.query(SavedCollection).filter(
+        SavedCollection.experiment_id == experiment.id
+    ).first()
+    if existing:
+        return
+
+    collection_name = f"saved_{experiment.id}_{best.id}"
+    persist_path = os.path.abspath(f"./saved_collections/{collection_name}")
+    os.makedirs(persist_path, exist_ok=True)
+
+    # Re-chunk with winning params
+    chunks = chunk_documents(
+        source_documents,
+        params["chunk_size"],
+        params["chunk_overlap"],
+    )
+
+    # Create embeddings with winning model/dimensions
+    embeddings = get_embeddings(
+        db,
+        model=params["embedding_model"],
+        dimensions=params.get("embedding_dimensions"),
+    )
+
+    # Index into persistent ChromaDB
+    from langchain_community.vectorstores import Chroma
+    distance_metric = params.get("distance_metric", "cosine")
+    Chroma.from_documents(
+        documents=chunks,
+        embedding=embeddings,
+        collection_name=collection_name,
+        persist_directory=persist_path,
+        collection_metadata={"hnsw:space": distance_metric},
+    )
+
+    # Calculate size
+    total_size = 0
+    for dirpath, _, filenames in os.walk(persist_path):
+        for f in filenames:
+            total_size += os.path.getsize(os.path.join(dirpath, f))
+
+    # Save to DB
+    saved = SavedCollection(
+        name=f"{experiment.name} — Best",
+        experiment_id=experiment.id,
+        combination_id=best.id,
+        collection_name=collection_name,
+        persist_path=persist_path,
+        embedding_model=params["embedding_model"],
+        embedding_dimensions=params.get("embedding_dimensions"),
+        distance_metric=distance_metric,
+        chunk_size=params["chunk_size"],
+        chunk_overlap=params["chunk_overlap"],
+        top_k=params.get("top_k", 5),
+        search_type=params.get("search_type", "vector"),
+        overall_score=best.overall_score,
+        size_bytes=total_size,
+    )
+    db.add(saved)
+    db.commit()

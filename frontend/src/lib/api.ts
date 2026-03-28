@@ -110,6 +110,12 @@ export const api = {
   getAvailableModels: () => request<any>("/providers/models/available"),
   getEmbeddingDimensions: () => request<any>("/providers/models/embedding-dimensions"),
 
+  // Collections
+  listCollections: () => request<any[]>("/collections/"),
+  deleteCollection: (id: number) => request<any>(`/collections/${id}`, { method: "DELETE" }),
+  queryCollection: (id: number, data: { question: string; top_k?: number }) =>
+    request<any>(`/collections/${id}/query`, { method: "POST", body: JSON.stringify(data) }),
+
   // Token Usage
   listTokenUsage: (params?: {
     days?: number;

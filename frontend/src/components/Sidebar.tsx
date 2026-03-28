@@ -12,6 +12,7 @@ import {
   Clock,
   FileText,
   BookOpen,
+  MessageSquare,
   Sun,
   Moon,
 } from "lucide-react";
@@ -47,6 +48,8 @@ interface SidebarProps {
   onLogsClick?: () => void;
   showGlossary?: boolean;
   onGlossaryClick?: () => void;
+  showCollections?: boolean;
+  onCollectionsClick?: () => void;
 }
 
 const themes: { key: Theme; icon: any; label: string }[] = [
@@ -69,9 +72,11 @@ export default function Sidebar({
   onLogsClick,
   showGlossary = false,
   onGlossaryClick,
+  showCollections = false,
+  onCollectionsClick,
 }: SidebarProps) {
   const { theme, setTheme } = useTheme();
-  const isAnySpecialView = showSettings || showHistory || showLogs || showGlossary;
+  const isAnySpecialView = showSettings || showHistory || showLogs || showGlossary || showCollections;
 
   return (
     <aside className="w-60 bg-surface-50 flex flex-col h-screen">
@@ -243,6 +248,28 @@ export default function Sidebar({
               <BookOpen className="w-3.5 h-3.5" />
             </div>
             <span>Concepts</span>
+          </button>
+
+          <button
+            onClick={onCollectionsClick}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+              showCollections
+                ? "bg-accent/10 text-accent"
+                : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
+            )}
+          >
+            <div
+              className={cn(
+                "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
+                showCollections
+                  ? "bg-accent/20 text-accent"
+                  : "bg-surface-200 text-muted"
+              )}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+            </div>
+            <span>Collections</span>
           </button>
         </div>
       </nav>
