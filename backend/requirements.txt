@@ -21,6 +21,9 @@ langchain-google-genai>=2.0.0
 langchain-cohere>=0.3.0
 langchain-ollama>=0.2.0
 
+# Experimental (semantic chunking)
+langchain-experimental>=0.3.0
+
 # Document loaders
 pypdf>=4.0.0
 unstructured>=0.10.0

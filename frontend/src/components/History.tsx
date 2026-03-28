@@ -474,6 +474,7 @@ function ExpandedReport({ report }: { report: any }) {
             {[
               { label: "Chunk Size", value: `${best.params.chunk_size}` },
               { label: "Overlap", value: `${best.params.chunk_overlap}%` },
+              { label: "Chunking", value: best.params.chunking_strategy || "recursive" },
               { label: "Embedding", value: best.params.embedding_model },
               { label: "Dims", value: best.params.embedding_dimensions || "default" },
               { label: "Top-K", value: best.params.top_k },
@@ -553,7 +554,7 @@ function ExpandedReport({ report }: { report: any }) {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-surface-200/50">
-                  {["#", "Chunk", "Overlap", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Score", "Time"].map(
+                  {["#", "Chunk", "Overlap", "Chunking", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Score", "Time"].map(
                     (h) => (
                       <th key={h} className="px-2 py-2 text-left text-xs font-medium text-t-secondary uppercase">
                         {h}
@@ -573,6 +574,7 @@ function ExpandedReport({ report }: { report: any }) {
                     </td>
                     <td className="px-2 py-2 text-primary">{c.params.chunk_size}</td>
                     <td className="px-2 py-2 text-primary">{c.params.chunk_overlap}%</td>
+                    <td className="px-2 py-2 text-t-secondary text-xs capitalize">{c.params.chunking_strategy || "recursive"}</td>
                     <td className="px-2 py-2 text-primary truncate max-w-[120px]">{c.params.embedding_model}</td>
                     <td className="px-2 py-2 text-t-secondary text-xs">{c.params.embedding_dimensions || "def"}</td>
                     <td className="px-2 py-2 text-primary">{c.params.top_k}</td>

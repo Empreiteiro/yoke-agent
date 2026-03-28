@@ -2,7 +2,7 @@
 
 from typing import List, Dict, Any, Optional
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter, TokenTextSplitter
 from langchain.schema import Document
 from sqlalchemy.orm import Session
 
@@ -15,15 +15,52 @@ def chunk_documents(
     documents: List[Document],
     chunk_size: int,
     chunk_overlap_pct: int,
+    chunking_strategy: str = "recursive",
+    embeddings=None,
 ) -> List[Document]:
-    """Split documents into chunks with given size and overlap."""
+    """Split documents into chunks with given size, overlap, and strategy.
+
+    Args:
+        documents: Source documents to split.
+        chunk_size: Size of each chunk.
+        chunk_overlap_pct: Overlap as percentage of chunk_size.
+        chunking_strategy: One of "recursive", "token", "semantic".
+        embeddings: Required for semantic chunking (embedding model instance).
+    """
     overlap = int(chunk_size * chunk_overlap_pct / 100)
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=overlap,
-        length_function=len,
-        separators=["\n\n", "\n", ". ", " ", ""],
-    )
+
+    if chunking_strategy == "token":
+        splitter = TokenTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=overlap,
+        )
+    elif chunking_strategy == "semantic":
+        try:
+            from langchain_experimental.text_splitter import SemanticChunker
+            if embeddings is None:
+                raise ValueError("Embeddings required for semantic chunking")
+            splitter = SemanticChunker(
+                embeddings,
+                breakpoint_threshold_type="percentile",
+            )
+            # SemanticChunker ignores chunk_size; it groups by semantic similarity
+            return splitter.split_documents(documents)
+        except ImportError:
+            # Fallback to recursive if langchain_experimental not available
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=overlap,
+                length_function=len,
+                separators=["\n\n", "\n", ". ", " ", ""],
+            )
+    else:  # recursive (default)
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=overlap,
+            length_function=len,
+            separators=["\n\n", "\n", ". ", " ", ""],
+        )
+
     return splitter.split_documents(documents)
 
 
@@ -61,12 +98,13 @@ async def run_rag_pipeline(
     search_type = params["search_type"]
     embedding_dimensions = params.get("embedding_dimensions")
     distance_metric = params.get("distance_metric", "cosine")
+    chunking_strategy = params.get("chunking_strategy", "recursive")
 
-    # 1. Chunk documents
-    chunks = chunk_documents(documents, chunk_size, chunk_overlap)
-
-    # 2. Create embeddings via provider factory
+    # 1. Create embeddings via provider factory (needed before chunking for semantic strategy)
     embeddings = get_embeddings(db, provider_id=embedding_provider_id, model=embedding_model, dimensions=embedding_dimensions)
+
+    # 2. Chunk documents
+    chunks = chunk_documents(documents, chunk_size, chunk_overlap, chunking_strategy, embeddings=embeddings)
 
     # Resolve provider info for token logging
     emb_provider = _resolve_provider(db, embedding_provider_id, capability="embedding", model=embedding_model)
@@ -74,7 +112,7 @@ async def run_rag_pipeline(
 
     # 3. Create vector store and index
     dim_suffix = f"_{embedding_dimensions}" if embedding_dimensions else ""
-    collection_name = f"exp_{chunk_size}_{chunk_overlap}_{top_k}_{search_type}_{distance_metric}{dim_suffix}"
+    collection_name = f"exp_{chunk_size}_{chunk_overlap}_{top_k}_{search_type}_{distance_metric}_{chunking_strategy}{dim_suffix}"
     backend = create_vectorstore_backend(vectorstore_type, vectorstore_config)
     backend.create_collection(collection_name, chunks, embeddings, distance_metric=distance_metric)
 
