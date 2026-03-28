@@ -82,8 +82,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify(config),
     }),
-  runExperiment: (id: number, maxWorkers: number = 2) =>
-    request<any>(`/experiments/${id}/run?max_workers=${maxWorkers}`, { method: "POST" }),
+  runExperiment: (id: number) =>
+    request<any>(`/experiments/${id}/run`, { method: "POST" }),
   stopExperiment: (id: number) =>
     request<any>(`/experiments/${id}/stop`, { method: "POST" }),
   resumeExperiment: (id: number, retryFailed: boolean = false) =>

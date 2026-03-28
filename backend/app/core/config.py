@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     default_llm_model: str = "gpt-4o-mini"
     default_embedding_model: str = "text-embedding-3-small"
     max_upload_size_mb: int = 50
+    experiment_max_workers: int = 1
 
     class Config:
         env_file = ".env"

@@ -16,7 +16,6 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
   const [expandedError, setExpandedError] = useState<number | null>(null);
   const [stopping, setStopping] = useState(false);
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
-  const [maxWorkers, setMaxWorkers] = useState(2);
 
   useEffect(() => {
     if (experimentId) loadExperiment();
@@ -39,7 +38,7 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
     setRunning(true);
     setStopping(false);
     try {
-      await api.runExperiment(experimentId, maxWorkers);
+      await api.runExperiment(experimentId);
       const interval = setInterval(async () => {
         const data = await api.getExperiment(experimentId);
         setExperiment(data);
@@ -290,28 +289,13 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
 
       {/* Start Execution CTA */}
       {!isDone && !running && !canResume && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-center gap-3">
-            <label className="text-xs text-t-secondary whitespace-nowrap">Parallel workers:</label>
-            <select
-              value={maxWorkers}
-              onChange={(e) => setMaxWorkers(parseInt(e.target.value))}
-              className="px-2 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-xs focus:outline-none focus:border-accent/50"
-            >
-              <option value={1}>1 (Sequential)</option>
-              <option value={2}>2 workers</option>
-              <option value={3}>3 workers</option>
-              <option value={4}>4 workers</option>
-            </select>
-          </div>
-          <button
-            onClick={handleRun}
-            className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            <Play className="w-4 h-4" />
-            Start Execution
-          </button>
-        </div>
+        <button
+          onClick={handleRun}
+          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          <Play className="w-4 h-4" />
+          Start Execution
+        </button>
       )}
 
       {/* View Results CTA */}
