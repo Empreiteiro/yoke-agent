@@ -72,7 +72,16 @@ async def run_single_combination(
         combination.context_recall = scores.get("context_recall")
         combination.answer_similarity = scores.get("answer_similarity")
         combination.answer_correctness = scores.get("answer_correctness")
-        combination.overall_score = scores.get("overall_score")
+
+        # Calculate overall_score from available metrics (resilient to partial results)
+        fixed = [
+            combination.faithfulness,
+            combination.answer_relevancy,
+            combination.context_precision,
+            combination.context_recall,
+        ]
+        available = [v for v in fixed if v is not None]
+        combination.overall_score = sum(available) / len(available) if available else scores.get("overall_score")
         combination.detailed_results = eval_results.get("detailed_results")
         combination.status = "completed"
 
