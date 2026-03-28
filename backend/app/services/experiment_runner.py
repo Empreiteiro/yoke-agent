@@ -1,5 +1,6 @@
 """Experiment runner that orchestrates the full grid search execution."""
 
+import asyncio
 import logging
 import time
 import traceback
@@ -11,6 +12,9 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 import os
+
+# Default parallelism level (can be overridden per experiment)
+DEFAULT_MAX_WORKERS = 2
 
 from app.models.document import Document as DocumentModel
 from app.models.dataset import Dataset, DatasetItem
@@ -85,12 +89,59 @@ async def run_single_combination(
             db.commit()
 
 
+async def _run_combination_with_session(
+    combination_id: int,
+    source_documents: list,
+    questions: list[str],
+    ground_truths: list[str],
+    vectorstore_type: str,
+    vectorstore_config: Optional[Dict[str, Any]],
+    optional_metrics: Optional[list[str]],
+    experiment_id: int,
+    semaphore: asyncio.Semaphore,
+) -> bool:
+    """Run a single combination with its own DB session (for parallel execution)."""
+    from app.core.database import SessionLocal
+
+    async with semaphore:
+        db = SessionLocal()
+        try:
+            # Check if experiment was stopped
+            experiment = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+            if experiment and experiment.status == "stopped":
+                return True  # signal stopped
+
+            combination = db.query(ExperimentCombination).filter(
+                ExperimentCombination.id == combination_id
+            ).first()
+            if not combination or combination.status != "pending":
+                return False
+
+            await run_single_combination(
+                combination=combination,
+                source_documents=source_documents,
+                questions=questions,
+                ground_truths=ground_truths,
+                vectorstore_type=vectorstore_type,
+                vectorstore_config=vectorstore_config,
+                optional_metrics=optional_metrics,
+                db=db,
+            )
+            return combination.status == "failed"
+        except Exception as e:
+            logger.error(f"Parallel combination {combination_id} error: {e}")
+            return True
+        finally:
+            db.close()
+
+
 async def run_experiment(
     experiment_id: int,
     db: Session,
     vectorstore_config: Optional[Dict[str, Any]] = None,
+    max_workers: int = DEFAULT_MAX_WORKERS,
 ) -> None:
-    """Run all combinations in an experiment."""
+    """Run all combinations in an experiment, with parallel execution."""
     experiment = db.query(Experiment).filter(Experiment.id == experiment_id).first()
     if not experiment:
         raise ValueError(f"Experiment {experiment_id} not found")
@@ -111,13 +162,12 @@ async def run_experiment(
     filepaths = [doc.filepath for doc in doc_models]
     source_documents = load_documents(filepaths)
 
-    # Get optional metrics from the first combination's config or default
     optional_metrics = None
 
     experiment.status = "running"
     db.commit()
 
-    # Run each combination
+    # Get pending combination IDs
     pending = (
         db.query(ExperimentCombination)
         .filter(
@@ -126,29 +176,62 @@ async def run_experiment(
         )
         .all()
     )
+    pending_ids = [c.id for c in pending]
 
     all_success = True
     was_stopped = False
-    for combination in pending:
-        # Check if experiment was stopped before running next combination
-        db.refresh(experiment)
-        if experiment.status == "stopped":
-            was_stopped = True
-            logger.info(f"Experiment {experiment_id} was stopped by user")
-            break
 
-        await run_single_combination(
-            combination=combination,
-            source_documents=source_documents,
-            questions=questions,
-            ground_truths=ground_truths,
-            vectorstore_type=experiment.vectorstore_type,
-            vectorstore_config=vectorstore_config,
-            optional_metrics=optional_metrics,
-            db=db,
-        )
-        if combination.status == "failed":
-            all_success = False
+    if max_workers <= 1:
+        # Sequential execution (original behavior)
+        for combination in pending:
+            db.refresh(experiment)
+            if experiment.status == "stopped":
+                was_stopped = True
+                logger.info(f"Experiment {experiment_id} was stopped by user")
+                break
+
+            await run_single_combination(
+                combination=combination,
+                source_documents=source_documents,
+                questions=questions,
+                ground_truths=ground_truths,
+                vectorstore_type=experiment.vectorstore_type,
+                vectorstore_config=vectorstore_config,
+                optional_metrics=optional_metrics,
+                db=db,
+            )
+            if combination.status == "failed":
+                all_success = False
+    else:
+        # Parallel execution with semaphore
+        semaphore = asyncio.Semaphore(max_workers)
+        logger.info(f"Running {len(pending_ids)} combinations with max_workers={max_workers}")
+
+        tasks = [
+            _run_combination_with_session(
+                combination_id=cid,
+                source_documents=source_documents,
+                questions=questions,
+                ground_truths=ground_truths,
+                vectorstore_type=experiment.vectorstore_type,
+                vectorstore_config=vectorstore_config,
+                optional_metrics=optional_metrics,
+                experiment_id=experiment_id,
+                semaphore=semaphore,
+            )
+            for cid in pending_ids
+        ]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for r in results:
+            if isinstance(r, Exception):
+                all_success = False
+            elif r:
+                all_success = False
+
+        # Refresh experiment status
+        db.refresh(experiment)
+        was_stopped = experiment.status == "stopped"
 
     if not was_stopped:
         # Check for stuck combinations (still "running" after loop finished)

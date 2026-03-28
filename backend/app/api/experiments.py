@@ -24,11 +24,11 @@ from app.services.experiment_runner import run_experiment as run_experiment_serv
 router = APIRouter()
 
 
-def _run_experiment_sync(experiment_id: int):
+def _run_experiment_sync(experiment_id: int, max_workers: int = 2):
     """Synchronous wrapper for background experiment execution."""
     db = SessionLocal()
     try:
-        asyncio.run(run_experiment_service(experiment_id, db))
+        asyncio.run(run_experiment_service(experiment_id, db, max_workers=max_workers))
     finally:
         db.close()
 
@@ -264,7 +264,8 @@ def configure_grid(
 @router.post("/{experiment_id}/run")
 async def run_experiment_endpoint(
     experiment_id: int,
-    background_tasks: BackgroundTasks,
+    max_workers: int = 2,
+    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
 ):
     exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
@@ -279,8 +280,8 @@ async def run_experiment_endpoint(
     exp.status = "running"
     db.commit()
 
-    background_tasks.add_task(_run_experiment_sync, experiment_id)
-    return {"detail": "Experiment execution started", "experiment_id": experiment_id}
+    background_tasks.add_task(_run_experiment_sync, experiment_id, max_workers)
+    return {"detail": f"Experiment execution started (max_workers={max_workers})", "experiment_id": experiment_id}
 
 
 @router.post("/{experiment_id}/stop")
