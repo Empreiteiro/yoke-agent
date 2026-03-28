@@ -166,6 +166,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
     <div className="space-y-6">
       {mode === "new" ? (
         /* Create new dataset */
+        <>
         <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
           <div className="space-y-4">
             {modeToggle}
@@ -289,27 +290,29 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
               </div>
             )}
 
-            <button
-              onClick={handleCreate}
-              disabled={generating}
-              className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {generating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating Dataset...
-                </>
-              ) : (
-                <>
-                  <Database className="w-4 h-4" />
-                  Generate Evaluation Dataset
-                </>
-              )}
-            </button>
           </div>
         </div>
+        <button
+          onClick={handleCreate}
+          disabled={generating}
+          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {generating ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Generating Dataset...
+            </>
+          ) : (
+            <>
+              <Database className="w-4 h-4" />
+              Generate Evaluation Dataset
+            </>
+          )}
+        </button>
+        </>
       ) : (
         /* Use existing dataset */
+        <>
         <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
           <div className="space-y-4">
             {modeToggle}
@@ -385,18 +388,20 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                   ))}
                 </div>
 
-                <button
-                  onClick={handleSelectExisting}
-                  disabled={!selectedDatasetId}
-                  className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Use Selected Dataset
-                </button>
               </>
             )}
           </div>
         </div>
+        {selectedDatasetId && (
+          <button
+            onClick={handleSelectExisting}
+            className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <CheckCircle className="w-4 h-4" />
+            Use Selected Dataset
+          </button>
+        )}
+        </>
       )}
     </div>
   );

@@ -165,13 +165,16 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
               </div>
             ))}
           </div>
-          <button
-            onClick={handleContinue}
-            className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            Continue to Dataset Generation
-          </button>
         </div>
+      )}
+
+      {uploaded.length > 0 && (
+        <button
+          onClick={handleContinue}
+          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          Continue to Dataset Generation
+        </button>
       )}
     </div>
   );
