@@ -201,6 +201,10 @@ def configure_grid(
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
 
+    # Rename temporary estimate experiments to a proper name
+    if exp.name and exp.name.startswith("estimate-"):
+        exp.name = f"experiment-{uuid.uuid4().hex[:8]}"
+
     # Clear existing combinations
     db.query(ExperimentCombination).filter(
         ExperimentCombination.experiment_id == experiment_id
