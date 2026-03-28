@@ -1,15 +1,17 @@
-"""Saved collections API — list, delete, and query preserved vectorstores."""
+"""Saved collections API — list, delete, query, and save from experiments."""
 
+import asyncio
 import os
 import shutil
 import logging
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
+from app.core.database import get_db, SessionLocal
 from app.models.saved_collection import SavedCollection
+from app.models.experiment import Experiment
 from app.schemas.collection import (
     SavedCollectionResponse,
     CollectionQueryRequest,
@@ -130,3 +132,65 @@ Answer:"""
         contexts=contexts,
         token_usage=token_usage,
     )
+
+
+def _save_collection_sync(experiment_id: int):
+    """Background task to save the winning collection from an experiment."""
+    asyncio.run(_save_collection_task(experiment_id))
+
+
+async def _save_collection_task(experiment_id: int):
+    """Save the winning collection from an existing completed experiment."""
+    db = SessionLocal()
+    try:
+        from app.services.experiment_runner import _save_winning_collection
+        from app.models.document import Document as DocModel
+        from app.models.dataset import Dataset
+        from app.services.document_loader import load_documents
+
+        experiment = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+        if not experiment:
+            return
+
+        dataset = db.query(Dataset).filter(Dataset.id == experiment.dataset_id).first()
+        if not dataset:
+            return
+
+        doc_models = db.query(DocModel).filter(DocModel.id.in_(dataset.document_ids or [])).all()
+        filepaths = [doc.filepath for doc in doc_models]
+        source_documents = load_documents(filepaths)
+
+        await _save_winning_collection(experiment, source_documents, db)
+    except Exception as e:
+        logger.error(f"Failed to save collection for experiment {experiment_id}: {e}")
+    finally:
+        db.close()
+
+
+@router.post("/save-from-experiment/{experiment_id}")
+def save_from_experiment(
+    experiment_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Save the winning collection from an existing completed experiment."""
+    exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+
+    completed = [c for c in exp.combinations if c.status == "completed" and c.overall_score is not None]
+    if not completed:
+        raise HTTPException(status_code=400, detail="No completed combinations to save")
+
+    # Check if already saved
+    existing = db.query(SavedCollection).filter(SavedCollection.experiment_id == experiment_id).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Collection already saved for this experiment")
+
+    background_tasks.add_task(_save_collection_sync, experiment_id)
+    best = max(completed, key=lambda c: c.overall_score)
+    return {
+        "detail": "Collection save started",
+        "experiment_id": experiment_id,
+        "best_score": best.overall_score,
+    }
