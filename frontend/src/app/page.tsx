@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import PipelineHeader from "@/components/PipelineHeader";
 import StepUpload from "@/components/steps/StepUpload";
@@ -26,14 +27,20 @@ const STEPS = [
 
 type StepId = (typeof STEPS)[number]["id"];
 
-export default function Home() {
-  const [currentStep, setCurrentStep] = useState<StepId>("upload");
+const VALID_VIEWS = ["history", "logs", "settings", "glossary", "collections"];
+const VALID_STEPS = STEPS.map((s) => s.id);
+
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Derive current view from URL
+  const urlView = searchParams.get("view");
+  const urlStep = searchParams.get("step");
+  const currentView = urlView && VALID_VIEWS.includes(urlView) ? urlView : null;
+  const currentStep: StepId = (urlStep && VALID_STEPS.includes(urlStep as StepId) ? urlStep : (currentView ? "upload" : "upload")) as StepId;
+
   const [completedSteps, setCompletedSteps] = useState<Set<StepId>>(new Set());
-  const [showSettings, setShowSettings] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [showLogs, setShowLogs] = useState(false);
-  const [showGlossary, setShowGlossary] = useState(false);
-  const [showCollections, setShowCollections] = useState(false);
   const [pipelineData, setPipelineData] = useState<{
     documentIds: number[];
     datasetId: number | null;
@@ -44,6 +51,10 @@ export default function Home() {
     experimentId: null,
   });
 
+  const navigate = useCallback((path: string) => {
+    router.push(path);
+  }, [router]);
+
   const handleStepComplete = (stepId: StepId, data?: Partial<typeof pipelineData>) => {
     setCompletedSteps((prev) => new Set([...prev, stepId]));
     if (data) {
@@ -51,11 +62,11 @@ export default function Home() {
     }
     const currentIndex = STEPS.findIndex((s) => s.id === stepId);
     if (currentIndex < STEPS.length - 1) {
-      setCurrentStep(STEPS[currentIndex + 1].id);
+      const nextStep = STEPS[currentIndex + 1].id;
+      router.push(`/?step=${nextStep}`);
     }
   };
 
-  // Steps that require the previous step to be completed
   const stepPrerequisites: Record<string, string | null> = {
     upload: null,
     dataset: null,
@@ -71,14 +82,14 @@ export default function Home() {
     return completedSteps.has(prereq as StepId);
   };
 
-  const handleStepClick = (id: string) => {
-    if (!isStepAccessible(id)) return;
-    setCurrentStep(id as StepId);
-    setShowSettings(false);
-    setShowHistory(false);
-    setShowLogs(false);
-    setShowGlossary(false);
-    setShowCollections(false);
+  const handleNavigate = (path: string) => {
+    // Extract step from path and check accessibility
+    const stepMatch = path.match(/step=([^&]+)/);
+    if (stepMatch) {
+      const stepId = stepMatch[1];
+      if (!isStepAccessible(stepId)) return;
+    }
+    navigate(path);
   };
 
   const renderStep = () => {
@@ -97,7 +108,6 @@ export default function Home() {
             documentIds={pipelineData.documentIds}
             onComplete={(datasetId, reused) => {
               if (reused) {
-                // When reusing a dataset, mark upload as completed too
                 setCompletedSteps((prev) => new Set([...prev, "upload"]));
               }
               handleStepComplete("dataset", { datasetId });
@@ -136,61 +146,29 @@ export default function Home() {
     }
   };
 
+  const VIEW_COMPONENTS: Record<string, React.ReactNode> = {
+    settings: <SettingsProviders />,
+    history: <History />,
+    logs: <Logs />,
+    glossary: <Glossary />,
+    collections: <Collections />,
+  };
+
   return (
     <div className="flex h-screen bg-surface-50">
       <Sidebar
         steps={STEPS}
         currentStep={currentStep}
+        currentView={currentView}
         completedSteps={completedSteps}
-        onStepClick={handleStepClick}
+        onNavigate={handleNavigate}
         isStepAccessible={isStepAccessible}
-        showSettings={showSettings}
-        onSettingsClick={() => {
-          setShowSettings(true);
-          setShowHistory(false); setShowLogs(false); setShowGlossary(false); setShowCollections(false);
-        }}
-        showHistory={showHistory}
-        onHistoryClick={() => {
-          setShowHistory(true);
-          setShowSettings(false); setShowLogs(false); setShowGlossary(false); setShowCollections(false);
-        }}
-        showLogs={showLogs}
-        onLogsClick={() => {
-          setShowLogs(true);
-          setShowSettings(false); setShowHistory(false); setShowGlossary(false); setShowCollections(false);
-        }}
-        showGlossary={showGlossary}
-        onGlossaryClick={() => {
-          setShowGlossary(true);
-          setShowSettings(false); setShowHistory(false); setShowLogs(false); setShowCollections(false);
-        }}
-        showCollections={showCollections}
-        onCollectionsClick={() => {
-          setShowCollections(true);
-          setShowSettings(false); setShowHistory(false); setShowLogs(false); setShowGlossary(false);
-        }}
       />
       <main className="flex-1 overflow-y-auto p-3 pl-0">
         <div className="h-full bg-surface-100 rounded-2xl border border-surface-200/30 overflow-y-auto">
-          {showSettings ? (
+          {currentView && VIEW_COMPONENTS[currentView] ? (
             <div className="p-6 max-w-6xl mx-auto">
-              <SettingsProviders />
-            </div>
-          ) : showHistory ? (
-            <div className="p-6 max-w-6xl mx-auto">
-              <History />
-            </div>
-          ) : showLogs ? (
-            <div className="p-6 max-w-6xl mx-auto">
-              <Logs />
-            </div>
-          ) : showGlossary ? (
-            <div className="p-6 max-w-6xl mx-auto">
-              <Glossary />
-            </div>
-          ) : showCollections ? (
-            <div className="p-6 max-w-6xl mx-auto">
-              <Collections />
+              {VIEW_COMPONENTS[currentView]}
             </div>
           ) : (
             <>
@@ -205,5 +183,13 @@ export default function Home() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-surface-50 text-t-secondary">Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }
