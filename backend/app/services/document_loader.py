@@ -3,18 +3,16 @@
 import os
 from typing import List
 
-from langchain_community.document_loaders import (
-    PyPDFLoader,
-    TextLoader,
-    UnstructuredMarkdownLoader,
-)
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.schema import Document
 
 
 LOADER_MAP = {
     ".pdf": PyPDFLoader,
     ".txt": TextLoader,
-    ".md": UnstructuredMarkdownLoader,
+    ".md": TextLoader,
+    ".mdx": TextLoader,
+    ".docx": TextLoader,
 }
 
 

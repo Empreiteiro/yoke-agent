@@ -26,7 +26,6 @@ langchain-experimental>=0.3.0
 
 # Document loaders
 pypdf>=4.0.0
-unstructured>=0.10.0
 
 # RAG evaluation
 ragas==0.2.3
