@@ -127,7 +127,7 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
             <button
               onClick={handleUpload}
               disabled={uploading}
-              className="mt-4 w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="mt-4 w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {uploading ? "Uploading..." : `Upload ${files.length} file(s)`}
             </button>
@@ -167,7 +167,7 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
           </div>
           <button
             onClick={handleContinue}
-            className="w-full py-3 px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 text-primary font-medium rounded-xl hover:opacity-90 transition-opacity"
+            className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
             Continue to Dataset Generation
           </button>
