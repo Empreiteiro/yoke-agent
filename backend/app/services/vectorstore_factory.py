@@ -3,7 +3,7 @@
 from typing import List, Optional, Dict, Any, Protocol
 from abc import ABC, abstractmethod
 
-from langchain.schema import Document
+from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
 

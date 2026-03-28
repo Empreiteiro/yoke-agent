@@ -3,7 +3,8 @@
 import json
 from typing import Dict, Any, Optional
 
-from langchain.schema import HumanMessage, SystemMessage, Document
+from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.orm import Session
 
 from app.services.llm_factory import get_llm
