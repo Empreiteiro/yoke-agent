@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { BarChart3, Trophy, Download, ArrowUpDown } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { BarChart3, Trophy, Download, ArrowUpDown, ChevronDown, ChevronRight, Eye } from "lucide-react";
 import { api } from "@/lib/api";
 import {
   BarChart,
@@ -28,6 +28,8 @@ export default function StepResults({ experimentId }: StepResultsProps) {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<string>("overall_score");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [expandedComboId, setExpandedComboId] = useState<number | null>(null);
+  const [expandedQuestionIdx, setExpandedQuestionIdx] = useState<number | null>(null);
 
   useEffect(() => {
     if (experimentId) loadReport();
@@ -202,54 +204,148 @@ export default function StepResults({ experimentId }: StepResultsProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-200/30">
-              {sorted.map((combo: any, index: number) => (
-                <tr
-                  key={combo.id}
-                  className={`hover:bg-surface-50 transition-colors ${
-                    index === 0 ? "bg-accent/5" : ""
-                  }`}
-                >
-                  <td className="px-3 py-3 text-t-hover">
-                    {index === 0 ? (
-                      <Trophy className="w-4 h-4 text-amber-400 inline" />
-                    ) : (
-                      `#${index + 1}`
-                    )}
-                  </td>
-                  <td className="px-3 py-3 text-primary">{combo.params.chunk_size}</td>
-                  <td className="px-3 py-3 text-primary">{combo.params.chunk_overlap}%</td>
-                  <td className="px-3 py-3 text-primary text-xs">{combo.params.embedding_model}</td>
-                  <td className="px-3 py-3 text-t-secondary text-xs">{combo.params.embedding_dimensions || "default"}</td>
-                  <td className="px-3 py-3 text-primary">{combo.params.top_k}</td>
-                  <td className="px-3 py-3 text-primary capitalize">{combo.params.search_type}</td>
-                  <td className="px-3 py-3 text-t-secondary text-xs">{combo.params.distance_metric || "cosine"}</td>
-                  <td className="px-3 py-3 text-primary">
-                    {combo.faithfulness != null ? `${(combo.faithfulness * 100).toFixed(1)}%` : "-"}
-                  </td>
-                  <td className="px-3 py-3 text-primary">
-                    {combo.answer_relevancy != null ? `${(combo.answer_relevancy * 100).toFixed(1)}%` : "-"}
-                  </td>
-                  <td className="px-3 py-3 text-primary">
-                    {combo.context_precision != null ? `${(combo.context_precision * 100).toFixed(1)}%` : "-"}
-                  </td>
-                  <td className="px-3 py-3 text-primary">
-                    {combo.context_recall != null ? `${(combo.context_recall * 100).toFixed(1)}%` : "-"}
-                  </td>
-                  <td className="px-3 py-3">
-                    <span
-                      className={`font-semibold ${
-                        (combo.overall_score ?? 0) >= 0.8
-                          ? "text-emerald-400"
-                          : (combo.overall_score ?? 0) >= 0.6
-                          ? "text-amber-400"
-                          : "text-red-400"
-                      }`}
+              {sorted.map((combo: any, index: number) => {
+                const isExpanded = expandedComboId === combo.id;
+                const details: any[] = Array.isArray(combo.detailed_results) ? combo.detailed_results : [];
+                return (
+                  <React.Fragment key={combo.id}>
+                    <tr
+                      onClick={() => {
+                        setExpandedComboId(isExpanded ? null : combo.id);
+                        setExpandedQuestionIdx(null);
+                      }}
+                      className={`hover:bg-surface-50 transition-colors cursor-pointer ${
+                        index === 0 ? "bg-accent/5" : ""
+                      } ${isExpanded ? "bg-surface-50" : ""}`}
                     >
-                      {combo.overall_score != null ? `${(combo.overall_score * 100).toFixed(1)}%` : "-"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+                      <td className="px-3 py-3 text-t-hover">
+                        <div className="flex items-center gap-1">
+                          {isExpanded ? <ChevronDown className="w-3 h-3 text-t-secondary" /> : <ChevronRight className="w-3 h-3 text-t-secondary" />}
+                          {index === 0 ? (
+                            <Trophy className="w-4 h-4 text-amber-400" />
+                          ) : (
+                            `#${index + 1}`
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-primary">{combo.params.chunk_size}</td>
+                      <td className="px-3 py-3 text-primary">{combo.params.chunk_overlap}%</td>
+                      <td className="px-3 py-3 text-primary text-xs">{combo.params.embedding_model}</td>
+                      <td className="px-3 py-3 text-t-secondary text-xs">{combo.params.embedding_dimensions || "default"}</td>
+                      <td className="px-3 py-3 text-primary">{combo.params.top_k}</td>
+                      <td className="px-3 py-3 text-primary capitalize">{combo.params.search_type}</td>
+                      <td className="px-3 py-3 text-t-secondary text-xs">{combo.params.distance_metric || "cosine"}</td>
+                      <td className="px-3 py-3 text-primary">
+                        {combo.faithfulness != null ? `${(combo.faithfulness * 100).toFixed(1)}%` : "-"}
+                      </td>
+                      <td className="px-3 py-3 text-primary">
+                        {combo.answer_relevancy != null ? `${(combo.answer_relevancy * 100).toFixed(1)}%` : "-"}
+                      </td>
+                      <td className="px-3 py-3 text-primary">
+                        {combo.context_precision != null ? `${(combo.context_precision * 100).toFixed(1)}%` : "-"}
+                      </td>
+                      <td className="px-3 py-3 text-primary">
+                        {combo.context_recall != null ? `${(combo.context_recall * 100).toFixed(1)}%` : "-"}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`font-semibold ${
+                            (combo.overall_score ?? 0) >= 0.8
+                              ? "text-emerald-400"
+                              : (combo.overall_score ?? 0) >= 0.6
+                              ? "text-amber-400"
+                              : "text-red-400"
+                          }`}
+                        >
+                          {combo.overall_score != null ? `${(combo.overall_score * 100).toFixed(1)}%` : "-"}
+                        </span>
+                      </td>
+                    </tr>
+                    {/* Per-question detail */}
+                    {isExpanded && details.length > 0 && (
+                      <tr>
+                        <td colSpan={13} className="p-0">
+                          <div className="bg-surface-50 border-y border-surface-200/30 px-6 py-4">
+                            <h4 className="text-xs font-semibold text-t-secondary uppercase mb-3">
+                              Per-Question Results ({details.length} questions)
+                            </h4>
+                            <div className="space-y-2">
+                              {details.map((q: any, qi: number) => {
+                                const qExpanded = expandedQuestionIdx === qi;
+                                const faith = q.faithfulness;
+                                const relev = q.answer_relevancy;
+                                const prec = q.context_precision;
+                                const recall = q.context_recall;
+                                return (
+                                  <div key={qi} className="bg-surface-100 rounded-lg border border-surface-200/30 overflow-hidden">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setExpandedQuestionIdx(qExpanded ? null : qi); }}
+                                      className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-surface-50 transition-colors"
+                                    >
+                                      <span className="text-xs font-mono text-muted mt-0.5">Q{qi + 1}</span>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-primary line-clamp-1">{q.user_input || q.question || "—"}</p>
+                                      </div>
+                                      <div className="flex items-center gap-3 flex-shrink-0 text-xs">
+                                        <span className={faith >= 0.8 ? "text-emerald-400" : faith >= 0.5 ? "text-amber-400" : "text-red-400"}>
+                                          F:{(faith * 100).toFixed(0)}%
+                                        </span>
+                                        <span className={relev >= 0.8 ? "text-emerald-400" : relev >= 0.5 ? "text-amber-400" : "text-red-400"}>
+                                          R:{(relev * 100).toFixed(0)}%
+                                        </span>
+                                        <span className={prec >= 0.8 ? "text-emerald-400" : prec >= 0.5 ? "text-amber-400" : "text-red-400"}>
+                                          P:{((prec ?? 0) * 100).toFixed(0)}%
+                                        </span>
+                                        <span className={recall >= 0.8 ? "text-emerald-400" : recall >= 0.5 ? "text-amber-400" : "text-red-400"}>
+                                          C:{((recall ?? 0) * 100).toFixed(0)}%
+                                        </span>
+                                        {qExpanded ? <ChevronDown className="w-3 h-3 text-muted" /> : <ChevronRight className="w-3 h-3 text-muted" />}
+                                      </div>
+                                    </button>
+                                    {qExpanded && (
+                                      <div className="px-4 pb-4 space-y-3 border-t border-surface-200/30 pt-3">
+                                        <div>
+                                          <p className="text-xs font-medium text-t-secondary mb-1">Generated Answer</p>
+                                          <p className="text-sm text-primary bg-surface-50 rounded-lg px-3 py-2">{q.response || q.answer || "—"}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-xs font-medium text-t-secondary mb-1">Ground Truth</p>
+                                          <p className="text-sm text-primary bg-surface-50 rounded-lg px-3 py-2">{q.reference || q.ground_truth || "—"}</p>
+                                        </div>
+                                        {(q.retrieved_contexts || q.contexts) && (
+                                          <div>
+                                            <p className="text-xs font-medium text-t-secondary mb-1">
+                                              Retrieved Contexts ({(q.retrieved_contexts || q.contexts || []).length})
+                                            </p>
+                                            <div className="space-y-1.5">
+                                              {(q.retrieved_contexts || q.contexts || []).map((ctx: string, ci: number) => (
+                                                <div key={ci} className="text-xs text-t-secondary bg-surface-50 rounded-lg px-3 py-2 border-l-2 border-accent/20">
+                                                  {ctx.length > 500 ? ctx.slice(0, 500) + "..." : ctx}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {isExpanded && details.length === 0 && (
+                      <tr>
+                        <td colSpan={13} className="px-6 py-4 text-center text-sm text-muted bg-surface-50">
+                          No per-question details available for this combination.
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
