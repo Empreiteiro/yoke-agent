@@ -13,6 +13,7 @@ import SettingsProviders from "@/components/SettingsProviders";
 import History from "@/components/History";
 import Logs from "@/components/Logs";
 import Glossary from "@/components/Glossary";
+import Collections from "@/components/Collections";
 
 const STEPS = [
   { id: "upload", label: "Upload Documents", icon: "upload", description: "Upload one or more documents to analyze. Supported formats: PDF, TXT, DOCX, MD." },
@@ -32,6 +33,7 @@ export default function Home() {
   const [showHistory, setShowHistory] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [showGlossary, setShowGlossary] = useState(false);
+  const [showCollections, setShowCollections] = useState(false);
   const [pipelineData, setPipelineData] = useState<{
     documentIds: number[];
     datasetId: number | null;
@@ -76,6 +78,7 @@ export default function Home() {
     setShowHistory(false);
     setShowLogs(false);
     setShowGlossary(false);
+    setShowCollections(false);
   };
 
   const renderStep = () => {
@@ -144,30 +147,27 @@ export default function Home() {
         showSettings={showSettings}
         onSettingsClick={() => {
           setShowSettings(true);
-          setShowHistory(false);
-          setShowLogs(false);
-          setShowGlossary(false);
+          setShowHistory(false); setShowLogs(false); setShowGlossary(false); setShowCollections(false);
         }}
         showHistory={showHistory}
         onHistoryClick={() => {
           setShowHistory(true);
-          setShowSettings(false);
-          setShowLogs(false);
-          setShowGlossary(false);
+          setShowSettings(false); setShowLogs(false); setShowGlossary(false); setShowCollections(false);
         }}
         showLogs={showLogs}
         onLogsClick={() => {
           setShowLogs(true);
-          setShowSettings(false);
-          setShowHistory(false);
-          setShowGlossary(false);
+          setShowSettings(false); setShowHistory(false); setShowGlossary(false); setShowCollections(false);
         }}
         showGlossary={showGlossary}
         onGlossaryClick={() => {
           setShowGlossary(true);
-          setShowSettings(false);
-          setShowHistory(false);
-          setShowLogs(false);
+          setShowSettings(false); setShowHistory(false); setShowLogs(false); setShowCollections(false);
+        }}
+        showCollections={showCollections}
+        onCollectionsClick={() => {
+          setShowCollections(true);
+          setShowSettings(false); setShowHistory(false); setShowLogs(false); setShowGlossary(false);
         }}
       />
       <main className="flex-1 overflow-y-auto p-3 pl-0">
@@ -187,6 +187,10 @@ export default function Home() {
           ) : showGlossary ? (
             <div className="p-6 max-w-6xl mx-auto">
               <Glossary />
+            </div>
+          ) : showCollections ? (
+            <div className="p-6 max-w-6xl mx-auto">
+              <Collections />
             </div>
           ) : (
             <>
