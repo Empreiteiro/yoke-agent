@@ -58,6 +58,7 @@ async def _generate_dataset_task(dataset_id: int, options: Optional[dict] = None
             num_questions=options.get("num_questions"),
             reading_mode=options.get("reading_mode", "full"),
             max_pages=options.get("max_pages"),
+            language=options.get("language", "auto"),
         )
 
         for pair in pairs:

@@ -249,6 +249,7 @@ def configure_grid(
                 "distance_metric": combo[5],
                 "chunking_strategy": combo[6],
                 "embedding_dimensions": dim,
+                "answer_language": config.answer_language,
             }
             db_combo = ExperimentCombination(
                 experiment_id=experiment_id,

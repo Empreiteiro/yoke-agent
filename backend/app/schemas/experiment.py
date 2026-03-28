@@ -12,6 +12,7 @@ class RAGParams(BaseModel):
     embedding_dimensions: Optional[int] = Field(None, description="Embedding output dimensions (None = model default)")
     distance_metric: str = Field("cosine", description="Distance metric: cosine, l2, ip")
     chunking_strategy: str = Field("recursive", description="Chunking strategy: recursive, token, semantic")
+    answer_language: str = Field("auto", description="Language for generated answers: auto, English, Portuguese, etc.")
 
 
 class ExperimentCreate(BaseModel):
@@ -30,6 +31,7 @@ class GridSearchConfig(BaseModel):
     embedding_dimensions: list[int] = []  # Empty = use model defaults
     distance_metrics: list[str] = ["cosine"]  # cosine, l2, ip
     chunking_strategies: list[str] = ["recursive"]  # recursive, token, semantic
+    answer_language: str = "auto"  # Language for LLM answers: auto, English, Portuguese, etc.
     # Optional RAGAS metrics to include beyond the fixed ones
     optional_metrics: list[str] = []
 

@@ -99,6 +99,7 @@ async def run_rag_pipeline(
     embedding_dimensions = params.get("embedding_dimensions")
     distance_metric = params.get("distance_metric", "cosine")
     chunking_strategy = params.get("chunking_strategy", "recursive")
+    answer_language = params.get("answer_language", "auto")
 
     # 1. Create embeddings via provider factory (needed before chunking for semantic strategy)
     embeddings = get_embeddings(db, provider_id=embedding_provider_id, model=embedding_model, dimensions=embedding_dimensions)
@@ -150,8 +151,9 @@ async def run_rag_pipeline(
         combined_context = "\n\n".join(context_texts)
 
         # Generate answer
+        lang_instruction = f"\nAnswer in {answer_language}." if answer_language and answer_language != "auto" else ""
         prompt = f"""Based on the following context, answer the question.
-If the answer cannot be found in the context, say "I cannot find the answer in the provided context."
+If the answer cannot be found in the context, say "I cannot find the answer in the provided context."{lang_instruction}
 
 Context:
 {combined_context}
