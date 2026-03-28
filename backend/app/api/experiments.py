@@ -108,6 +108,89 @@ async def propose_grid_search(experiment_id: int, db: Session = Depends(get_db))
     }
 
 
+@router.post("/{experiment_id}/estimate-cost")
+def estimate_cost(
+    experiment_id: int, config: GridSearchConfig, db: Session = Depends(get_db)
+):
+    """Estimate token usage and cost for a grid search configuration."""
+    exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+
+    dataset = db.query(Dataset).filter(Dataset.id == exp.dataset_id).first()
+    num_questions = len(dataset.items) if dataset else 0
+
+    # Estimate document size
+    from app.models.document import Document as DocModel
+    doc_models = db.query(DocModel).filter(DocModel.id.in_(dataset.document_ids or [])).all() if dataset else []
+    import os
+    total_doc_chars = sum(os.path.getsize(d.filepath) for d in doc_models if os.path.exists(d.filepath))
+
+    # Count total combinations
+    from app.schemas.provider import EMBEDDING_DIMENSIONS
+    num_base = (
+        len(config.chunk_sizes) * len(config.chunk_overlaps) *
+        len(config.embedding_models) * len(config.top_k_values) *
+        len(config.search_types) * len(config.distance_metrics) *
+        len(config.chunking_strategies) if hasattr(config, "chunking_strategies") else
+        len(config.chunk_sizes) * len(config.chunk_overlaps) *
+        len(config.embedding_models) * len(config.top_k_values) *
+        len(config.search_types) * len(config.distance_metrics)
+    )
+    # Account for dimension expansion
+    dim_multiplier = 1
+    if config.embedding_dimensions:
+        total_dim_combos = 0
+        for model in config.embedding_models:
+            info = EMBEDDING_DIMENSIONS.get(model)
+            if info:
+                valid = [d for d in config.embedding_dimensions if d in info["supported"]]
+                total_dim_combos += len(valid) or 1
+            else:
+                total_dim_combos += 1
+        dim_multiplier = total_dim_combos / max(len(config.embedding_models), 1)
+    total_combos = int(num_base * dim_multiplier)
+
+    # Estimate tokens per combination
+    avg_chunk_size = sum(config.chunk_sizes) / max(len(config.chunk_sizes), 1)
+    est_chunks = int(total_doc_chars / max(avg_chunk_size, 1))
+
+    # Embedding tokens: all chunks embedded once per combo
+    embedding_tokens_per_combo = est_chunks * int(avg_chunk_size)
+    # LLM tokens per combo: each question gets ~context + answer
+    avg_top_k = sum(config.top_k_values) / max(len(config.top_k_values), 1)
+    llm_input_per_question = int(avg_top_k * avg_chunk_size + 200)  # context + prompt overhead
+    llm_output_per_question = 200  # estimated answer tokens
+    llm_tokens_per_combo = num_questions * (llm_input_per_question + llm_output_per_question)
+    # RAGAS evaluation tokens (LLM calls for metric computation)
+    ragas_tokens_per_combo = num_questions * 2000  # rough estimate
+
+    total_embedding = embedding_tokens_per_combo * total_combos
+    total_llm = (llm_tokens_per_combo + ragas_tokens_per_combo) * total_combos
+
+    # Cost estimates (approximate pricing per 1M tokens)
+    EMBEDDING_COST_PER_M = 0.02  # text-embedding-3-small
+    LLM_COST_PER_M = 0.50  # gpt-4o-mini average
+
+    est_embedding_cost = (total_embedding / 1_000_000) * EMBEDDING_COST_PER_M
+    est_llm_cost = (total_llm / 1_000_000) * LLM_COST_PER_M
+    est_total_cost = est_embedding_cost + est_llm_cost
+
+    return {
+        "total_combinations": total_combos,
+        "num_questions": num_questions,
+        "estimated_chunks": est_chunks,
+        "estimated_embedding_tokens": total_embedding,
+        "estimated_llm_tokens": total_llm,
+        "estimated_total_tokens": total_embedding + total_llm,
+        "estimated_cost_usd": round(est_total_cost, 4),
+        "breakdown": {
+            "embedding_cost": round(est_embedding_cost, 4),
+            "llm_cost": round(est_llm_cost, 4),
+        },
+    }
+
+
 @router.post("/{experiment_id}/configure-grid")
 def configure_grid(
     experiment_id: int, config: GridSearchConfig, db: Session = Depends(get_db)
