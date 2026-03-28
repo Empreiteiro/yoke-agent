@@ -12,7 +12,7 @@ alembic>=1.13.0
 # LangChain core
 langchain>=0.3.1
 langchain-community>=0.3.1
-langchain-openai>=0.2.1
+langchain-openai>=0.2.1,<2.0.0
 langchain-huggingface>=0.1.0
 
 # Optional LangChain providers (installed for multi-provider support)
@@ -28,7 +28,7 @@ langchain-experimental>=0.3.0
 pypdf>=4.0.0
 
 # RAG evaluation
-ragas>=0.2.3
+ragas>=0.2.3,<0.3.0
 datasets>=3.0.1
 nltk>=3.8.1
 
