@@ -42,7 +42,7 @@ Return a JSON array where each object has:
 - "context": the exact passage(s) from the text that support the answer"""
 
 USER_PROMPT_TEMPLATE = """Generate {num_questions} diverse question-answer pairs from the following content.
-
+{language_instruction}
 Content:
 {content}
 
@@ -101,6 +101,7 @@ async def generate_qa_pairs(
     model: Optional[str] = None,
     reading_mode: str = "full",
     max_pages: Optional[int] = None,
+    language: str = "auto",
 ) -> List[Dict[str, str]]:
     """Generate Q&A evaluation pairs from documents using an LLM.
 
@@ -137,6 +138,12 @@ async def generate_qa_pairs(
     questions_per_batch = max(2, math.ceil(num_questions / len(batches)))
     remaining_questions = num_questions
 
+    # Build language instruction
+    if language and language != "auto":
+        language_instruction = f"\nIMPORTANT: Write ALL questions and answers in {language}.\n"
+    else:
+        language_instruction = "\nWrite questions and answers in the same language as the content.\n"
+
     all_pairs = []
     for batch_content in batches:
         if remaining_questions <= 0:
@@ -149,6 +156,7 @@ async def generate_qa_pairs(
             HumanMessage(
                 content=USER_PROMPT_TEMPLATE.format(
                     num_questions=batch_q_count,
+                    language_instruction=language_instruction,
                     content=batch_content,
                 )
             ),

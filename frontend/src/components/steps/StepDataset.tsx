@@ -21,6 +21,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
   const [readingMode, setReadingMode] = useState<"full" | "partial">("full");
   const [maxPages, setMaxPages] = useState(20);
   const [numQuestions, setNumQuestions] = useState<number | "">("");
+  const [language, setLanguage] = useState("auto");
 
   // Existing datasets state
   const [existingDatasets, setExistingDatasets] = useState<any[]>([]);
@@ -90,7 +91,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
       });
 
       setProgress("Starting Q&A generation with LLM...");
-      const genOptions: any = { reading_mode: readingMode };
+      const genOptions: any = { reading_mode: readingMode, language };
       if (readingMode === "partial") {
         genOptions.max_pages = maxPages;
       }
@@ -269,6 +270,28 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                   disabled={generating}
                   className="px-3 py-2 bg-surface border border-surface-200/50 rounded-lg text-primary text-sm w-32 placeholder-muted focus:outline-none focus:border-accent/50 disabled:opacity-50"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-t-hover mb-1.5">
+                  Language
+                </label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  disabled={generating}
+                  className="px-3 py-2 bg-surface border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50 disabled:opacity-50"
+                >
+                  <option value="auto">Auto (same as document)</option>
+                  <option value="English">English</option>
+                  <option value="Portuguese">Portuguese</option>
+                  <option value="Spanish">Spanish</option>
+                  <option value="French">French</option>
+                  <option value="German">German</option>
+                  <option value="Italian">Italian</option>
+                  <option value="Chinese">Chinese</option>
+                  <option value="Japanese">Japanese</option>
+                </select>
               </div>
             </div>
 

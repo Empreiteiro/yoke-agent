@@ -18,6 +18,7 @@ const DEFAULT_CONFIG = {
   embedding_dimensions: [] as number[],
   distance_metrics: ["cosine"],
   chunking_strategies: ["recursive"],
+  answer_language: "auto",
   optional_metrics: [] as string[],
 };
 
@@ -223,6 +224,24 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               <option value="weaviate">Weaviate</option>
               <option value="qdrant">Qdrant</option>
               <option value="pgvector">PGVector</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-t-hover mb-2">Answer Language</label>
+            <select
+              value={config.answer_language}
+              onChange={(e) => setConfig((prev) => ({ ...prev, answer_language: e.target.value }))}
+              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary focus:outline-none focus:border-accent/50"
+            >
+              <option value="auto">Auto (same as document)</option>
+              <option value="English">English</option>
+              <option value="Portuguese">Portuguese</option>
+              <option value="Spanish">Spanish</option>
+              <option value="French">French</option>
+              <option value="German">German</option>
+              <option value="Italian">Italian</option>
+              <option value="Chinese">Chinese</option>
+              <option value="Japanese">Japanese</option>
             </select>
           </div>
         </div>
