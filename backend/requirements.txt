@@ -33,6 +33,9 @@ nltk>=3.8.1
 # Vector store
 chromadb==0.5.7
 
+# MCP Server
+fastmcp>=2.0.0
+
 # Utilities
 python-dotenv==1.0.1
 aiofiles==24.1.0
