@@ -37,19 +37,10 @@ interface Step {
 interface SidebarProps {
   steps: readonly Step[];
   currentStep: string;
+  currentView: string | null;
   completedSteps: Set<string>;
-  onStepClick: (id: string) => void;
+  onNavigate: (params: string) => void;
   isStepAccessible?: (id: string) => boolean;
-  showSettings?: boolean;
-  onSettingsClick?: () => void;
-  showHistory?: boolean;
-  onHistoryClick?: () => void;
-  showLogs?: boolean;
-  onLogsClick?: () => void;
-  showGlossary?: boolean;
-  onGlossaryClick?: () => void;
-  showCollections?: boolean;
-  onCollectionsClick?: () => void;
 }
 
 const themes: { key: Theme; icon: any; label: string }[] = [
@@ -58,25 +49,24 @@ const themes: { key: Theme; icon: any; label: string }[] = [
   { key: "neon", icon: Zap, label: "Neon" },
 ];
 
+const UTILITY_ITEMS = [
+  { id: "history", label: "History", icon: Clock },
+  { id: "logs", label: "Logs", icon: FileText },
+  { id: "settings", label: "Providers", icon: Settings },
+  { id: "glossary", label: "Concepts", icon: BookOpen },
+  { id: "collections", label: "Collections", icon: MessageSquare },
+];
+
 export default function Sidebar({
   steps,
   currentStep,
+  currentView,
   completedSteps,
-  onStepClick,
+  onNavigate,
   isStepAccessible,
-  showSettings = false,
-  onSettingsClick,
-  showHistory = false,
-  onHistoryClick,
-  showLogs = false,
-  onLogsClick,
-  showGlossary = false,
-  onGlossaryClick,
-  showCollections = false,
-  onCollectionsClick,
 }: SidebarProps) {
   const { theme, setTheme } = useTheme();
-  const isAnySpecialView = showSettings || showHistory || showLogs || showGlossary || showCollections;
+  const isAnySpecialView = currentView !== null;
 
   return (
     <aside className="w-60 bg-surface-50 flex flex-col h-screen">
@@ -121,7 +111,7 @@ export default function Sidebar({
           return (
             <button
               key={step.id}
-              onClick={() => onStepClick(step.id)}
+              onClick={() => onNavigate(`/?step=${step.id}`)}
               disabled={isLocked}
               className={cn(
                 "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
@@ -160,117 +150,36 @@ export default function Sidebar({
         {/* Separator */}
         <div className="!my-3 mx-2 border-t border-surface-200/40" />
 
-        {/* History, Logs, Providers - always accessible */}
+        {/* Utility pages - always accessible */}
         <div className="space-y-0.5">
-          <button
-            onClick={onHistoryClick}
-            className={cn(
-              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-              showHistory
-                ? "bg-accent/10 text-accent"
-                : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-            )}
-          >
-            <div
-              className={cn(
-                "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-                showHistory
-                  ? "bg-accent/20 text-accent"
-                  : "bg-surface-200 text-muted"
-              )}
-            >
-              <Clock className="w-3.5 h-3.5" />
-            </div>
-            <span>History</span>
-          </button>
-
-          <button
-            onClick={onLogsClick}
-            className={cn(
-              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-              showLogs
-                ? "bg-accent/10 text-accent"
-                : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-            )}
-          >
-            <div
-              className={cn(
-                "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-                showLogs
-                  ? "bg-accent/20 text-accent"
-                  : "bg-surface-200 text-muted"
-              )}
-            >
-              <FileText className="w-3.5 h-3.5" />
-            </div>
-            <span>Logs</span>
-          </button>
-
-          <button
-            onClick={onSettingsClick}
-            className={cn(
-              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-              showSettings
-                ? "bg-accent/10 text-accent"
-                : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-            )}
-          >
-            <div
-              className={cn(
-                "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-                showSettings
-                  ? "bg-accent/20 text-accent"
-                  : "bg-surface-200 text-muted"
-              )}
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </div>
-            <span>Providers</span>
-          </button>
-
-          <button
-            onClick={onGlossaryClick}
-            className={cn(
-              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-              showGlossary
-                ? "bg-accent/10 text-accent"
-                : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-            )}
-          >
-            <div
-              className={cn(
-                "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-                showGlossary
-                  ? "bg-accent/20 text-accent"
-                  : "bg-surface-200 text-muted"
-              )}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-            </div>
-            <span>Concepts</span>
-          </button>
-
-          <button
-            onClick={onCollectionsClick}
-            className={cn(
-              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-              showCollections
-                ? "bg-accent/10 text-accent"
-                : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-            )}
-          >
-            <div
-              className={cn(
-                "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-                showCollections
-                  ? "bg-accent/20 text-accent"
-                  : "bg-surface-200 text-muted"
-              )}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-            </div>
-            <span>Collections</span>
-          </button>
+          {UTILITY_ITEMS.map((item) => {
+            const ItemIcon = item.icon;
+            const isActive = currentView === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => onNavigate(`/?view=${item.id}`)}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+                  isActive
+                    ? "bg-accent/10 text-accent"
+                    : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
+                    isActive
+                      ? "bg-accent/20 text-accent"
+                      : "bg-surface-200 text-muted"
+                  )}
+                >
+                  <ItemIcon className="w-3.5 h-3.5" />
+                </div>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
       </nav>
 
