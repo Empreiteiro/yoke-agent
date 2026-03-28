@@ -85,6 +85,21 @@ async def run_single_combination(
         combination.detailed_results = eval_results.get("detailed_results")
         combination.status = "completed"
 
+        # Aggregate token usage for this combination
+        try:
+            from app.models.token_usage import TokenUsageLog
+            from sqlalchemy import func as sqlfunc
+            token_row = db.query(
+                sqlfunc.sum(TokenUsageLog.total_tokens).label("tokens"),
+                sqlfunc.sum(TokenUsageLog.estimated_cost).label("cost"),
+            ).filter(
+                TokenUsageLog.combination_id == combination.id,
+            ).first()
+            combination.total_tokens = token_row.tokens or 0
+            combination.total_cost = token_row.cost or 0.0
+        except Exception:
+            pass
+
     except Exception as e:
         logger.error(f"Combination {combination.id} failed: {e}\n{traceback.format_exc()}")
         combination.status = "failed"

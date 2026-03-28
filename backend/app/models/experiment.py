@@ -37,6 +37,9 @@ class ExperimentCombination(Base):
     detailed_results = Column(JSON)
     error_message = Column(Text)
     duration_seconds = Column(Float)
+    # Token usage aggregates
+    total_tokens = Column(Integer, default=0)
+    total_cost = Column(Float, default=0.0)
     created_at = Column(DateTime, server_default=func.now())
     completed_at = Column(DateTime)
     experiment = relationship("Experiment", back_populates="combinations")

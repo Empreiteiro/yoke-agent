@@ -18,6 +18,8 @@ def _run_migrations(engine):
     migrations = [
         ("datasets", "error_message", "TEXT"),
         ("experiment_combinations", "error_message", "TEXT"),
+        ("experiment_combinations", "total_tokens", "INTEGER DEFAULT 0"),
+        ("experiment_combinations", "total_cost", "REAL DEFAULT 0.0"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:
