@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Upload, FileText, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, FileText, X, CheckCircle, AlertCircle, FolderOpen } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatBytes } from "@/lib/utils";
 
@@ -26,17 +26,65 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
     }
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const ACCEPTED_EXTENSIONS = [".pdf", ".txt", ".docx", ".md", ".mdx", ".csv"];
+
+  const isAcceptedFile = (name: string) =>
+    ACCEPTED_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
+
+  const readDirectoryEntries = async (dirEntry: FileSystemDirectoryEntry): Promise<File[]> => {
+    const reader = dirEntry.createReader();
+    const files: File[] = [];
+    const readBatch = (): Promise<FileSystemEntry[]> =>
+      new Promise((resolve) => reader.readEntries(resolve));
+
+    let entries = await readBatch();
+    while (entries.length > 0) {
+      for (const entry of entries) {
+        if (entry.isFile) {
+          const file = await new Promise<File>((resolve) =>
+            (entry as FileSystemFileEntry).file(resolve)
+          );
+          if (isAcceptedFile(file.name)) files.push(file);
+        } else if (entry.isDirectory) {
+          const subFiles = await readDirectoryEntries(entry as FileSystemDirectoryEntry);
+          files.push(...subFiles);
+        }
+      }
+      entries = await readBatch();
+    }
+    return files;
+  };
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    setFiles((prev) => [...prev, ...droppedFiles]);
+
+    const items = Array.from(e.dataTransfer.items);
+    const allFiles: File[] = [];
+
+    for (const item of items) {
+      const entry = item.webkitGetAsEntry?.();
+      if (entry?.isDirectory) {
+        const dirFiles = await readDirectoryEntries(entry as FileSystemDirectoryEntry);
+        allFiles.push(...dirFiles);
+      } else if (entry?.isFile) {
+        const file = await new Promise<File>((resolve) =>
+          (entry as FileSystemFileEntry).file(resolve)
+        );
+        if (isAcceptedFile(file.name)) allFiles.push(file);
+      }
+    }
+
+    if (allFiles.length > 0) {
+      setFiles((prev) => [...prev, ...allFiles]);
+    }
   }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+      const selected = Array.from(e.target.files).filter((f) => isAcceptedFile(f.name));
+      setFiles((prev) => [...prev, ...selected]);
     }
   };
 
@@ -80,21 +128,35 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
           }`}
         >
           <Upload className="w-12 h-12 text-muted mx-auto mb-4" />
-          <p className="text-sm text-t-hover mb-2">
-            Drag and drop files here, or{" "}
-            <label className="text-accent cursor-pointer hover:underline">
-              browse
+          <p className="text-sm text-t-hover mb-3">
+            Drag and drop files or folders here
+          </p>
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <label className="flex items-center gap-1.5 px-4 py-2 bg-accent/10 text-accent text-sm font-medium rounded-lg cursor-pointer hover:bg-accent/20 transition-colors">
+              <FileText className="w-4 h-4" />
+              Select Files
               <input
                 type="file"
                 multiple
                 onChange={handleFileSelect}
                 className="hidden"
-                accept=".pdf,.txt,.docx,.md,.csv"
+                accept=".pdf,.txt,.docx,.md,.mdx,.csv"
               />
             </label>
-          </p>
+            <label className="flex items-center gap-1.5 px-4 py-2 bg-secondary/10 text-secondary text-sm font-medium rounded-lg cursor-pointer hover:bg-secondary/20 transition-colors">
+              <FolderOpen className="w-4 h-4" />
+              Select Folder
+              {/* @ts-ignore — webkitdirectory is non-standard but widely supported */}
+              <input
+                type="file"
+                onChange={handleFileSelect}
+                className="hidden"
+                {...({ webkitdirectory: "", directory: "" } as any)}
+              />
+            </label>
+          </div>
           <p className="text-xs text-muted">
-            PDF, TXT, DOCX, MD up to 50MB each
+            PDF, TXT, DOCX, MD, CSV up to 50MB each
           </p>
         </div>
 
