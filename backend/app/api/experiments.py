@@ -270,10 +270,11 @@ def configure_grid(
 @router.post("/{experiment_id}/run")
 async def run_experiment_endpoint(
     experiment_id: int,
-    max_workers: int = 2,
     background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
 ):
+    from app.core.config import settings
+
     exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
@@ -286,8 +287,9 @@ async def run_experiment_endpoint(
     exp.status = "running"
     db.commit()
 
+    max_workers = settings.experiment_max_workers
     background_tasks.add_task(_run_experiment_sync, experiment_id, max_workers)
-    return {"detail": f"Experiment execution started (max_workers={max_workers})", "experiment_id": experiment_id}
+    return {"detail": "Experiment execution started", "experiment_id": experiment_id}
 
 
 @router.post("/{experiment_id}/stop")
