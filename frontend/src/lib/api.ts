@@ -90,6 +90,8 @@ export const api = {
     request<any>(`/experiments/${id}/resume?retry_failed=${retryFailed}`, { method: "POST" }),
   getExperimentReport: (id: number) =>
     request<any>(`/experiments/${id}/report`),
+  exportExperimentCSV: (id: number) =>
+    `${API_BASE}/experiments/${id}/export?format=csv`,
 
   // Vector stores
   listVectorStores: () => request<any>("/vectorstores/"),
