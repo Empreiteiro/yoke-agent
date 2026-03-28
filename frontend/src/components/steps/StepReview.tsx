@@ -287,7 +287,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
         <button
           onClick={handleApprove}
           disabled={itemCount === 0}
-          className="w-full py-3 px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <CheckCircle className="w-4 h-4" />
           {itemCount > 0

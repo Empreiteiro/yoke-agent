@@ -157,29 +157,6 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
                 {stopped + stuck > 0 ? `Resume (${stopped + stuck} remaining)` : `Retry Failed (${failed})`}
               </button>
             </>
-          ) : !isDone ? (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-t-secondary whitespace-nowrap">Parallel:</label>
-                <select
-                  value={maxWorkers}
-                  onChange={(e) => setMaxWorkers(parseInt(e.target.value))}
-                  className="px-2 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-xs focus:outline-none focus:border-accent/50"
-                >
-                  <option value={1}>1 (Sequential)</option>
-                  <option value={2}>2 workers</option>
-                  <option value={3}>3 workers</option>
-                  <option value={4}>4 workers</option>
-                </select>
-              </div>
-              <button
-                onClick={handleRun}
-                className="px-6 py-3 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 flex items-center gap-2"
-              >
-                <Play className="w-4 h-4" />
-                Start Execution
-              </button>
-            </div>
           ) : null}
         </div>
 
@@ -311,10 +288,37 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
         </div>
       )}
 
+      {/* Start Execution CTA */}
+      {!isDone && !running && !canResume && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-center gap-3">
+            <label className="text-xs text-t-secondary whitespace-nowrap">Parallel workers:</label>
+            <select
+              value={maxWorkers}
+              onChange={(e) => setMaxWorkers(parseInt(e.target.value))}
+              className="px-2 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-xs focus:outline-none focus:border-accent/50"
+            >
+              <option value={1}>1 (Sequential)</option>
+              <option value={2}>2 workers</option>
+              <option value={3}>3 workers</option>
+              <option value={4}>4 workers</option>
+            </select>
+          </div>
+          <button
+            onClick={handleRun}
+            className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <Play className="w-4 h-4" />
+            Start Execution
+          </button>
+        </div>
+      )}
+
+      {/* View Results CTA */}
       {(isDone || (isStopped && completed > 0)) && (
         <button
           onClick={onComplete}
-          className="w-full py-3 px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 text-primary font-medium rounded-xl hover:opacity-90 transition-opacity"
+          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           View Results Report
         </button>
