@@ -50,9 +50,11 @@ def create_experiment(data: ExperimentCreate, db: Session = Depends(get_db)):
 @router.get("/", response_model=list[ExperimentResponse])
 def list_experiments(db: Session = Depends(get_db)):
     experiments = db.query(Experiment).order_by(Experiment.created_at.desc()).all()
-    # Enrich with dataset names
+    # Enrich with dataset names, filter out internal estimate experiments
     result = []
     for exp in experiments:
+        if exp.name and exp.name.startswith("estimate-"):
+            continue
         dataset = db.query(Dataset).filter(Dataset.id == exp.dataset_id).first()
         exp_dict = ExperimentResponse.model_validate(exp).model_dump()
         exp_dict["dataset_name"] = dataset.name if dataset else None
