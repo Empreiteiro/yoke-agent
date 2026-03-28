@@ -5,8 +5,9 @@ import random
 import math
 from typing import List, Dict, Optional
 
-from langchain.schema import Document, HumanMessage, SystemMessage
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sqlalchemy.orm import Session
 
 from app.services.llm_factory import get_llm, _resolve_provider

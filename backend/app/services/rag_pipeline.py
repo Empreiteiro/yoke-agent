@@ -2,8 +2,8 @@
 
 from typing import List, Dict, Any, Optional
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter, TokenTextSplitter
-from langchain.schema import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter, TokenTextSplitter
+from langchain_core.documents import Document
 from sqlalchemy.orm import Session
 
 from app.services.llm_factory import get_llm, get_embeddings, _resolve_provider
