@@ -80,6 +80,31 @@ const sections = [
           "An LLM agent dynamically decides the retrieval strategy per question instead of following a fixed retrieve-then-generate pipeline. The agent has access to tools: retrieve (semantic search), retrieve_mmr (diverse search), decompose_question (break complex questions into sub-questions), reformulate_query (rewrite queries for better retrieval), and evaluate_relevance (check if retrieved docs are useful). The agent loops until it has enough context or reaches the max steps limit. Multi-hop questions show significant improvement with this approach. Cost impact: multiple LLM calls per question (one per agent step). Reference: LangGraph Agentic RAG tutorial, Adaptive RAG paper (arXiv:2403.14403).",
       },
       {
+        term: "HyDE (Hypothetical Document Embeddings)",
+        description:
+          "Instead of embedding the question directly, HyDE first generates a hypothetical answer via LLM, then embeds that hypothesis for similarity search. The hypothesis is semantically closer to actual document passages than the short question, dramatically improving retrieval recall for complex queries. Adds one LLM call per question. Reference: HyDE paper (arXiv:2212.10496).",
+      },
+      {
+        term: "Corrective RAG (CRAG)",
+        description:
+          "After retrieving documents, an LLM grades their relevance to the question. If documents are irrelevant, the query is reformulated and retrieval is retried (up to a configurable max). This self-correcting loop ensures the generation step receives high-quality context. Key parameters: relevance threshold (0-1) and max retries. Reference: CRAG paper (arXiv:2401.15884).",
+      },
+      {
+        term: "Self-RAG",
+        description:
+          "The LLM decides whether retrieval is even needed for each question. For factual queries it retrieves and validates context; for general knowledge it can answer directly. After retrieval, it grades document relevance and may switch to MMR search for diversity. This adaptive approach avoids unnecessary retrieval while ensuring quality for complex questions. Reference: Self-RAG paper (arXiv:2310.11511).",
+      },
+      {
+        term: "RAPTOR",
+        description:
+          "Recursive Abstractive Processing for Tree-Organized Retrieval. Builds a hierarchical tree of summaries: original chunks at the bottom, clustered summaries at each level above. Retrieval can search all levels (collapsed), traverse from top down (tree traversal), or target specific levels. Excellent for documents with thematic structure. Reference: RAPTOR paper (arXiv:2401.18059).",
+      },
+      {
+        term: "CAG (Cache-Augmented Generation)",
+        description:
+          "Loads the entire document into the LLM context window instead of chunking, embedding, and retrieving. Serves as a baseline comparison: if CAG outperforms RAG, the retrieval configuration needs improvement. If RAG matches CAG at lower cost, the pipeline is well-tuned. Expensive per question but eliminates all retrieval errors. Reference: CAG paper (arXiv:2404.12457).",
+      },
+      {
         term: "Reciprocal Rank Fusion (RRF)",
         description:
           "A simple and effective algorithm for merging multiple ranked result lists into a single ranking. For each document, the RRF score is calculated as the sum of 1/(k + rank) across all lists where it appears, where k is a constant (typically 60). Documents are then sorted by their fused score. RRF is used by Multi-Query RAG to combine results from different query formulations without requiring score normalization across retrieval runs.",

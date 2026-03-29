@@ -16,6 +16,12 @@ class RAGParams(BaseModel):
     pipeline_type: str = Field("rag", description="Pipeline type: rag or graphrag")
     multi_query_count: Optional[int] = Field(None, description="Number of alternative queries for multi_query search")
     agent_max_steps: Optional[int] = Field(None, description="Max retrieval steps for agentic search")
+    crag_relevance_threshold: Optional[float] = Field(None, description="Relevance threshold for CRAG grading (0-1)")
+    crag_max_retries: Optional[int] = Field(None, description="Max query reformulation attempts for CRAG")
+    self_rag_retrieval_threshold: Optional[float] = Field(None, description="Confidence threshold for Self-RAG retrieval decision (0-1)")
+    raptor_max_levels: Optional[int] = Field(None, description="Depth of RAPTOR summary tree")
+    raptor_clustering: Optional[str] = Field(None, description="RAPTOR clustering method: kmeans, gmm")
+    raptor_retrieval_mode: Optional[str] = Field(None, description="RAPTOR retrieval: collapsed, tree_traversal, level_specific")
 
 
 class ExperimentCreate(BaseModel):
@@ -41,6 +47,15 @@ class GridSearchConfig(BaseModel):
     multi_query_counts: list[int] = [3]  # Number of alternative queries (3-5)
     # Agentic RAG settings
     agent_max_steps: list[int] = [5]  # Max agent retrieval steps (3-10)
+    # CRAG settings
+    crag_relevance_thresholds: list[float] = [0.7]  # Relevance threshold (0-1)
+    crag_max_retries: list[int] = [2]  # Max reformulation attempts (1-3)
+    # Self-RAG settings
+    self_rag_retrieval_thresholds: list[float] = [0.5]  # Retrieval decision threshold (0-1)
+    # RAPTOR settings
+    raptor_max_levels: list[int] = [3]  # Tree depth (2-5)
+    raptor_clustering: list[str] = ["kmeans"]  # kmeans, gmm
+    raptor_retrieval_modes: list[str] = ["collapsed"]  # collapsed, tree_traversal, level_specific
     # GraphRAG settings
     pipeline_types: list[str] = ["rag"]  # rag, graphrag
     entity_extraction_models: list[str] = []  # LLM models for entity extraction
