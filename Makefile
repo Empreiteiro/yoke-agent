@@ -150,8 +150,16 @@ clean: ## Remove all generated files (node_modules, venv, db, uploads, .next)
 
 # --- Docker (future) ---
 
-docker-up: ## Start services with Docker Compose (placeholder)
-	@echo "$(CYAN)Docker support coming soon.$(RESET)"
+docker-up: ## Start services with Docker Compose
+	@echo "$(CYAN)Starting Docker containers...$(RESET)"
+	docker compose up --build -d
+	@echo ""
+	@echo "$(GREEN)Services running:$(RESET)"
+	@echo "  Backend  -> http://localhost:7070"
+	@echo "  Frontend -> http://localhost:4000"
 
-docker-down: ## Stop Docker Compose services (placeholder)
-	@echo "$(CYAN)Docker support coming soon.$(RESET)"
+docker-down: ## Stop Docker Compose services
+	docker compose down
+
+docker-logs: ## View Docker container logs
+	docker compose logs -f
