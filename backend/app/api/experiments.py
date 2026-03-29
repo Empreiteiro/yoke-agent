@@ -170,6 +170,21 @@ def estimate_cost(
     total_embedding = embedding_tokens_per_combo * total_combos
     total_llm = (llm_tokens_per_combo + ragas_tokens_per_combo) * total_combos
 
+    # GraphRAG entity extraction cost estimate
+    graphrag_extraction_tokens = 0
+    if "graphrag" in config.pipeline_types:
+        entity_models = config.entity_extraction_models or ["gpt-4o-mini"]
+        num_graphrag_combos = (
+            len(config.chunk_sizes) * len(config.chunk_overlaps) *
+            len(config.chunking_strategies) * len(config.embedding_models) *
+            len(entity_models) * len(config.max_gleanings) *
+            len(config.community_levels) * len(config.search_modes)
+        )
+        avg_gleanings = sum(config.max_gleanings) / max(len(config.max_gleanings), 1)
+        # ~500 tokens per chunk per gleaning per combination
+        graphrag_extraction_tokens = int(est_chunks * 500 * avg_gleanings * num_graphrag_combos)
+        total_llm += graphrag_extraction_tokens
+
     # Cost estimates (approximate pricing per 1M tokens)
     EMBEDDING_COST_PER_M = 0.02  # text-embedding-3-small
     LLM_COST_PER_M = 0.50  # gpt-4o-mini average
@@ -178,7 +193,7 @@ def estimate_cost(
     est_llm_cost = (total_llm / 1_000_000) * LLM_COST_PER_M
     est_total_cost = est_embedding_cost + est_llm_cost
 
-    return {
+    result = {
         "total_combinations": total_combos,
         "num_questions": num_questions,
         "estimated_chunks": est_chunks,
@@ -191,6 +206,9 @@ def estimate_cost(
             "llm_cost": round(est_llm_cost, 4),
         },
     }
+    if graphrag_extraction_tokens:
+        result["breakdown"]["graphrag_entity_extraction_tokens"] = graphrag_extraction_tokens
+    return result
 
 
 @router.post("/{experiment_id}/configure-grid")
@@ -210,53 +228,108 @@ def configure_grid(
         ExperimentCombination.experiment_id == experiment_id
     ).delete()
 
-    # Generate base combinations (without dimensions, which are per-model)
-    base_combos = list(
-        itertools.product(
-            config.chunk_sizes,
-            config.chunk_overlaps,
-            config.embedding_models,
-            config.top_k_values,
-            config.search_types,
-            config.distance_metrics,
-            config.chunking_strategies,
-        )
-    )
-
-    # Expand with embedding dimensions (respecting per-model limits)
     combo_count = 0
-    for combo in base_combos:
-        embedding_model = combo[2]
-        model_info = EMBEDDING_DIMENSIONS.get(embedding_model)
-        default_dim = model_info["default"] if model_info else None
 
-        if config.embedding_dimensions:
-            # Filter to dimensions valid for this model
-            supported = model_info["supported"] if model_info else []
-            dims_for_model = [d for d in config.embedding_dimensions if d in supported]
-            if not dims_for_model:
-                dims_for_model = [default_dim]
-        else:
-            dims_for_model = [default_dim]
-
-        for dim in dims_for_model:
-            params = {
-                "chunk_size": combo[0],
-                "chunk_overlap": combo[1],
-                "embedding_model": embedding_model,
-                "top_k": combo[3],
-                "search_type": combo[4],
-                "distance_metric": combo[5],
-                "chunking_strategy": combo[6],
-                "embedding_dimensions": dim,
-                "answer_language": config.answer_language,
-            }
-            db_combo = ExperimentCombination(
-                experiment_id=experiment_id,
-                params=params,
+    # --- RAG combinations ---
+    if "rag" in config.pipeline_types:
+        # Generate base combinations (without dimensions, which are per-model)
+        base_combos = list(
+            itertools.product(
+                config.chunk_sizes,
+                config.chunk_overlaps,
+                config.embedding_models,
+                config.top_k_values,
+                config.search_types,
+                config.distance_metrics,
+                config.chunking_strategies,
             )
-            db.add(db_combo)
-            combo_count += 1
+        )
+
+        # Expand with embedding dimensions (respecting per-model limits)
+        for combo in base_combos:
+            embedding_model = combo[2]
+            model_info = EMBEDDING_DIMENSIONS.get(embedding_model)
+            default_dim = model_info["default"] if model_info else None
+
+            if config.embedding_dimensions:
+                # Filter to dimensions valid for this model
+                supported = model_info["supported"] if model_info else []
+                dims_for_model = [d for d in config.embedding_dimensions if d in supported]
+                if not dims_for_model:
+                    dims_for_model = [default_dim]
+            else:
+                dims_for_model = [default_dim]
+
+            for dim in dims_for_model:
+                params = {
+                    "pipeline_type": "rag",
+                    "chunk_size": combo[0],
+                    "chunk_overlap": combo[1],
+                    "embedding_model": embedding_model,
+                    "top_k": combo[3],
+                    "search_type": combo[4],
+                    "distance_metric": combo[5],
+                    "chunking_strategy": combo[6],
+                    "embedding_dimensions": dim,
+                    "answer_language": config.answer_language,
+                }
+                db_combo = ExperimentCombination(
+                    experiment_id=experiment_id,
+                    params=params,
+                )
+                db.add(db_combo)
+                combo_count += 1
+
+    # --- GraphRAG combinations ---
+    if "graphrag" in config.pipeline_types:
+        entity_models = config.entity_extraction_models or ["gpt-4o-mini"]
+
+        graphrag_base_combos = list(
+            itertools.product(
+                config.chunk_sizes,
+                config.chunk_overlaps,
+                config.chunking_strategies,
+                config.embedding_models,
+                entity_models,
+                config.max_gleanings,
+                config.community_levels,
+                config.search_modes,
+            )
+        )
+
+        for combo in graphrag_base_combos:
+            embedding_model = combo[3]
+            model_info = EMBEDDING_DIMENSIONS.get(embedding_model)
+            default_dim = model_info["default"] if model_info else None
+
+            if config.embedding_dimensions:
+                supported = model_info["supported"] if model_info else []
+                dims_for_model = [d for d in config.embedding_dimensions if d in supported]
+                if not dims_for_model:
+                    dims_for_model = [default_dim]
+            else:
+                dims_for_model = [default_dim]
+
+            for dim in dims_for_model:
+                params = {
+                    "pipeline_type": "graphrag",
+                    "chunk_size": combo[0],
+                    "chunk_overlap": combo[1],
+                    "chunking_strategy": combo[2],
+                    "embedding_model": embedding_model,
+                    "embedding_dimensions": dim,
+                    "entity_extraction_model": combo[4],
+                    "max_gleanings": combo[5],
+                    "community_level": combo[6],
+                    "search_mode": combo[7],
+                    "answer_language": config.answer_language,
+                }
+                db_combo = ExperimentCombination(
+                    experiment_id=experiment_id,
+                    params=params,
+                )
+                db.add(db_combo)
+                combo_count += 1
 
     exp.status = "configured"
     db.commit()
@@ -409,8 +482,9 @@ def export_experiment(experiment_id: int, format: str = "csv", db: Session = Dep
     completed.sort(key=lambda c: c.overall_score or 0, reverse=True)
 
     headers = [
-        "rank", "chunk_size", "chunk_overlap", "chunking_strategy", "embedding_model",
-        "embedding_dimensions", "top_k", "search_type", "distance_metric",
+        "rank", "pipeline_type", "chunk_size", "chunk_overlap", "chunking_strategy",
+        "embedding_model", "embedding_dimensions", "top_k", "search_type", "distance_metric",
+        "entity_extraction_model", "max_gleanings", "community_level", "search_mode",
         "faithfulness", "answer_relevancy", "context_precision", "context_recall",
         "answer_similarity", "answer_correctness", "overall_score", "duration_seconds",
         "total_tokens", "total_cost",
@@ -424,6 +498,7 @@ def export_experiment(experiment_id: int, format: str = "csv", db: Session = Dep
         p = c.params or {}
         writer.writerow([
             i + 1,
+            p.get("pipeline_type", "rag"),
             p.get("chunk_size", ""),
             p.get("chunk_overlap", ""),
             p.get("chunking_strategy", "recursive"),
@@ -432,6 +507,10 @@ def export_experiment(experiment_id: int, format: str = "csv", db: Session = Dep
             p.get("top_k", ""),
             p.get("search_type", ""),
             p.get("distance_metric", "cosine"),
+            p.get("entity_extraction_model", ""),
+            p.get("max_gleanings", ""),
+            p.get("community_level", ""),
+            p.get("search_mode", ""),
             c.faithfulness,
             c.answer_relevancy,
             c.context_precision,

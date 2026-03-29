@@ -20,6 +20,11 @@ const DEFAULT_CONFIG = {
   chunking_strategies: ["recursive"],
   answer_language: "auto",
   optional_metrics: [] as string[],
+  pipeline_types: ["rag"] as string[],
+  entity_extraction_models: [] as string[],
+  max_gleanings: [1] as number[],
+  community_levels: [1] as number[],
+  search_modes: ["local"] as string[],
 };
 
 const CHUNKING_STRATEGIES = [
@@ -47,6 +52,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
   const [newChunkSize, setNewChunkSize] = useState("");
   const [newTopK, setNewTopK] = useState("");
   const [availableEmbeddings, setAvailableEmbeddings] = useState<Array<{provider_name: string; model: string}>>([]);
+  const [availableLLMs, setAvailableLLMs] = useState<Array<{provider_name: string; model: string}>>([]);
   const [noProviders, setNoProviders] = useState(false);
   const [dimensionsMap, setDimensionsMap] = useState<Record<string, {default: number; supports_custom: boolean; supported: number[]}>>({});
   const [costEstimate, setCostEstimate] = useState<any>(null);
@@ -60,6 +66,9 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
       } else {
         setAvailableEmbeddings([]);
         setNoProviders(true);
+      }
+      if (data.llm_models && data.llm_models.length > 0) {
+        setAvailableLLMs(data.llm_models);
       }
     }).catch(() => {
       setNoProviders(true);
@@ -82,16 +91,34 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
     return config.embedding_models.length > 0 ? totalModelDimCombos / config.embedding_models.length : 1;
   })();
 
-  const totalCombinations = Math.round(
-    config.chunk_sizes.length *
-    config.chunk_overlaps.length *
-    config.embedding_models.length *
-    config.top_k_values.length *
-    config.search_types.length *
-    config.distance_metrics.length *
-    config.chunking_strategies.length *
-    dimensionMultiplier
-  );
+  const ragCombinations = config.pipeline_types.includes("rag")
+    ? Math.round(
+        config.chunk_sizes.length *
+        config.chunk_overlaps.length *
+        config.embedding_models.length *
+        config.top_k_values.length *
+        config.search_types.length *
+        config.distance_metrics.length *
+        config.chunking_strategies.length *
+        dimensionMultiplier
+      )
+    : 0;
+
+  const graphragCombinations = config.pipeline_types.includes("graphrag")
+    ? Math.round(
+        config.chunk_sizes.length *
+        config.chunk_overlaps.length *
+        config.embedding_models.length *
+        config.chunking_strategies.length *
+        (config.entity_extraction_models.length || 1) *
+        config.max_gleanings.length *
+        config.community_levels.length *
+        config.search_modes.length *
+        dimensionMultiplier
+      )
+    : 0;
+
+  const totalCombinations = ragCombinations + graphragCombinations;
 
   const addToArray = (
     field: keyof typeof config,
@@ -263,6 +290,47 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         <div className="space-y-6">
+          {/* Pipeline Type */}
+          <div>
+            <label className="block text-sm font-medium text-t-hover mb-3">Pipeline Type</label>
+            <div className="flex gap-3">
+              {[
+                { id: "rag", label: "RAG" },
+                { id: "graphrag", label: "GraphRAG" },
+              ].map((pt) => (
+                <label
+                  key={pt.id}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={config.pipeline_types.includes(pt.id)}
+                    onChange={() => {
+                      setConfig((prev) => {
+                        const includes = prev.pipeline_types.includes(pt.id);
+                        // Don't allow removing the last pipeline type
+                        if (includes && prev.pipeline_types.length === 1) return prev;
+                        return {
+                          ...prev,
+                          pipeline_types: includes
+                            ? prev.pipeline_types.filter((t) => t !== pt.id)
+                            : [...prev.pipeline_types, pt.id],
+                        };
+                      });
+                    }}
+                    className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
+                  />
+                  <span className="text-sm text-t-hover">{pt.label}</span>
+                </label>
+              ))}
+            </div>
+            {ragCombinations > 0 && graphragCombinations > 0 && (
+              <p className="text-xs text-muted mt-2">
+                RAG: {ragCombinations} combos + GraphRAG: {graphragCombinations} combos = {totalCombinations} total
+              </p>
+            )}
+          </div>
+
           {/* Chunk sizes */}
           <div>
             <label className="block text-sm font-medium text-t-hover mb-3">Chunk Size (tokens)</label>
@@ -371,7 +439,8 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
             </div>
           </div>
 
-          {/* Top-K */}
+          {/* Top-K (RAG only) */}
+          {config.pipeline_types.includes("rag") && (
           <div>
             <label className="block text-sm font-medium text-t-hover mb-3">Top-K (retrieved docs)</label>
             {renderChips("top_k_values", config.top_k_values)}
@@ -396,8 +465,10 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               </button>
             </div>
           </div>
+          )}
 
-          {/* Search type */}
+          {/* Search type (RAG only) */}
+          {config.pipeline_types.includes("rag") && (
           <div>
             <label className="block text-sm font-medium text-t-hover mb-3">Search Type</label>
             <div className="flex gap-3">
@@ -426,8 +497,10 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               ))}
             </div>
           </div>
+          )}
 
-          {/* Distance Metric */}
+          {/* Distance Metric (RAG only) */}
+          {config.pipeline_types.includes("rag") && (
           <div>
             <label className="block text-sm font-medium text-t-hover mb-3">Distance Metric</label>
             <div className="flex gap-3">
@@ -459,6 +532,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               ))}
             </div>
           </div>
+          )}
 
           {/* Embedding Dimensions */}
           <div>
@@ -527,6 +601,115 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               );
             })()}
           </div>
+
+          {/* GraphRAG Parameters */}
+          {config.pipeline_types.includes("graphrag") && (
+            <>
+              <div className="border-t border-surface-200/30 pt-6">
+                <h4 className="text-sm font-semibold text-primary mb-4">GraphRAG Parameters</h4>
+
+                {/* Warning banner */}
+                <div className="flex items-start gap-2 mb-4 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>GraphRAG extracts entities via LLM for every chunk — significantly more expensive than standard RAG.</span>
+                </div>
+
+                {/* Entity Extraction Model */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-t-hover mb-3">Entity Extraction Model</label>
+                  {renderChips("entity_extraction_models", config.entity_extraction_models, "secondary")}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {availableLLMs
+                      .filter((lm) => !config.entity_extraction_models.includes(lm.model))
+                      .map((lm) => (
+                        <button
+                          key={`${lm.provider_name}-${lm.model}`}
+                          onClick={() => addToArray("entity_extraction_models", lm.model)}
+                          className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 transition-colors"
+                          title={`Provider: ${lm.provider_name}`}
+                        >
+                          + {lm.model}
+                          <span className="ml-1 text-muted">({lm.provider_name})</span>
+                        </button>
+                      ))}
+                    {availableLLMs.length === 0 && (
+                      <span className="text-xs text-muted">No LLM models available. Configure providers in Settings.</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Max Gleanings */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-t-hover mb-3">Max Gleanings</label>
+                  {renderChips("max_gleanings", config.max_gleanings)}
+                  <div className="flex gap-2 mt-2">
+                    {[1, 2, 3].map((val) => (
+                      <button
+                        key={val}
+                        onClick={() => {
+                          if (!config.max_gleanings.includes(val)) addToArray("max_gleanings", val);
+                        }}
+                        disabled={config.max_gleanings.includes(val)}
+                        className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 disabled:opacity-30 transition-colors"
+                      >
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Community Levels */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-t-hover mb-3">Community Levels</label>
+                  {renderChips("community_levels", config.community_levels)}
+                  <div className="flex gap-2 mt-2">
+                    {[1, 2, 3].map((val) => (
+                      <button
+                        key={val}
+                        onClick={() => {
+                          if (!config.community_levels.includes(val)) addToArray("community_levels", val);
+                        }}
+                        disabled={config.community_levels.includes(val)}
+                        className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 disabled:opacity-30 transition-colors"
+                      >
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Search Mode */}
+                <div>
+                  <label className="block text-sm font-medium text-t-hover mb-3">Search Mode</label>
+                  <div className="flex gap-3">
+                    {["local", "global", "hybrid"].map((mode) => (
+                      <label
+                        key={mode}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={config.search_modes.includes(mode)}
+                          onChange={() => {
+                            if (config.search_modes.includes(mode)) {
+                              setConfig((prev) => ({
+                                ...prev,
+                                search_modes: prev.search_modes.filter((m) => m !== mode),
+                              }));
+                            } else {
+                              addToArray("search_modes", mode);
+                            }
+                          }}
+                          className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
+                        />
+                        <span className="text-sm text-t-hover capitalize">{mode}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

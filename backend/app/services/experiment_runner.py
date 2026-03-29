@@ -44,17 +44,30 @@ async def run_single_combination(
         if db:
             db.commit()
 
-        # Run RAG pipeline
-        rag_results = await run_rag_pipeline(
-            documents=source_documents,
-            questions=questions,
-            params=combination.params,
-            db=db,
-            vectorstore_type=vectorstore_type,
-            vectorstore_config=vectorstore_config,
-            experiment_id=combination.experiment_id,
-            combination_id=combination.id,
-        )
+        # Run RAG or GraphRAG pipeline based on pipeline_type
+        pipeline_type = combination.params.get("pipeline_type", "rag")
+
+        if pipeline_type == "graphrag":
+            from app.services.graphrag_pipeline import run_graphrag_pipeline
+            rag_results = await run_graphrag_pipeline(
+                documents=source_documents,
+                questions=questions,
+                params=combination.params,
+                db=db,
+                experiment_id=combination.experiment_id,
+                combination_id=combination.id,
+            )
+        else:
+            rag_results = await run_rag_pipeline(
+                documents=source_documents,
+                questions=questions,
+                params=combination.params,
+                db=db,
+                vectorstore_type=vectorstore_type,
+                vectorstore_config=vectorstore_config,
+                experiment_id=combination.experiment_id,
+                combination_id=combination.id,
+            )
 
         # Evaluate with RAGAS
         eval_results = await evaluate_rag_results(
