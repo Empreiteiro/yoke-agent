@@ -132,14 +132,21 @@ def estimate_cost(
     from app.schemas.provider import EMBEDDING_DIMENSIONS
 
     # Split search types for counting
-    simple_types = [t for t in config.search_types if t not in ("multi_query", "agentic")]
+    ADVANCED_COST_TYPES = {"multi_query", "agentic", "crag", "self_rag", "raptor"}
+    simple_types = [t for t in config.search_types if t not in ADVANCED_COST_TYPES]
     has_mq = "multi_query" in config.search_types
     has_ag = "agentic" in config.search_types
+    has_crag = "crag" in config.search_types
+    has_self_rag = "self_rag" in config.search_types
+    has_raptor = "raptor" in config.search_types
     # Effective search type count includes sub-parameter expansion
     effective_search_count = (
         len(simple_types)
         + (len(config.multi_query_counts) if has_mq else 0)
         + (len(config.agent_max_steps) if has_ag else 0)
+        + (len(config.crag_relevance_thresholds) * len(config.crag_max_retries) if has_crag else 0)
+        + (len(config.self_rag_retrieval_thresholds) if has_self_rag else 0)
+        + (len(config.raptor_max_levels) * len(config.raptor_clustering) * len(config.raptor_retrieval_modes) if has_raptor else 0)
     )
 
     num_base = (
@@ -222,6 +229,42 @@ def estimate_cost(
         agentic_extra_tokens = int(num_questions * 800 * avg_steps * ag_combos)
         total_llm += agentic_extra_tokens
 
+    # HyDE extra: ~300 tokens/question for hypothesis generation
+    hyde_extra_tokens = 0
+    if "hyde" in config.search_types:
+        hyde_extra_tokens = int(num_questions * 300 * total_combos / max(effective_search_count, 1))
+        total_llm += hyde_extra_tokens
+
+    # CAG extra: full document in every prompt (~100K tokens/question, no embedding)
+    cag_extra_tokens = 0
+    if "cag" in config.search_types:
+        cag_tokens_per_q = min(total_doc_chars, 100_000)
+        cag_extra_tokens = int(num_questions * cag_tokens_per_q)
+        total_llm += cag_extra_tokens
+
+    # CRAG extra: ~800 tokens/question for grading + reformulation
+    crag_extra_tokens = 0
+    if has_crag:
+        avg_retries = sum(config.crag_max_retries) / max(len(config.crag_max_retries), 1)
+        crag_combos = int(len(config.crag_relevance_thresholds) * len(config.crag_max_retries))
+        crag_extra_tokens = int(num_questions * 800 * (1 + avg_retries) * crag_combos)
+        total_llm += crag_extra_tokens
+
+    # Self-RAG extra: ~600 tokens/question for decision + grading
+    self_rag_extra_tokens = 0
+    if has_self_rag:
+        sr_combos = len(config.self_rag_retrieval_thresholds)
+        self_rag_extra_tokens = int(num_questions * 600 * sr_combos)
+        total_llm += self_rag_extra_tokens
+
+    # RAPTOR extra: ~1000 tokens/cluster for summarization × levels
+    raptor_extra_tokens = 0
+    if has_raptor:
+        avg_levels = sum(config.raptor_max_levels) / max(len(config.raptor_max_levels), 1)
+        raptor_combos = int(len(config.raptor_max_levels) * len(config.raptor_clustering) * len(config.raptor_retrieval_modes))
+        raptor_extra_tokens = int(est_chunks * 1000 * avg_levels * raptor_combos)
+        total_llm += raptor_extra_tokens
+
     # Cost estimates (approximate pricing per 1M tokens)
     EMBEDDING_COST_PER_M = 0.02  # text-embedding-3-small
     LLM_COST_PER_M = 0.50  # gpt-4o-mini average
@@ -249,6 +292,16 @@ def estimate_cost(
         result["breakdown"]["multi_query_generation_tokens"] = multi_query_extra_tokens
     if agentic_extra_tokens:
         result["breakdown"]["agentic_reasoning_tokens"] = agentic_extra_tokens
+    if hyde_extra_tokens:
+        result["breakdown"]["hyde_hypothesis_tokens"] = hyde_extra_tokens
+    if cag_extra_tokens:
+        result["breakdown"]["cag_full_context_tokens"] = cag_extra_tokens
+    if crag_extra_tokens:
+        result["breakdown"]["crag_grading_tokens"] = crag_extra_tokens
+    if self_rag_extra_tokens:
+        result["breakdown"]["self_rag_decision_tokens"] = self_rag_extra_tokens
+    if raptor_extra_tokens:
+        result["breakdown"]["raptor_summarization_tokens"] = raptor_extra_tokens
     return result
 
 
@@ -273,10 +326,15 @@ def configure_grid(
 
     # --- RAG combinations ---
     if "rag" in config.pipeline_types:
-        # Split search types into simple and advanced (with sub-parameters)
-        simple_search_types = [t for t in config.search_types if t not in ("multi_query", "agentic")]
+        # Split search types into simple (no sub-params) and advanced (with sub-params)
+        ADVANCED_TYPES = {"multi_query", "agentic", "crag", "self_rag", "raptor"}
+        simple_search_types = [t for t in config.search_types if t not in ADVANCED_TYPES]
+        # HyDE and CAG are "simple" (no sub-params) — they pass through as-is
         has_multi_query = "multi_query" in config.search_types
         has_agentic = "agentic" in config.search_types
+        has_crag = "crag" in config.search_types
+        has_self_rag = "self_rag" in config.search_types
+        has_raptor = "raptor" in config.search_types
 
         def _expand_dims(embedding_model):
             """Return list of embedding dimensions for a given model."""
@@ -333,6 +391,28 @@ def configure_grid(
                 if has_agentic:
                     for ams in config.agent_max_steps:
                         _add_combo({**base_params, "search_type": "agentic", "agent_max_steps": ams})
+
+                # CRAG: expand with relevance_threshold × max_retries
+                if has_crag:
+                    for crt in config.crag_relevance_thresholds:
+                        for cmr in config.crag_max_retries:
+                            _add_combo({**base_params, "search_type": "crag",
+                                        "crag_relevance_threshold": crt, "crag_max_retries": cmr})
+
+                # Self-RAG: expand with retrieval_threshold
+                if has_self_rag:
+                    for srt in config.self_rag_retrieval_thresholds:
+                        _add_combo({**base_params, "search_type": "self_rag",
+                                    "self_rag_retrieval_threshold": srt})
+
+                # RAPTOR: expand with max_levels × clustering × retrieval_mode
+                if has_raptor:
+                    for rml in config.raptor_max_levels:
+                        for rc in config.raptor_clustering:
+                            for rrm in config.raptor_retrieval_modes:
+                                _add_combo({**base_params, "search_type": "raptor",
+                                            "raptor_max_levels": rml, "raptor_clustering": rc,
+                                            "raptor_retrieval_mode": rrm})
 
     # --- GraphRAG combinations ---
     if "graphrag" in config.pipeline_types:

@@ -101,20 +101,77 @@ async def run_rag_pipeline(
     chunking_strategy = params.get("chunking_strategy", "recursive")
     answer_language = params.get("answer_language", "auto")
 
+    # Resolve provider info for token logging
+    llm_provider = _resolve_provider(db, llm_provider_id, capability="llm")
+
+    # --- CAG: Cache-Augmented Generation (full-context baseline, no retrieval) ---
+    if search_type == "cag":
+        llm = get_llm(db, provider_id=llm_provider_id, temperature=0)
+        full_text = "\n\n".join(doc.page_content for doc in documents)
+        # Truncate to ~100K chars to stay within context limits
+        full_text = full_text[:100_000]
+        lang_instruction = f"\nAnswer in {answer_language}." if answer_language and answer_language != "auto" else ""
+
+        results = []
+        for question in questions:
+            prompt = f"""Based on the following context, answer the question.
+If the answer cannot be found in the context, say "I cannot find the answer in the provided context."{lang_instruction}
+
+Context:
+{full_text}
+
+Question: {question}
+
+Answer:"""
+            response = await llm.ainvoke(prompt)
+            try:
+                log_llm_response(
+                    db=db, response=response, operation="rag_pipeline",
+                    provider_name=llm_provider.name,
+                    model_name=llm_provider.default_llm_model or "unknown",
+                    experiment_id=experiment_id, combination_id=combination_id,
+                    metadata={"question": question[:100], "sub_operation": "cag"},
+                )
+            except Exception:
+                pass
+            results.append({
+                "question": question,
+                "answer": response.content,
+                "contexts": [full_text[:2000]],  # Truncated context for RAGAS
+            })
+        return results
+
+    # --- Standard pipeline: chunk, embed, index ---
+
     # 1. Create embeddings via provider factory (needed before chunking for semantic strategy)
+    emb_provider = _resolve_provider(db, embedding_provider_id, capability="embedding", model=embedding_model)
     embeddings = get_embeddings(db, provider_id=embedding_provider_id, model=embedding_model, dimensions=embedding_dimensions)
 
     # 2. Chunk documents
     chunks = chunk_documents(documents, chunk_size, chunk_overlap, chunking_strategy, embeddings=embeddings)
 
-    # Resolve provider info for token logging
-    emb_provider = _resolve_provider(db, embedding_provider_id, capability="embedding", model=embedding_model)
-    llm_provider = _resolve_provider(db, llm_provider_id, capability="llm")
-
     # 3. Create vector store and index
     dim_suffix = f"_{embedding_dimensions}" if embedding_dimensions else ""
     collection_name = f"exp_{chunk_size}_{chunk_overlap}_{top_k}_{search_type}_{distance_metric}_{chunking_strategy}{dim_suffix}"
     backend = create_vectorstore_backend(vectorstore_type, vectorstore_config)
+
+    # RAPTOR: build hierarchical summary tree before indexing
+    if search_type == "raptor":
+        from app.services.raptor_indexer import build_raptor_tree
+        llm_for_raptor = get_llm(db, provider_id=llm_provider_id, temperature=0)
+        chunks = await build_raptor_tree(
+            chunks=chunks,
+            embeddings=embeddings,
+            llm=llm_for_raptor,
+            max_levels=params.get("raptor_max_levels", 3),
+            clustering=params.get("raptor_clustering", "kmeans"),
+            db=db,
+            provider_name=llm_provider.name,
+            model_name=llm_provider.default_llm_model or "unknown",
+            experiment_id=experiment_id,
+            combination_id=combination_id,
+        )
+
     backend.create_collection(collection_name, chunks, embeddings, distance_metric=distance_metric)
 
     # Log embedding token usage
@@ -139,33 +196,58 @@ async def run_rag_pipeline(
     results = []
     for question in questions:
         # Retrieve relevant documents based on search type
-        if search_type == "multi_query":
-            from app.services.multi_query_retriever import multi_query_retrieve
-            retrieved_docs = await multi_query_retrieve(
-                question=question,
-                backend=backend,
-                llm=llm,
-                top_k=top_k,
-                multi_query_count=params.get("multi_query_count", 3),
-                db=db,
+        if search_type == "hyde":
+            from app.services.hyde_retriever import hyde_retrieve
+            retrieved_docs = await hyde_retrieve(
+                question=question, backend=backend, llm=llm,
+                embeddings=embeddings, top_k=top_k, db=db,
                 provider_name=llm_provider.name,
                 model_name=llm_provider.default_llm_model or "unknown",
-                experiment_id=experiment_id,
-                combination_id=combination_id,
+                experiment_id=experiment_id, combination_id=combination_id,
+            )
+        elif search_type == "crag":
+            from app.services.corrective_retriever import crag_retrieve
+            retrieved_docs = await crag_retrieve(
+                question=question, backend=backend, llm=llm, top_k=top_k,
+                relevance_threshold=params.get("crag_relevance_threshold", 0.7),
+                max_retries=params.get("crag_max_retries", 2),
+                db=db, provider_name=llm_provider.name,
+                model_name=llm_provider.default_llm_model or "unknown",
+                experiment_id=experiment_id, combination_id=combination_id,
+            )
+        elif search_type == "self_rag":
+            from app.services.corrective_retriever import self_rag_retrieve
+            retrieved_docs = await self_rag_retrieve(
+                question=question, backend=backend, llm=llm, top_k=top_k,
+                retrieval_threshold=params.get("self_rag_retrieval_threshold", 0.5),
+                db=db, provider_name=llm_provider.name,
+                model_name=llm_provider.default_llm_model or "unknown",
+                experiment_id=experiment_id, combination_id=combination_id,
+            )
+        elif search_type == "raptor":
+            from app.services.raptor_indexer import raptor_retrieve
+            retrieved_docs = raptor_retrieve(
+                question=question, backend=backend, top_k=top_k,
+                retrieval_mode=params.get("raptor_retrieval_mode", "collapsed"),
+                max_levels=params.get("raptor_max_levels", 3),
+            )
+        elif search_type == "multi_query":
+            from app.services.multi_query_retriever import multi_query_retrieve
+            retrieved_docs = await multi_query_retrieve(
+                question=question, backend=backend, llm=llm, top_k=top_k,
+                multi_query_count=params.get("multi_query_count", 3),
+                db=db, provider_name=llm_provider.name,
+                model_name=llm_provider.default_llm_model or "unknown",
+                experiment_id=experiment_id, combination_id=combination_id,
             )
         elif search_type == "agentic":
             from app.services.agentic_retriever import agentic_retrieve
             retrieved_docs = await agentic_retrieve(
-                question=question,
-                backend=backend,
-                llm=llm,
-                top_k=top_k,
+                question=question, backend=backend, llm=llm, top_k=top_k,
                 max_steps=params.get("agent_max_steps", 5),
-                db=db,
-                provider_name=llm_provider.name,
+                db=db, provider_name=llm_provider.name,
                 model_name=llm_provider.default_llm_model or "unknown",
-                experiment_id=experiment_id,
-                combination_id=combination_id,
+                experiment_id=experiment_id, combination_id=combination_id,
             )
         elif search_type == "mmr":
             retrieved_docs = backend.mmr_search(question, k=top_k)

@@ -27,14 +27,25 @@ const DEFAULT_CONFIG = {
   search_modes: ["local"] as string[],
   multi_query_counts: [3] as number[],
   agent_max_steps: [5] as number[],
+  crag_relevance_thresholds: [0.7] as number[],
+  crag_max_retries: [2] as number[],
+  self_rag_retrieval_thresholds: [0.5] as number[],
+  raptor_max_levels: [3] as number[],
+  raptor_clustering: ["kmeans"] as string[],
+  raptor_retrieval_modes: ["collapsed"] as string[],
 };
 
 const SEARCH_TYPES = [
   { id: "vector", label: "Vector", description: "Semantic similarity search" },
   { id: "hybrid", label: "Hybrid", description: "Vector + keyword (BM25)" },
   { id: "mmr", label: "MMR", description: "Diverse results via Max Marginal Relevance" },
-  { id: "multi_query", label: "Multi-Query", description: "LLM generates alternative queries, fuses results via RRF", cost: "amber" },
+  { id: "hyde", label: "HyDE", description: "Embeds a hypothetical answer for better retrieval", cost: "amber" },
+  { id: "multi_query", label: "Multi-Query", description: "LLM generates alternative queries, fuses via RRF", cost: "amber" },
+  { id: "crag", label: "CRAG", description: "Corrective RAG — grades relevance, reformulates if needed", cost: "amber" },
+  { id: "self_rag", label: "Self-RAG", description: "Decides if retrieval is needed, validates grounding", cost: "amber" },
+  { id: "raptor", label: "RAPTOR", description: "Hierarchical summary tree for multi-level retrieval", cost: "red" },
   { id: "agentic", label: "Agentic", description: "LLM agent decides retrieval strategy dynamically", cost: "red" },
+  { id: "cag", label: "CAG", description: "Full document in context — no retrieval (baseline)", cost: "red" },
 ];
 
 const CHUNKING_STRATEGIES = [
@@ -102,10 +113,14 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
   })();
 
   // Effective search type count: simple types + expanded advanced types
-  const simpleSearchCount = config.search_types.filter((t) => !["multi_query", "agentic"].includes(t)).length;
+  const advancedTypes = ["multi_query", "agentic", "crag", "self_rag", "raptor"];
+  const simpleSearchCount = config.search_types.filter((t) => !advancedTypes.includes(t)).length;
   const mqExpansion = config.search_types.includes("multi_query") ? config.multi_query_counts.length : 0;
   const agExpansion = config.search_types.includes("agentic") ? config.agent_max_steps.length : 0;
-  const effectiveSearchCount = simpleSearchCount + mqExpansion + agExpansion;
+  const cragExpansion = config.search_types.includes("crag") ? config.crag_relevance_thresholds.length * config.crag_max_retries.length : 0;
+  const selfRagExpansion = config.search_types.includes("self_rag") ? config.self_rag_retrieval_thresholds.length : 0;
+  const raptorExpansion = config.search_types.includes("raptor") ? config.raptor_max_levels.length * config.raptor_clustering.length * config.raptor_retrieval_modes.length : 0;
+  const effectiveSearchCount = simpleSearchCount + mqExpansion + agExpansion + cragExpansion + selfRagExpansion + raptorExpansion;
 
   const ragCombinations = config.pipeline_types.includes("rag")
     ? Math.round(
@@ -584,6 +599,118 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                       {n}
                     </button>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* CRAG sub-parameters */}
+            {config.search_types.includes("crag") && (
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500/30 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-t-secondary mb-2">Relevance Threshold</label>
+                  <div className="flex gap-2">
+                    {[0.5, 0.7, 0.9].map((v) => (
+                      <button key={v} onClick={() => setConfig((prev) => ({
+                        ...prev, crag_relevance_thresholds: prev.crag_relevance_thresholds.includes(v)
+                          ? prev.crag_relevance_thresholds.filter((x) => x !== v)
+                          : [...prev.crag_relevance_thresholds, v].sort(),
+                      }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                        config.crag_relevance_thresholds.includes(v)
+                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          : "bg-surface-50 text-muted border border-surface-200/50"
+                      }`}>{v}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-t-secondary mb-2">Max Retries</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3].map((v) => (
+                      <button key={v} onClick={() => setConfig((prev) => ({
+                        ...prev, crag_max_retries: prev.crag_max_retries.includes(v)
+                          ? prev.crag_max_retries.filter((x) => x !== v)
+                          : [...prev.crag_max_retries, v].sort(),
+                      }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                        config.crag_max_retries.includes(v)
+                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          : "bg-surface-50 text-muted border border-surface-200/50"
+                      }`}>{v}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Self-RAG sub-parameter */}
+            {config.search_types.includes("self_rag") && (
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500/30">
+                <label className="block text-xs font-medium text-t-secondary mb-2">Retrieval Threshold</label>
+                <div className="flex gap-2">
+                  {[0.3, 0.5, 0.7].map((v) => (
+                    <button key={v} onClick={() => setConfig((prev) => ({
+                      ...prev, self_rag_retrieval_thresholds: prev.self_rag_retrieval_thresholds.includes(v)
+                        ? prev.self_rag_retrieval_thresholds.filter((x) => x !== v)
+                        : [...prev.self_rag_retrieval_thresholds, v].sort(),
+                    }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                      config.self_rag_retrieval_thresholds.includes(v)
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                        : "bg-surface-50 text-muted border border-surface-200/50"
+                    }`}>{v}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* RAPTOR sub-parameters */}
+            {config.search_types.includes("raptor") && (
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-red-500/30 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-t-secondary mb-2">Max Levels</label>
+                  <div className="flex gap-2">
+                    {[2, 3, 4].map((v) => (
+                      <button key={v} onClick={() => setConfig((prev) => ({
+                        ...prev, raptor_max_levels: prev.raptor_max_levels.includes(v)
+                          ? prev.raptor_max_levels.filter((x) => x !== v)
+                          : [...prev.raptor_max_levels, v].sort(),
+                      }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                        config.raptor_max_levels.includes(v)
+                          ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                          : "bg-surface-50 text-muted border border-surface-200/50"
+                      }`}>{v}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-t-secondary mb-2">Clustering</label>
+                  <div className="flex gap-2">
+                    {["kmeans", "gmm"].map((v) => (
+                      <button key={v} onClick={() => setConfig((prev) => ({
+                        ...prev, raptor_clustering: prev.raptor_clustering.includes(v)
+                          ? prev.raptor_clustering.filter((x) => x !== v)
+                          : [...prev.raptor_clustering, v],
+                      }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                        config.raptor_clustering.includes(v)
+                          ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                          : "bg-surface-50 text-muted border border-surface-200/50"
+                      }`}>{v}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-t-secondary mb-2">Retrieval Mode</label>
+                  <div className="flex gap-2">
+                    {["collapsed", "tree_traversal", "level_specific"].map((v) => (
+                      <button key={v} onClick={() => setConfig((prev) => ({
+                        ...prev, raptor_retrieval_modes: prev.raptor_retrieval_modes.includes(v)
+                          ? prev.raptor_retrieval_modes.filter((x) => x !== v)
+                          : [...prev.raptor_retrieval_modes, v],
+                      }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                        config.raptor_retrieval_modes.includes(v)
+                          ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                          : "bg-surface-50 text-muted border border-surface-200/50"
+                      }`}>{v.replace("_", " ")}</button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
