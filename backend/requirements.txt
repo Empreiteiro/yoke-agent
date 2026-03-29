@@ -38,6 +38,10 @@ chromadb>=0.5.7
 # MCP Server
 fastmcp>=2.0.0
 
+# GraphRAG
+networkx>=3.0
+graspologic>=3.0
+
 # Utilities
 python-dotenv>=1.0.1
 aiofiles>=24.1.0
