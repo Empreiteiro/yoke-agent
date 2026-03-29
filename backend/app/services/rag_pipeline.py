@@ -10,6 +10,26 @@ from app.services.llm_factory import get_llm, get_embeddings, _resolve_provider
 from app.services.vectorstore_factory import create_vectorstore_backend
 from app.services.token_tracker import log_llm_response, log_embedding_usage
 
+DEFAULT_PROMPT_TEMPLATE = """Based on the following context, answer the question.
+If the answer cannot be found in the context, say "I cannot find the answer in the provided context."{lang_instruction}
+
+Context:
+{context}
+
+Question: {question}
+
+Answer:"""
+
+
+def _build_prompt(template: str, context: str, question: str, answer_language: str = "auto") -> str:
+    """Build the final prompt from a template, injecting context and question."""
+    lang_instruction = f"\nAnswer in {answer_language}." if answer_language and answer_language != "auto" else ""
+    return template.format(
+        context=context,
+        question=question,
+        lang_instruction=lang_instruction,
+    )
+
 
 def chunk_documents(
     documents: List[Document],
@@ -104,25 +124,19 @@ async def run_rag_pipeline(
     # Resolve provider info for token logging
     llm_provider = _resolve_provider(db, llm_provider_id, capability="llm")
 
+    # Resolve prompt template (custom or default)
+    prompt_template = params.get("prompt_template") or DEFAULT_PROMPT_TEMPLATE
+
     # --- CAG: Cache-Augmented Generation (full-context baseline, no retrieval) ---
     if search_type == "cag":
         llm = get_llm(db, provider_id=llm_provider_id, temperature=0)
         full_text = "\n\n".join(doc.page_content for doc in documents)
         # Truncate to ~100K chars to stay within context limits
         full_text = full_text[:100_000]
-        lang_instruction = f"\nAnswer in {answer_language}." if answer_language and answer_language != "auto" else ""
 
         results = []
         for question in questions:
-            prompt = f"""Based on the following context, answer the question.
-If the answer cannot be found in the context, say "I cannot find the answer in the provided context."{lang_instruction}
-
-Context:
-{full_text}
-
-Question: {question}
-
-Answer:"""
+            prompt = _build_prompt(prompt_template, full_text, question, answer_language)
             response = await llm.ainvoke(prompt)
             try:
                 log_llm_response(
@@ -260,18 +274,8 @@ Answer:"""
         context_texts = [doc.page_content for doc in retrieved_docs]
         combined_context = "\n\n".join(context_texts)
 
-        # Generate answer
-        lang_instruction = f"\nAnswer in {answer_language}." if answer_language and answer_language != "auto" else ""
-        prompt = f"""Based on the following context, answer the question.
-If the answer cannot be found in the context, say "I cannot find the answer in the provided context."{lang_instruction}
-
-Context:
-{combined_context}
-
-Question: {question}
-
-Answer:"""
-
+        # Generate answer using prompt template
+        prompt = _build_prompt(prompt_template, combined_context, question, answer_language)
         response = await llm.ainvoke(prompt)
 
         # Log LLM token usage per question

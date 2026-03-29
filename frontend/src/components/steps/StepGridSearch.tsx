@@ -33,6 +33,7 @@ const DEFAULT_CONFIG = {
   raptor_max_levels: [3] as number[],
   raptor_clustering: ["kmeans"] as string[],
   raptor_retrieval_modes: ["collapsed"] as string[],
+  prompt_templates: [] as string[],
 };
 
 const SEARCH_TYPES = [
@@ -149,7 +150,8 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
       )
     : 0;
 
-  const totalCombinations = ragCombinations + graphragCombinations;
+  const promptMultiplier = Math.max(config.prompt_templates.length, 1);
+  const totalCombinations = (ragCombinations + graphragCombinations) * promptMultiplier;
 
   const addToArray = (
     field: keyof typeof config,
@@ -983,6 +985,86 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Prompt Templates */}
+      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h4 className="text-sm font-semibold text-primary">Prompt Templates</h4>
+            <p className="text-xs text-muted mt-0.5">
+              Customize the answer generation prompt. Use <code className="text-accent">{"{context}"}</code> and <code className="text-accent">{"{question}"}</code> as placeholders.
+              {config.prompt_templates.length > 1 && (
+                <span className="text-amber-400 ml-1">
+                  {config.prompt_templates.length} templates = {config.prompt_templates.length}x more combinations
+                </span>
+              )}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setConfig((prev) => ({
+                ...prev,
+                prompt_templates: [
+                  ...prev.prompt_templates,
+                  `Based on the following context, answer the question.\nIf the answer cannot be found in the context, say "I cannot find the answer in the provided context."{lang_instruction}\n\nContext:\n{context}\n\nQuestion: {question}\n\nAnswer:`,
+                ],
+              }));
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 text-accent text-xs font-medium rounded-lg hover:bg-accent/20 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Template
+          </button>
+        </div>
+
+        {config.prompt_templates.length === 0 ? (
+          <div className="text-center py-6 border border-dashed border-surface-300 rounded-xl">
+            <p className="text-sm text-muted">Using default prompt template.</p>
+            <p className="text-xs text-t-secondary mt-1">Click &quot;Add Template&quot; to customize or test multiple prompts.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {config.prompt_templates.map((tpl, idx) => (
+              <div key={idx} className="relative group">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xs font-medium text-t-secondary">Template {idx + 1}</span>
+                  <button
+                    onClick={() => {
+                      setConfig((prev) => ({
+                        ...prev,
+                        prompt_templates: prev.prompt_templates.filter((_, i) => i !== idx),
+                      }));
+                    }}
+                    className="p-0.5 text-muted hover:text-red-400 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <textarea
+                  value={tpl}
+                  onChange={(e) => {
+                    setConfig((prev) => ({
+                      ...prev,
+                      prompt_templates: prev.prompt_templates.map((t, i) =>
+                        i === idx ? e.target.value : t
+                      ),
+                    }));
+                  }}
+                  rows={6}
+                  className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-xs font-mono leading-relaxed focus:outline-none focus:border-accent/50 resize-y"
+                  placeholder="Write your prompt template here. Use {context} and {question} placeholders."
+                />
+                {!tpl.includes("{context}") && (
+                  <p className="text-[10px] text-red-400 mt-1">Missing {"{context}"} placeholder</p>
+                )}
+                {!tpl.includes("{question}") && (
+                  <p className="text-[10px] text-red-400 mt-1">Missing {"{question}"} placeholder</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Cost estimate */}
