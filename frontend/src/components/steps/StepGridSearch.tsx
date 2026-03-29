@@ -25,7 +25,17 @@ const DEFAULT_CONFIG = {
   max_gleanings: [1] as number[],
   community_levels: [1] as number[],
   search_modes: ["local"] as string[],
+  multi_query_counts: [3] as number[],
+  agent_max_steps: [5] as number[],
 };
+
+const SEARCH_TYPES = [
+  { id: "vector", label: "Vector", description: "Semantic similarity search" },
+  { id: "hybrid", label: "Hybrid", description: "Vector + keyword (BM25)" },
+  { id: "mmr", label: "MMR", description: "Diverse results via Max Marginal Relevance" },
+  { id: "multi_query", label: "Multi-Query", description: "LLM generates alternative queries, fuses results via RRF", cost: "amber" },
+  { id: "agentic", label: "Agentic", description: "LLM agent decides retrieval strategy dynamically", cost: "red" },
+];
 
 const CHUNKING_STRATEGIES = [
   { id: "recursive", label: "Recursive Character", description: "Splits by paragraphs, lines, sentences" },
@@ -91,13 +101,19 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
     return config.embedding_models.length > 0 ? totalModelDimCombos / config.embedding_models.length : 1;
   })();
 
+  // Effective search type count: simple types + expanded advanced types
+  const simpleSearchCount = config.search_types.filter((t) => !["multi_query", "agentic"].includes(t)).length;
+  const mqExpansion = config.search_types.includes("multi_query") ? config.multi_query_counts.length : 0;
+  const agExpansion = config.search_types.includes("agentic") ? config.agent_max_steps.length : 0;
+  const effectiveSearchCount = simpleSearchCount + mqExpansion + agExpansion;
+
   const ragCombinations = config.pipeline_types.includes("rag")
     ? Math.round(
         config.chunk_sizes.length *
         config.chunk_overlaps.length *
         config.embedding_models.length *
         config.top_k_values.length *
-        config.search_types.length *
+        Math.max(effectiveSearchCount, 1) *
         config.distance_metrics.length *
         config.chunking_strategies.length *
         dimensionMultiplier
@@ -471,31 +487,106 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
           {config.pipeline_types.includes("rag") && (
           <div>
             <label className="block text-sm font-medium text-t-hover mb-3">Search Type</label>
-            <div className="flex gap-3">
-              {["vector", "hybrid", "mmr"].map((type) => (
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {SEARCH_TYPES.map((st) => (
                 <label
-                  key={type}
+                  key={st.id}
                   className="flex items-center gap-2 cursor-pointer"
+                  title={st.description}
                 >
                   <input
                     type="checkbox"
-                    checked={config.search_types.includes(type)}
+                    checked={config.search_types.includes(st.id)}
                     onChange={() => {
-                      if (config.search_types.includes(type)) {
+                      if (config.search_types.includes(st.id)) {
                         setConfig((prev) => ({
                           ...prev,
-                          search_types: prev.search_types.filter((t) => t !== type),
+                          search_types: prev.search_types.filter((t) => t !== st.id),
                         }));
                       } else {
-                        addToArray("search_types", type);
+                        addToArray("search_types", st.id);
                       }
                     }}
                     className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
                   />
-                  <span className="text-sm text-t-hover capitalize">{type}</span>
+                  <span className="text-sm text-t-hover">{st.label}</span>
+                  {st.cost && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                      st.cost === "red"
+                        ? "bg-red-500/15 text-red-400"
+                        : "bg-amber-500/15 text-amber-400"
+                    }`}>
+                      {st.cost === "red" ? "$$$$" : "$$"}
+                    </span>
+                  )}
                 </label>
               ))}
             </div>
+            <p className="text-xs text-muted mt-2">
+              Multi-Query and Agentic use extra LLM calls during retrieval, increasing cost.
+            </p>
+
+            {/* Multi-Query sub-parameter */}
+            {config.search_types.includes("multi_query") && (
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500/30">
+                <label className="block text-xs font-medium text-t-secondary mb-2">
+                  Alternative Queries (multi_query_count)
+                </label>
+                <div className="flex gap-2">
+                  {[3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => {
+                        setConfig((prev) => ({
+                          ...prev,
+                          multi_query_counts: prev.multi_query_counts.includes(n)
+                            ? prev.multi_query_counts.filter((v) => v !== n)
+                            : [...prev.multi_query_counts, n].sort(),
+                        }));
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                        config.multi_query_counts.includes(n)
+                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          : "bg-surface-50 text-muted border border-surface-200/50"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Agentic sub-parameter */}
+            {config.search_types.includes("agentic") && (
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-red-500/30">
+                <label className="block text-xs font-medium text-t-secondary mb-2">
+                  Max Agent Steps (agent_max_steps)
+                </label>
+                <div className="flex gap-2">
+                  {[3, 5, 7, 10].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => {
+                        setConfig((prev) => ({
+                          ...prev,
+                          agent_max_steps: prev.agent_max_steps.includes(n)
+                            ? prev.agent_max_steps.filter((v) => v !== n)
+                            : [...prev.agent_max_steps, n].sort(),
+                        }));
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                        config.agent_max_steps.includes(n)
+                          ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                          : "bg-surface-50 text-muted border border-surface-200/50"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           )}
 

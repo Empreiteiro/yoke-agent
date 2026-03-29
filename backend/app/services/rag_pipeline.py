@@ -139,7 +139,35 @@ async def run_rag_pipeline(
     results = []
     for question in questions:
         # Retrieve relevant documents based on search type
-        if search_type == "mmr":
+        if search_type == "multi_query":
+            from app.services.multi_query_retriever import multi_query_retrieve
+            retrieved_docs = await multi_query_retrieve(
+                question=question,
+                backend=backend,
+                llm=llm,
+                top_k=top_k,
+                multi_query_count=params.get("multi_query_count", 3),
+                db=db,
+                provider_name=llm_provider.name,
+                model_name=llm_provider.default_llm_model or "unknown",
+                experiment_id=experiment_id,
+                combination_id=combination_id,
+            )
+        elif search_type == "agentic":
+            from app.services.agentic_retriever import agentic_retrieve
+            retrieved_docs = await agentic_retrieve(
+                question=question,
+                backend=backend,
+                llm=llm,
+                top_k=top_k,
+                max_steps=params.get("agent_max_steps", 5),
+                db=db,
+                provider_name=llm_provider.name,
+                model_name=llm_provider.default_llm_model or "unknown",
+                experiment_id=experiment_id,
+                combination_id=combination_id,
+            )
+        elif search_type == "mmr":
             retrieved_docs = backend.mmr_search(question, k=top_k)
         elif search_type == "hybrid":
             retrieved_docs = backend.hybrid_search(question, k=top_k)

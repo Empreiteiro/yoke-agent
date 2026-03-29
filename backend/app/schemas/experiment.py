@@ -8,12 +8,14 @@ class RAGParams(BaseModel):
     chunk_overlap: int = Field(..., description="Overlap between chunks as percentage")
     embedding_model: str = Field(..., description="Embedding model identifier")
     top_k: int = Field(..., description="Number of documents to retrieve")
-    search_type: str = Field(..., description="Search type: vector, hybrid, mmr")
+    search_type: str = Field(..., description="Search type: vector, hybrid, mmr, multi_query, agentic")
     embedding_dimensions: Optional[int] = Field(None, description="Embedding output dimensions (None = model default)")
     distance_metric: str = Field("cosine", description="Distance metric: cosine, l2, ip")
     chunking_strategy: str = Field("recursive", description="Chunking strategy: recursive, token, semantic")
     answer_language: str = Field("auto", description="Language for generated answers: auto, English, Portuguese, etc.")
     pipeline_type: str = Field("rag", description="Pipeline type: rag or graphrag")
+    multi_query_count: Optional[int] = Field(None, description="Number of alternative queries for multi_query search")
+    agent_max_steps: Optional[int] = Field(None, description="Max retrieval steps for agentic search")
 
 
 class ExperimentCreate(BaseModel):
@@ -35,6 +37,10 @@ class GridSearchConfig(BaseModel):
     answer_language: str = "auto"  # Language for LLM answers: auto, English, Portuguese, etc.
     # Optional RAGAS metrics to include beyond the fixed ones
     optional_metrics: list[str] = []
+    # Multi-Query RAG settings
+    multi_query_counts: list[int] = [3]  # Number of alternative queries (3-5)
+    # Agentic RAG settings
+    agent_max_steps: list[int] = [5]  # Max agent retrieval steps (3-10)
     # GraphRAG settings
     pipeline_types: list[str] = ["rag"]  # rag, graphrag
     entity_extraction_models: list[str] = []  # LLM models for entity extraction
