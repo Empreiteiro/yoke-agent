@@ -130,14 +130,26 @@ def estimate_cost(
 
     # Count total combinations
     from app.schemas.provider import EMBEDDING_DIMENSIONS
+
+    # Split search types for counting
+    simple_types = [t for t in config.search_types if t not in ("multi_query", "agentic")]
+    has_mq = "multi_query" in config.search_types
+    has_ag = "agentic" in config.search_types
+    # Effective search type count includes sub-parameter expansion
+    effective_search_count = (
+        len(simple_types)
+        + (len(config.multi_query_counts) if has_mq else 0)
+        + (len(config.agent_max_steps) if has_ag else 0)
+    )
+
     num_base = (
         len(config.chunk_sizes) * len(config.chunk_overlaps) *
         len(config.embedding_models) * len(config.top_k_values) *
-        len(config.search_types) * len(config.distance_metrics) *
+        max(effective_search_count, 1) * len(config.distance_metrics) *
         len(config.chunking_strategies) if hasattr(config, "chunking_strategies") else
         len(config.chunk_sizes) * len(config.chunk_overlaps) *
         len(config.embedding_models) * len(config.top_k_values) *
-        len(config.search_types) * len(config.distance_metrics)
+        max(effective_search_count, 1) * len(config.distance_metrics)
     )
     # Account for dimension expansion
     dim_multiplier = 1
@@ -185,6 +197,31 @@ def estimate_cost(
         graphrag_extraction_tokens = int(est_chunks * 500 * avg_gleanings * num_graphrag_combos)
         total_llm += graphrag_extraction_tokens
 
+    # Multi-Query extra LLM cost: ~500 tokens/question for query generation
+    multi_query_extra_tokens = 0
+    if has_mq:
+        mq_combos = int(
+            len(config.chunk_sizes) * len(config.chunk_overlaps) *
+            len(config.embedding_models) * len(config.top_k_values) *
+            len(config.multi_query_counts) * len(config.distance_metrics) *
+            len(config.chunking_strategies) * dim_multiplier
+        )
+        multi_query_extra_tokens = int(num_questions * 500 * mq_combos)
+        total_llm += multi_query_extra_tokens
+
+    # Agentic extra LLM cost: ~800 tokens × avg_steps/question
+    agentic_extra_tokens = 0
+    if has_ag:
+        ag_combos = int(
+            len(config.chunk_sizes) * len(config.chunk_overlaps) *
+            len(config.embedding_models) * len(config.top_k_values) *
+            len(config.agent_max_steps) * len(config.distance_metrics) *
+            len(config.chunking_strategies) * dim_multiplier
+        )
+        avg_steps = sum(config.agent_max_steps) / max(len(config.agent_max_steps), 1)
+        agentic_extra_tokens = int(num_questions * 800 * avg_steps * ag_combos)
+        total_llm += agentic_extra_tokens
+
     # Cost estimates (approximate pricing per 1M tokens)
     EMBEDDING_COST_PER_M = 0.02  # text-embedding-3-small
     LLM_COST_PER_M = 0.50  # gpt-4o-mini average
@@ -208,6 +245,10 @@ def estimate_cost(
     }
     if graphrag_extraction_tokens:
         result["breakdown"]["graphrag_entity_extraction_tokens"] = graphrag_extraction_tokens
+    if multi_query_extra_tokens:
+        result["breakdown"]["multi_query_generation_tokens"] = multi_query_extra_tokens
+    if agentic_extra_tokens:
+        result["breakdown"]["agentic_reasoning_tokens"] = agentic_extra_tokens
     return result
 
 
@@ -232,53 +273,66 @@ def configure_grid(
 
     # --- RAG combinations ---
     if "rag" in config.pipeline_types:
-        # Generate base combinations (without dimensions, which are per-model)
-        base_combos = list(
+        # Split search types into simple and advanced (with sub-parameters)
+        simple_search_types = [t for t in config.search_types if t not in ("multi_query", "agentic")]
+        has_multi_query = "multi_query" in config.search_types
+        has_agentic = "agentic" in config.search_types
+
+        def _expand_dims(embedding_model):
+            """Return list of embedding dimensions for a given model."""
+            model_info = EMBEDDING_DIMENSIONS.get(embedding_model)
+            default_dim = model_info["default"] if model_info else None
+            if config.embedding_dimensions:
+                supported = model_info["supported"] if model_info else []
+                dims = [d for d in config.embedding_dimensions if d in supported]
+                return dims if dims else [default_dim]
+            return [default_dim]
+
+        def _add_combo(params_dict):
+            nonlocal combo_count
+            db.add(ExperimentCombination(experiment_id=experiment_id, params=params_dict))
+            combo_count += 1
+
+        # Base parameter lists (without search_type, which is handled separately)
+        base_lists = list(
             itertools.product(
                 config.chunk_sizes,
                 config.chunk_overlaps,
                 config.embedding_models,
                 config.top_k_values,
-                config.search_types,
                 config.distance_metrics,
                 config.chunking_strategies,
             )
         )
 
-        # Expand with embedding dimensions (respecting per-model limits)
-        for combo in base_combos:
+        for combo in base_lists:
             embedding_model = combo[2]
-            model_info = EMBEDDING_DIMENSIONS.get(embedding_model)
-            default_dim = model_info["default"] if model_info else None
-
-            if config.embedding_dimensions:
-                # Filter to dimensions valid for this model
-                supported = model_info["supported"] if model_info else []
-                dims_for_model = [d for d in config.embedding_dimensions if d in supported]
-                if not dims_for_model:
-                    dims_for_model = [default_dim]
-            else:
-                dims_for_model = [default_dim]
-
-            for dim in dims_for_model:
-                params = {
+            for dim in _expand_dims(embedding_model):
+                base_params = {
                     "pipeline_type": "rag",
                     "chunk_size": combo[0],
                     "chunk_overlap": combo[1],
                     "embedding_model": embedding_model,
                     "top_k": combo[3],
-                    "search_type": combo[4],
-                    "distance_metric": combo[5],
-                    "chunking_strategy": combo[6],
+                    "distance_metric": combo[4],
+                    "chunking_strategy": combo[5],
                     "embedding_dimensions": dim,
                     "answer_language": config.answer_language,
                 }
-                db_combo = ExperimentCombination(
-                    experiment_id=experiment_id,
-                    params=params,
-                )
-                db.add(db_combo)
-                combo_count += 1
+
+                # Simple search types (vector, hybrid, mmr)
+                for st in simple_search_types:
+                    _add_combo({**base_params, "search_type": st})
+
+                # Multi-Query: expand with multi_query_counts
+                if has_multi_query:
+                    for mqc in config.multi_query_counts:
+                        _add_combo({**base_params, "search_type": "multi_query", "multi_query_count": mqc})
+
+                # Agentic: expand with agent_max_steps
+                if has_agentic:
+                    for ams in config.agent_max_steps:
+                        _add_combo({**base_params, "search_type": "agentic", "agent_max_steps": ams})
 
     # --- GraphRAG combinations ---
     if "graphrag" in config.pipeline_types:

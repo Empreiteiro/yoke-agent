@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Layers, Search, Ruler, BarChart3, Target } from "lucide-react";
+import { BookOpen, Layers, Search, Ruler, BarChart3, Target, Brain, Sparkles } from "lucide-react";
 
 const sections = [
   {
@@ -62,6 +62,27 @@ const sections = [
         term: "Semantic Chunking",
         description:
           "Uses an embedding model to group semantically similar sentences together. Instead of splitting at fixed sizes, it creates chunks that represent coherent topics. Better for documents where topics don't follow a regular structure.",
+      },
+    ],
+  },
+  {
+    title: "Advanced Retrieval Strategies",
+    icon: Sparkles,
+    items: [
+      {
+        term: "Multi-Query RAG",
+        description:
+          "Instead of searching with the original question only, an LLM generates N alternative formulations (e.g., 3-5 paraphrases) and retrieves documents for each one. All results are merged using Reciprocal Rank Fusion (RRF) to produce a single ranked list. This overcomes vocabulary mismatch between the question and the source documents, significantly improving recall. Cost impact: one extra LLM call per question for query generation. Reference: LangChain MultiQueryRetriever, RAG Fusion paper (arXiv:2402.03367).",
+      },
+      {
+        term: "Agentic RAG",
+        description:
+          "An LLM agent dynamically decides the retrieval strategy per question instead of following a fixed retrieve-then-generate pipeline. The agent has access to tools: retrieve (semantic search), retrieve_mmr (diverse search), decompose_question (break complex questions into sub-questions), reformulate_query (rewrite queries for better retrieval), and evaluate_relevance (check if retrieved docs are useful). The agent loops until it has enough context or reaches the max steps limit. Multi-hop questions show significant improvement with this approach. Cost impact: multiple LLM calls per question (one per agent step). Reference: LangGraph Agentic RAG tutorial, Adaptive RAG paper (arXiv:2403.14403).",
+      },
+      {
+        term: "Reciprocal Rank Fusion (RRF)",
+        description:
+          "A simple and effective algorithm for merging multiple ranked result lists into a single ranking. For each document, the RRF score is calculated as the sum of 1/(k + rank) across all lists where it appears, where k is a constant (typically 60). Documents are then sorted by their fused score. RRF is used by Multi-Query RAG to combine results from different query formulations without requiring score normalization across retrieval runs.",
       },
     ],
   },
