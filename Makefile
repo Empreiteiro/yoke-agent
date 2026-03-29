@@ -13,6 +13,8 @@ VENV_DIR      = $(BACKEND_DIR)/.venv
 VENV_PIP      = $(VENV_DIR)/bin/pip
 VENV_PYTHON   = $(VENV_DIR)/bin/python
 VENV_UVICORN  = $(VENV_DIR)/bin/uvicorn
+UV            = $(shell command -v uv 2>/dev/null)
+PIP_INSTALL   = $(if $(UV),$(UV) pip install --python $(VENV_PYTHON),$(VENV_PIP) install)
 
 # Colors
 CYAN  = \033[36m
@@ -34,8 +36,8 @@ help: ## Show this help message
 setup: ## First-time setup: create venv, install all deps, copy .env
 	@echo "$(CYAN)Setting up project...$(RESET)"
 	$(PYTHON) -m venv $(VENV_DIR)
-	$(VENV_PIP) install --upgrade pip
-	$(VENV_PIP) install -r $(BACKEND_DIR)/requirements.txt
+	$(PIP_INSTALL) --upgrade pip
+	$(PIP_INSTALL) -r $(BACKEND_DIR)/requirements.txt
 	cd $(FRONTEND_DIR) && $(NPM) install
 	@if [ ! -f $(BACKEND_DIR)/.env ]; then \
 		cp $(BACKEND_DIR)/.env.example $(BACKEND_DIR)/.env; \
@@ -53,8 +55,8 @@ install-backend: ## Install backend Python dependencies (uses venv)
 		echo "$(YELLOW)Virtual environment not found. Creating...$(RESET)"; \
 		$(PYTHON) -m venv $(VENV_DIR); \
 	fi
-	$(VENV_PIP) install --upgrade pip
-	$(VENV_PIP) install -r $(BACKEND_DIR)/requirements.txt
+	$(PIP_INSTALL) --upgrade pip
+	$(PIP_INSTALL) -r $(BACKEND_DIR)/requirements.txt
 
 install-frontend: ## Install frontend Node.js dependencies
 	@echo "$(CYAN)Installing frontend dependencies...$(RESET)"
@@ -68,7 +70,7 @@ check-deps: ## Verify and install all backend dependencies
 		echo "$(YELLOW)No virtual environment found. Run 'make setup' first.$(RESET)"; \
 		exit 1; \
 	fi
-	@$(VENV_PIP) install --quiet -r $(BACKEND_DIR)/requirements.txt
+	@$(PIP_INSTALL) --quiet -r $(BACKEND_DIR)/requirements.txt
 	@echo "$(GREEN)All dependencies OK.$(RESET)"
 
 # --- Development ---
