@@ -163,3 +163,20 @@ docker-down: ## Stop Docker Compose services
 
 docker-logs: ## View Docker container logs
 	docker compose logs -f
+
+DOCKER_USER = empreiteiro
+DOCKER_BACKEND = $(DOCKER_USER)/rag-studio-backend
+DOCKER_FRONTEND = $(DOCKER_USER)/rag-studio-frontend
+DOCKER_TAG ?= latest
+
+docker-publish: ## Build and push images to Docker Hub (DOCKER_TAG=v0.1.0)
+	@echo "$(CYAN)Building and pushing Docker images...$(RESET)"
+	docker build -t $(DOCKER_BACKEND):$(DOCKER_TAG) -t $(DOCKER_BACKEND):latest ./backend
+	docker build -t $(DOCKER_FRONTEND):$(DOCKER_TAG) -t $(DOCKER_FRONTEND):latest ./frontend
+	docker push $(DOCKER_BACKEND):$(DOCKER_TAG)
+	docker push $(DOCKER_BACKEND):latest
+	docker push $(DOCKER_FRONTEND):$(DOCKER_TAG)
+	docker push $(DOCKER_FRONTEND):latest
+	@echo "$(GREEN)Published:$(RESET)"
+	@echo "  $(DOCKER_BACKEND):$(DOCKER_TAG)"
+	@echo "  $(DOCKER_FRONTEND):$(DOCKER_TAG)"
