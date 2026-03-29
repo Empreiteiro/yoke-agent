@@ -219,6 +219,9 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-mono text-muted">#{index + 1}</span>
                   <div className="flex items-center gap-2 text-xs">
+                    {combo.params.pipeline_type === "graphrag" && (
+                      <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded text-xs">GraphRAG</span>
+                    )}
                     <span className="px-2 py-0.5 bg-accent/10 text-accent rounded">
                       {combo.params.chunk_size}t
                     </span>
@@ -226,10 +229,10 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
                       {combo.params.chunk_overlap}%
                     </span>
                     <span className="px-2 py-0.5 bg-surface-200 text-t-hover rounded">
-                      k={combo.params.top_k}
+                      {combo.params.pipeline_type === "graphrag" ? `lvl=${combo.params.community_level ?? "?"}` : `k=${combo.params.top_k}`}
                     </span>
                     <span className="px-2 py-0.5 bg-surface-200 text-t-hover rounded">
-                      {combo.params.search_type}
+                      {combo.params.pipeline_type === "graphrag" ? (combo.params.search_mode || "local") : combo.params.search_type}
                     </span>
                   </div>
                 </div>

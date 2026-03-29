@@ -505,14 +505,24 @@ function ExpandedReport({ report }: { report: any }) {
 
           <div className="grid grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
             {[
+              { label: "Pipeline", value: best.params.pipeline_type === "graphrag" ? "GraphRAG" : "RAG" },
               { label: "Chunk Size", value: `${best.params.chunk_size}` },
               { label: "Overlap", value: `${best.params.chunk_overlap}%` },
               { label: "Chunking", value: best.params.chunking_strategy || "recursive" },
               { label: "Embedding", value: best.params.embedding_model },
               { label: "Dims", value: best.params.embedding_dimensions || "default" },
-              { label: "Top-K", value: best.params.top_k },
-              { label: "Search", value: best.params.search_type },
-              { label: "Distance", value: best.params.distance_metric || "cosine" },
+              ...(best.params.pipeline_type === "graphrag"
+                ? [
+                    { label: "Entity Model", value: best.params.entity_extraction_model || "-" },
+                    { label: "Gleanings", value: best.params.max_gleanings ?? "-" },
+                    { label: "Community Lvl", value: best.params.community_level ?? "-" },
+                    { label: "Search Mode", value: best.params.search_mode || "-" },
+                  ]
+                : [
+                    { label: "Top-K", value: best.params.top_k },
+                    { label: "Search", value: best.params.search_type },
+                    { label: "Distance", value: best.params.distance_metric || "cosine" },
+                  ]),
             ].map((item) => (
               <div key={item.label} className="text-center">
                 <p className="text-xs text-t-secondary">{item.label}</p>
@@ -587,7 +597,7 @@ function ExpandedReport({ report }: { report: any }) {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-surface-200/50">
-                  {["#", "Chunk", "Overlap", "Chunking", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Score", "Tokens", "Cost"].map(
+                  {["#", "Type", "Chunk", "Overlap", "Chunking", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Score", "Tokens", "Cost"].map(
                     (h) => (
                       <th key={h} className="px-2 py-2 text-left text-xs font-medium text-t-secondary uppercase">
                         {h}
@@ -612,14 +622,21 @@ function ExpandedReport({ report }: { report: any }) {
                             {i === 0 ? <Trophy className="w-3.5 h-3.5 text-amber-400" /> : i + 1}
                           </div>
                         </td>
+                        <td className="px-2 py-2">
+                          {c.params.pipeline_type === "graphrag" ? (
+                            <span className="px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded text-[10px] font-medium">GraphRAG</span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 bg-accent/10 text-accent rounded text-[10px] font-medium">RAG</span>
+                          )}
+                        </td>
                         <td className="px-2 py-2 text-primary">{c.params.chunk_size}</td>
                         <td className="px-2 py-2 text-primary">{c.params.chunk_overlap}%</td>
                         <td className="px-2 py-2 text-t-secondary text-xs capitalize">{c.params.chunking_strategy || "recursive"}</td>
                         <td className="px-2 py-2 text-primary truncate max-w-[120px]">{c.params.embedding_model}</td>
                         <td className="px-2 py-2 text-t-secondary text-xs">{c.params.embedding_dimensions || "def"}</td>
-                        <td className="px-2 py-2 text-primary">{c.params.top_k}</td>
-                        <td className="px-2 py-2 text-primary capitalize">{c.params.search_type}</td>
-                        <td className="px-2 py-2 text-t-secondary text-xs">{c.params.distance_metric || "cos"}</td>
+                        <td className="px-2 py-2 text-primary">{c.params.pipeline_type === "graphrag" ? (c.params.community_level ?? c.params.top_k) : c.params.top_k}</td>
+                        <td className="px-2 py-2 text-primary capitalize">{c.params.pipeline_type === "graphrag" ? (c.params.search_mode ?? c.params.search_type) : c.params.search_type}</td>
+                        <td className="px-2 py-2 text-t-secondary text-xs">{c.params.pipeline_type === "graphrag" ? "-" : (c.params.distance_metric || "cos")}</td>
                         <td className="px-2 py-2 text-primary">
                           {c.faithfulness != null ? `${(c.faithfulness * 100).toFixed(1)}%` : "-"}
                         </td>
@@ -654,7 +671,7 @@ function ExpandedReport({ report }: { report: any }) {
                       </tr>
                       {isExpanded && details.length > 0 && (
                         <tr>
-                          <td colSpan={16} className="p-0">
+                          <td colSpan={17} className="p-0">
                             <div className="bg-surface-50 border-y border-surface-200/30 px-4 py-3">
                               <h4 className="text-xs font-semibold text-t-secondary uppercase mb-2">
                                 Per-Question Results ({details.length})
@@ -716,7 +733,7 @@ function ExpandedReport({ report }: { report: any }) {
                       )}
                       {isExpanded && details.length === 0 && (
                         <tr>
-                          <td colSpan={16} className="px-4 py-3 text-center text-xs text-muted bg-surface-50">
+                          <td colSpan={17} className="px-4 py-3 text-center text-xs text-muted bg-surface-50">
                             No per-question details available.
                           </td>
                         </tr>

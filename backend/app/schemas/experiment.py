@@ -13,6 +13,7 @@ class RAGParams(BaseModel):
     distance_metric: str = Field("cosine", description="Distance metric: cosine, l2, ip")
     chunking_strategy: str = Field("recursive", description="Chunking strategy: recursive, token, semantic")
     answer_language: str = Field("auto", description="Language for generated answers: auto, English, Portuguese, etc.")
+    pipeline_type: str = Field("rag", description="Pipeline type: rag or graphrag")
 
 
 class ExperimentCreate(BaseModel):
@@ -34,6 +35,12 @@ class GridSearchConfig(BaseModel):
     answer_language: str = "auto"  # Language for LLM answers: auto, English, Portuguese, etc.
     # Optional RAGAS metrics to include beyond the fixed ones
     optional_metrics: list[str] = []
+    # GraphRAG settings
+    pipeline_types: list[str] = ["rag"]  # rag, graphrag
+    entity_extraction_models: list[str] = []  # LLM models for entity extraction
+    max_gleanings: list[int] = [1]  # extraction passes per chunk
+    community_levels: list[int] = [1]  # Leiden resolution
+    search_modes: list[str] = ["local"]  # local, global, hybrid
 
 
 class CombinationResponse(BaseModel):
