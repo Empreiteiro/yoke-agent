@@ -1,0 +1,32 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "7070:7070"
+    volumes:
+      - backend_data:/app/rag_pipeline.db
+      - backend_uploads:/app/uploads
+      - backend_chroma:/app/chroma_data
+      - backend_collections:/app/saved_collections
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://backend:7070
+    ports:
+      - "4000:4000"
+    environment:
+      - BACKEND_URL=http://backend:7070
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend_data:
+  backend_uploads:
+  backend_chroma:
+  backend_collections:
