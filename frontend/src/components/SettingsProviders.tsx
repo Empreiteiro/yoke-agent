@@ -389,7 +389,7 @@ function AddProviderForm({
 
       {/* Provider type selection */}
       <div>
-        <label className="block text-sm font-medium text-t-hover mb-2">
+        <label className="block text-sm font-medium text-t-secondary mb-2">
           Provider Type
         </label>
         <div className="grid grid-cols-4 gap-2">
@@ -414,7 +414,7 @@ function AddProviderForm({
         <>
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-t-hover mb-1">Display Name</label>
+            <label className="block text-sm font-medium text-t-secondary mb-1">Display Name</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -425,7 +425,7 @@ function AddProviderForm({
           {/* API Key */}
           {entry.requires_api_key && (
             <div>
-              <label className="block text-sm font-medium text-t-hover mb-1">API Key</label>
+              <label className="block text-sm font-medium text-t-secondary mb-1">API Key</label>
               <div className="relative">
                 <input
                   type={showKey ? "text" : "password"}
@@ -452,7 +452,7 @@ function AddProviderForm({
           {/* Base URL */}
           {entry.supports_base_url && (
             <div>
-              <label className="block text-sm font-medium text-t-hover mb-1">Base URL</label>
+              <label className="block text-sm font-medium text-t-secondary mb-1">Base URL</label>
               <input
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
@@ -465,8 +465,8 @@ function AddProviderForm({
           {/* LLM Models */}
           {entry.supports_llm && (
             <div>
-              <label className="block text-sm font-medium text-t-hover mb-2">
-                <Brain className="w-4 h-4 inline mr-1 text-cyan-400" />
+              <label className="block text-sm font-medium text-t-secondary mb-2">
+                <Brain className="w-4 h-4 inline mr-1 text-accent" />
                 LLM Models
               </label>
               <div className="flex flex-wrap gap-2 mb-2">
@@ -476,8 +476,8 @@ function AddProviderForm({
                     onClick={() => toggleModel(m, selectedLlmModels, setSelectedLlmModels)}
                     className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                       selectedLlmModels.includes(m)
-                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                        : "bg-surface-50 text-t-secondary border border-surface-200/50"
+                        ? "bg-accent/15 text-accent border border-accent/30"
+                        : "bg-surface-50 text-muted border border-dashed border-surface-300 hover:border-accent/30 hover:text-accent"
                     }`}
                   >
                     {m}
@@ -489,7 +489,7 @@ function AddProviderForm({
                     <button
                       key={m}
                       onClick={() => toggleModel(m, selectedLlmModels, setSelectedLlmModels)}
-                      className="px-3 py-1.5 rounded-lg text-xs bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                      className="px-3 py-1.5 rounded-lg text-xs bg-accent/15 text-accent border border-accent/30"
                     >
                       {m} ✕
                     </button>
@@ -516,8 +516,8 @@ function AddProviderForm({
           {/* Embedding Models */}
           {entry.supports_embedding && (
             <div>
-              <label className="block text-sm font-medium text-t-hover mb-2">
-                <Box className="w-4 h-4 inline mr-1 text-emerald-400" />
+              <label className="block text-sm font-medium text-t-secondary mb-2">
+                <Box className="w-4 h-4 inline mr-1 text-secondary" />
                 Embedding Models
               </label>
               <div className="flex flex-wrap gap-2 mb-2">
@@ -527,8 +527,8 @@ function AddProviderForm({
                     onClick={() => toggleModel(m, selectedEmbModels, setSelectedEmbModels)}
                     className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                       selectedEmbModels.includes(m)
-                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                        : "bg-surface-50 text-t-secondary border border-surface-200/50"
+                        ? "bg-secondary/15 text-secondary border border-secondary/30"
+                        : "bg-surface-50 text-muted border border-dashed border-surface-300 hover:border-secondary/30 hover:text-secondary"
                     }`}
                   >
                     {m}
@@ -540,7 +540,7 @@ function AddProviderForm({
                     <button
                       key={m}
                       onClick={() => toggleModel(m, selectedEmbModels, setSelectedEmbModels)}
-                      className="px-3 py-1.5 rounded-lg text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                      className="px-3 py-1.5 rounded-lg text-xs bg-secondary/15 text-secondary border border-secondary/30"
                     >
                       {m} ✕
                     </button>
