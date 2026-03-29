@@ -22,6 +22,7 @@ class RAGParams(BaseModel):
     raptor_max_levels: Optional[int] = Field(None, description="Depth of RAPTOR summary tree")
     raptor_clustering: Optional[str] = Field(None, description="RAPTOR clustering method: kmeans, gmm")
     raptor_retrieval_mode: Optional[str] = Field(None, description="RAPTOR retrieval: collapsed, tree_traversal, level_specific")
+    prompt_template: Optional[str] = Field(None, description="Custom answer generation prompt (must contain {context} and {question})")
 
 
 class ExperimentCreate(BaseModel):
@@ -56,6 +57,8 @@ class GridSearchConfig(BaseModel):
     raptor_max_levels: list[int] = [3]  # Tree depth (2-5)
     raptor_clustering: list[str] = ["kmeans"]  # kmeans, gmm
     raptor_retrieval_modes: list[str] = ["collapsed"]  # collapsed, tree_traversal, level_specific
+    # Prompt templates (grid-searchable: test different prompts in the same experiment)
+    prompt_templates: list[str] = []  # Empty = use default prompt. Each entry is a full prompt with {context} and {question} placeholders.
     # GraphRAG settings
     pipeline_types: list[str] = ["rag"]  # rag, graphrag
     entity_extraction_models: list[str] = []  # LLM models for entity extraction

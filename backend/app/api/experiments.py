@@ -171,6 +171,9 @@ def estimate_cost(
                 total_dim_combos += 1
         dim_multiplier = total_dim_combos / max(len(config.embedding_models), 1)
     total_combos = int(num_base * dim_multiplier)
+    # Prompt template multiplier
+    prompt_multiplier = max(len(config.prompt_templates), 1)
+    total_combos *= prompt_multiplier
 
     # Estimate tokens per combination
     avg_chunk_size = sum(config.chunk_sizes) / max(len(config.chunk_sizes), 1)
@@ -346,6 +349,9 @@ def configure_grid(
                 return dims if dims else [default_dim]
             return [default_dim]
 
+        # Prompt templates: empty list = default prompt only (None in params)
+        prompt_list = config.prompt_templates if config.prompt_templates else [None]
+
         def _add_combo(params_dict):
             nonlocal combo_count
             db.add(ExperimentCombination(experiment_id=experiment_id, params=params_dict))
@@ -366,6 +372,7 @@ def configure_grid(
         for combo in base_lists:
             embedding_model = combo[2]
             for dim in _expand_dims(embedding_model):
+              for pt in prompt_list:
                 base_params = {
                     "pipeline_type": "rag",
                     "chunk_size": combo[0],
@@ -377,6 +384,8 @@ def configure_grid(
                     "embedding_dimensions": dim,
                     "answer_language": config.answer_language,
                 }
+                if pt is not None:
+                    base_params["prompt_template"] = pt
 
                 # Simple search types (vector, hybrid, mmr)
                 for st in simple_search_types:
