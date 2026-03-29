@@ -5,6 +5,9 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 export const metadata: Metadata = {
   title: "RAG Optimization Pipeline",
   description: "End-to-end platform for optimizing Retrieval-Augmented Generation pipelines",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
