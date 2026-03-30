@@ -19,7 +19,7 @@ Upload your documents, generate evaluation datasets, configure RAG hyperparamete
 - [API Reference](#api-reference)
 - [Project Structure](#project-structure)
 - [Contributing](#contributing)
-- [License](#license)
+
 
 ---
 
@@ -311,8 +311,3 @@ rag-optimization-pipeline/
 - Frontend uses **Next.js App Router** with client components
 - Commits should be atomic and use conventional commit prefixes (`feat:`, `fix:`, `chore:`, etc.)
 
----
-
-## License
-
-MIT
