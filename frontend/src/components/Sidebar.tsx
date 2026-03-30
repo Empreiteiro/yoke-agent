@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme, Theme } from "@/contexts/ThemeContext";
+import Logo from "@/components/Logo";
 
 const iconMap: Record<string, any> = {
   upload: Upload,
@@ -72,9 +73,7 @@ export default function Sidebar({
     <aside className="w-60 bg-surface-50 flex flex-col h-screen">
       <div className="px-4 py-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-secondary flex items-center justify-center">
-            <Zap className="w-4 h-4 text-white" />
-          </div>
+          <Logo size={32} />
           <div>
             <h1 className="text-sm font-bold text-primary leading-tight">RAG Pipeline</h1>
             <p className="text-[10px] text-t-secondary">Optimization Studio</p>
