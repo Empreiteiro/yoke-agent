@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Database, Loader2, CheckCircle, AlertCircle, List, Plus, FileText, Trash2, BookOpen, Shuffle } from "lucide-react";
+import { Database, Loader2, CheckCircle, AlertCircle, List, Plus, FileText, Trash2, BookOpen, Shuffle, Copy } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepDatasetProps {
@@ -127,6 +127,15 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
       }
     } catch (err) {
       console.error("Failed to delete dataset:", err);
+    }
+  };
+
+  const handleDuplicateDataset = async (datasetId: number) => {
+    try {
+      const newDataset = await api.duplicateDataset(datasetId);
+      setExistingDatasets((prev) => [newDataset, ...prev]);
+    } catch (err) {
+      console.error("Failed to duplicate dataset:", err);
     }
   };
 
@@ -395,6 +404,16 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                           >
                             {ds.status}
                           </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDuplicateDataset(ds.id);
+                            }}
+                            className="p-1.5 text-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                            title="Duplicate dataset"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
