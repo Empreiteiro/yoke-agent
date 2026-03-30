@@ -18,7 +18,7 @@ Upload your documents, generate evaluation datasets, configure RAG hyperparamete
 - [RAGAS Metrics](#ragas-metrics)
 - [API Reference](#api-reference)
 - [Project Structure](#project-structure)
-- [Contributing](#contributing)
+- [Contributing](CONTRIBUTING.md)
 
 
 ---
@@ -294,20 +294,5 @@ rag-optimization-pipeline/
 └── README.md                       # This file
 ```
 
----
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/my-feature`
-3. Make atomic, descriptive commits
-4. Ensure all linters pass: `make lint`
-5. Open a Pull Request with a clear description
-
-### Conventions
-
-- All PRs and documentation in **English**
-- Backend follows **FastAPI** patterns with **Pydantic** schemas
-- Frontend uses **Next.js App Router** with client components
-- Commits should be atomic and use conventional commit prefixes (`feat:`, `fix:`, `chore:`, etc.)
 
