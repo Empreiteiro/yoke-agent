@@ -235,6 +235,37 @@ async def import_dataset_items(
     return {"detail": f"Imported {len(items)} items", "dataset_id": dataset_id}
 
 
+@router.post("/{dataset_id}/duplicate", response_model=DatasetResponse)
+def duplicate_dataset(dataset_id: int, db: Session = Depends(get_db)):
+    """Create a copy of an existing dataset with all its items."""
+    source = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    new_dataset = Dataset(
+        name=f"{source.name} (Copy)",
+        description=source.description,
+        document_ids=source.document_ids,
+        status=source.status if source.status in ("generated", "approved") else "generated",
+    )
+    db.add(new_dataset)
+    db.flush()  # Get the new dataset ID
+
+    for item in source.items:
+        db.add(DatasetItem(
+            dataset_id=new_dataset.id,
+            question=item.question,
+            ground_truth=item.ground_truth,
+            context=item.context,
+            source_document=item.source_document,
+            is_manual=item.is_manual,
+        ))
+
+    db.commit()
+    db.refresh(new_dataset)
+    return new_dataset
+
+
 @router.post("/{dataset_id}/approve")
 def approve_dataset(dataset_id: int, db: Session = Depends(get_db)):
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
