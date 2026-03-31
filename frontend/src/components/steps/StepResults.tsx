@@ -133,10 +133,10 @@ export default function StepResults({ experimentId }: StepResultsProps) {
             ].map((item) => (
               <div
                 key={item.label}
-                className="p-3 bg-surface-100/50 rounded-xl border border-surface-200/30"
+                className="p-3 bg-surface-100/50 rounded-xl border border-visible text-center"
               >
-                <p className="text-xs text-t-secondary mb-1">{item.label}</p>
-                <p className="text-sm font-semibold text-primary">{item.value}</p>
+                <p className="text-[10px] text-t-secondary uppercase tracking-wider mb-1">{item.label}</p>
+                <p className="text-sm font-semibold text-primary truncate" title={String(item.value)}>{item.value}</p>
               </div>
             ))}
           </div>
@@ -163,7 +163,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
 
       {/* Bar chart comparison */}
       {barData.length > 0 && (
-        <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
+        <div className="bg-surface-100 rounded-2xl border border-visible p-8">
           <h3 className="text-lg font-semibold text-primary mb-6">Top 10 Configurations</h3>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -190,7 +190,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
       )}
 
       {/* Detailed table */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
+      <div className="bg-surface-100 rounded-2xl border border-visible p-8">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-primary">All Results</h3>
           <div className="flex items-center gap-3">
@@ -211,7 +211,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-surface-200/50">
+              <tr className="border-b border-visible">
                 {["Rank", "Type", "Chunk", "Overlap", "Chunking", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Overall", "Tokens", "Cost"].map(
                   (header) => (
                     <th
@@ -300,7 +300,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                     {isExpanded && details.length > 0 && (
                       <tr>
                         <td colSpan={17} className="p-0">
-                          <div className="bg-surface-50 border-y border-surface-200/30 px-6 py-4">
+                          <div className="bg-surface-50 border-y border-visible px-6 py-4">
                             <h4 className="text-xs font-semibold text-t-secondary uppercase mb-3">
                               Per-Question Results ({details.length} questions)
                             </h4>
@@ -312,7 +312,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                                 const prec = q.context_precision;
                                 const recall = q.context_recall;
                                 return (
-                                  <div key={qi} className="bg-surface-100 rounded-lg border border-surface-200/30 overflow-hidden">
+                                  <div key={qi} className="bg-surface-100 rounded-lg border border-visible overflow-hidden">
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setExpandedQuestionIdx(qExpanded ? null : qi); }}
                                       className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-surface-50 transition-colors"
@@ -338,7 +338,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                                       </div>
                                     </button>
                                     {qExpanded && (
-                                      <div className="px-4 pb-4 space-y-3 border-t border-surface-200/30 pt-3">
+                                      <div className="px-4 pb-4 space-y-3 border-t border-visible pt-3">
                                         <div>
                                           <p className="text-xs font-medium text-t-secondary mb-1">Generated Answer</p>
                                           <p className="text-sm text-primary bg-surface-50 rounded-lg px-3 py-2">{q.response || q.answer || "—"}</p>

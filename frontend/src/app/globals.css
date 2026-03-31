@@ -96,6 +96,11 @@ body {
   border-color: transparent;
 }
 
+/* Theme-aware visible border — works on all themes */
+.border-visible {
+  border-color: var(--input-border);
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

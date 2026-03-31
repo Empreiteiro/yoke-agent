@@ -234,7 +234,7 @@ export default function History() {
             return (
               <div
                 key={exp.id}
-                className="bg-surface-100 rounded-2xl border border-surface-200/50 overflow-hidden"
+                className="bg-surface-100 rounded-2xl border border-visible overflow-hidden"
               >
                 {/* Summary row */}
                 <button
@@ -394,7 +394,7 @@ export default function History() {
 
                 {/* Expanded details */}
                 {isExpanded && (
-                  <div className="border-t border-surface-200/50 p-6">
+                  <div className="border-t border-visible p-6">
                     {loadingReport ? (
                       <div className="flex items-center justify-center py-8 text-t-secondary">
                         <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -418,7 +418,7 @@ export default function History() {
       {/* Delete confirmation modal */}
       {confirmDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-surface-100 border border-surface-200/50 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl">
+          <div className="bg-surface-100 border border-visible rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl">
             <h3 className="text-primary font-semibold mb-2">Delete experiment?</h3>
             <p className="text-sm text-t-secondary mb-5">
               This will permanently remove the experiment and all its results. This action cannot be undone.
@@ -474,19 +474,19 @@ function ExpandedReport({ report }: { report: any }) {
     <div className="space-y-6">
       {/* Summary stats */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="p-3 bg-surface-50 rounded-xl border border-surface-200/30">
+        <div className="p-3 bg-surface-50 rounded-xl border border-visible">
           <p className="text-xs text-t-secondary mb-1">Total</p>
           <p className="text-lg font-bold text-primary">{report.summary.total_combinations}</p>
         </div>
-        <div className="p-3 bg-surface-50 rounded-xl border border-surface-200/30">
+        <div className="p-3 bg-surface-50 rounded-xl border border-visible">
           <p className="text-xs text-t-secondary mb-1">Completed</p>
           <p className="text-lg font-bold text-emerald-400">{report.summary.completed}</p>
         </div>
-        <div className="p-3 bg-surface-50 rounded-xl border border-surface-200/30">
+        <div className="p-3 bg-surface-50 rounded-xl border border-visible">
           <p className="text-xs text-t-secondary mb-1">Failed</p>
           <p className="text-lg font-bold text-red-400">{report.summary.failed}</p>
         </div>
-        <div className="p-3 bg-surface-50 rounded-xl border border-surface-200/30">
+        <div className="p-3 bg-surface-50 rounded-xl border border-visible">
           <p className="text-xs text-t-secondary mb-1">Pending</p>
           <p className="text-lg font-bold text-t-secondary">{report.summary.pending}</p>
         </div>
@@ -524,9 +524,9 @@ function ExpandedReport({ report }: { report: any }) {
                     { label: "Distance", value: best.params.distance_metric || "cosine" },
                   ]),
             ].map((item) => (
-              <div key={item.label} className="text-center">
-                <p className="text-xs text-t-secondary">{item.label}</p>
-                <p className="text-sm font-medium text-primary">{item.value}</p>
+              <div key={item.label} className="text-center p-2.5 rounded-lg border border-visible">
+                <p className="text-[10px] text-t-secondary uppercase tracking-wider mb-1">{item.label}</p>
+                <p className="text-sm font-semibold text-primary truncate" title={String(item.value)}>{item.value}</p>
               </div>
             ))}
           </div>
@@ -562,7 +562,7 @@ function ExpandedReport({ report }: { report: any }) {
 
       {/* Bar chart */}
       {barData.length > 1 && (
-        <div>
+        <div className="rounded-xl border border-visible p-5">
           <h4 className="text-sm font-semibold text-primary mb-3">Top Configurations</h4>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
@@ -591,12 +591,12 @@ function ExpandedReport({ report }: { report: any }) {
 
       {/* Results table */}
       {completed.length > 0 && (
-        <div>
+        <div className="rounded-xl border border-visible p-5">
           <h4 className="text-sm font-semibold text-primary mb-3">All Results</h4>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-surface-200/50">
+                <tr className="border-b border-visible">
                   {["#", "Type", "Chunk", "Overlap", "Chunking", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Score", "Tokens", "Cost"].map(
                     (h) => (
                       <th key={h} className="px-2 py-2 text-left text-xs font-medium text-t-secondary uppercase">
@@ -672,7 +672,7 @@ function ExpandedReport({ report }: { report: any }) {
                       {isExpanded && details.length > 0 && (
                         <tr>
                           <td colSpan={17} className="p-0">
-                            <div className="bg-surface-50 border-y border-surface-200/30 px-4 py-3">
+                            <div className="bg-surface-50 border-y border-visible px-4 py-3">
                               <h4 className="text-xs font-semibold text-t-secondary uppercase mb-2">
                                 Per-Question Results ({details.length})
                               </h4>
@@ -684,7 +684,7 @@ function ExpandedReport({ report }: { report: any }) {
                                   const prec = q.context_precision ?? 0;
                                   const recall = q.context_recall ?? 0;
                                   return (
-                                    <div key={qi} className="bg-surface-100 rounded-lg border border-surface-200/30 overflow-hidden">
+                                    <div key={qi} className="bg-surface-100 rounded-lg border border-visible overflow-hidden">
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setExpandedQuestionIdx(qExpanded ? null : qi); }}
                                         className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-surface-50 transition-colors"
@@ -700,7 +700,7 @@ function ExpandedReport({ report }: { report: any }) {
                                         </div>
                                       </button>
                                       {qExpanded && (
-                                        <div className="px-3 pb-3 space-y-2 border-t border-surface-200/30 pt-2">
+                                        <div className="px-3 pb-3 space-y-2 border-t border-visible pt-2">
                                           <div>
                                             <p className="text-[10px] font-medium text-t-secondary mb-0.5">Generated Answer</p>
                                             <p className="text-xs text-primary bg-surface-50 rounded px-2 py-1.5">{q.response || q.answer || "—"}</p>

@@ -264,7 +264,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
         {/* Experiment setup */}
         <div className="grid grid-cols-3 gap-5">
-          <div className="rounded-xl border border-surface-300 p-4">
+          <div className="rounded-xl border border-visible p-4">
             <label className="block text-sm font-medium text-t-hover mb-1">Experiment Name</label>
             <p className="text-xs text-muted mb-2">A name to identify this experiment run.</p>
             <input
@@ -275,7 +275,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
             />
           </div>
-          <div className="rounded-xl border border-surface-300 p-4">
+          <div className="rounded-xl border border-visible p-4">
             <label className="block text-sm font-medium text-t-hover mb-1">Vector Store</label>
             <p className="text-xs text-muted mb-2">Backend for storing and searching embeddings.</p>
             <select
@@ -290,7 +290,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               <option value="pgvector">PGVector</option>
             </select>
           </div>
-          <div className="rounded-xl border border-surface-300 p-4">
+          <div className="rounded-xl border border-visible p-4">
             <label className="block text-sm font-medium text-t-hover mb-1">Answer Language</label>
             <p className="text-xs text-muted mb-2">Language for LLM-generated answers.</p>
             <select
@@ -312,7 +312,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Pipeline type */}
-        <div className="rounded-xl border border-surface-300 p-4">
+        <div className="rounded-xl border border-visible p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Pipeline Type</label>
           <p className="text-xs text-muted mb-3">Select which pipeline architectures to compare.</p>
           <div className="flex items-center gap-4">
@@ -332,7 +332,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                         return { ...prev, pipeline_types: includes ? prev.pipeline_types.filter((t) => t !== pt.id) : [...prev.pipeline_types, pt.id] };
                       });
                     }}
-                    className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
+                    className="rounded border-visible bg-surface-50 text-accent focus:ring-accent/25"
                   />
                   <span className="text-sm text-t-hover">{pt.label}</span>
                 </label>
@@ -345,7 +345,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Chunk Size */}
-        <div className="rounded-xl border border-surface-300 p-4">
+        <div className="rounded-xl border border-visible p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Chunk Size (tokens)</label>
           <p className="text-xs text-muted mb-3">Number of characters per text fragment. Smaller = more precise retrieval, larger = more surrounding context.</p>
           {renderChips("chunk_sizes", config.chunk_sizes)}
@@ -356,7 +356,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Chunk Overlap */}
-        <div className="rounded-xl border border-surface-300 p-4">
+        <div className="rounded-xl border border-visible p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Chunk Overlap (%)</label>
           <p className="text-xs text-muted mb-3">Percentage of overlap between consecutive chunks. Prevents important information from being cut at boundaries.</p>
           {renderChips("chunk_overlaps", config.chunk_overlaps)}
@@ -368,13 +368,13 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Chunking Strategy */}
-        <div className="rounded-xl border border-surface-300 p-4">
+        <div className="rounded-xl border border-visible p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Chunking Strategy</label>
           <p className="text-xs text-muted mb-3">Algorithm for splitting documents into chunks.</p>
           <div className="flex gap-3 flex-wrap">
             {CHUNKING_STRATEGIES.map((cs) => (
               <label key={cs.id} className="flex items-center gap-2 cursor-pointer" title={cs.description}>
-                <input type="checkbox" checked={config.chunking_strategies.includes(cs.id)} onChange={() => { if (config.chunking_strategies.includes(cs.id)) { setConfig((prev) => ({ ...prev, chunking_strategies: prev.chunking_strategies.filter((s) => s !== cs.id) })); } else { setConfig((prev) => ({ ...prev, chunking_strategies: [...prev.chunking_strategies, cs.id] })); } }} className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25" />
+                <input type="checkbox" checked={config.chunking_strategies.includes(cs.id)} onChange={() => { if (config.chunking_strategies.includes(cs.id)) { setConfig((prev) => ({ ...prev, chunking_strategies: prev.chunking_strategies.filter((s) => s !== cs.id) })); } else { setConfig((prev) => ({ ...prev, chunking_strategies: [...prev.chunking_strategies, cs.id] })); } }} className="rounded border-visible bg-surface-50 text-accent focus:ring-accent/25" />
                 <span className="text-sm text-t-hover">{cs.label}</span>
                 <span className="text-xs text-muted">({cs.description})</span>
               </label>
@@ -383,7 +383,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Embedding models */}
-        <div className="rounded-xl border border-surface-300 p-4">
+        <div className="rounded-xl border border-visible p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Embedding Models</label>
           <p className="text-xs text-muted mb-3">Neural networks that convert text into vectors for similarity search.</p>
           {noProviders && (
@@ -406,7 +406,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         {config.pipeline_types.includes("rag") && (<>
 
         {/* Top-K */}
-        <div className="rounded-xl border border-surface-300 p-4">
+        <div className="rounded-xl border border-visible p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Top-K (retrieved docs)</label>
           <p className="text-xs text-muted mb-3">Number of most similar chunks retrieved per query. Higher = more context but more noise.</p>
           {renderChips("top_k_values", config.top_k_values)}
@@ -417,7 +417,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Distance Metric */}
-        <div className="rounded-xl border border-surface-300 p-4">
+        <div className="rounded-xl border border-visible p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Distance Metric</label>
           <p className="text-xs text-muted mb-3">Mathematical function to measure how similar two embedding vectors are.</p>
             <div className="flex flex-wrap gap-3">
@@ -433,7 +433,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                         setConfig((prev) => ({ ...prev, distance_metrics: [...prev.distance_metrics, dm.id] }));
                       }
                     }}
-                    className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
+                    className="rounded border-visible bg-surface-50 text-accent focus:ring-accent/25"
                   />
                   <span className="text-sm text-t-hover">{dm.label}</span>
                 </label>
@@ -442,7 +442,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Search Type */}
-        <div className="rounded-xl border border-surface-300 p-4">
+        <div className="rounded-xl border border-visible p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Search Type</label>
           <p className="text-xs text-muted mb-3">Algorithm for finding relevant chunks. Strategies with $$ use extra LLM calls.</p>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -465,7 +465,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                         addToArray("search_types", st.id);
                       }
                     }}
-                    className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
+                    className="rounded border-visible bg-surface-50 text-accent focus:ring-accent/25"
                   />
                   <span className="text-sm text-t-hover">{st.label}</span>
                   {st.cost && (
@@ -759,7 +759,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                               addToArray("search_modes", mode);
                             }
                           }}
-                          className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
+                          className="rounded border-visible bg-surface-50 text-accent focus:ring-accent/25"
                         />
                         <span className="text-sm text-t-hover capitalize">{mode}</span>
                       </label>
@@ -808,7 +808,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               className={`p-4 rounded-xl border text-left transition-all ${
                 config.optional_metrics.includes(metric.id)
                   ? "bg-accent/5 border-accent/30"
-                  : "bg-surface-50 border-surface-200/50 hover:border-surface-300"
+                  : "bg-surface-50 border-surface-200/50 hover:border-visible"
               }`}
             >
               <div className="flex items-center gap-2 mb-1">
@@ -858,7 +858,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {config.prompt_templates.length === 0 ? (
-          <div className="text-center py-6 border border-dashed border-surface-300 rounded-xl">
+          <div className="text-center py-6 border border-dashed border-visible rounded-xl">
             <p className="text-sm text-muted">Using default prompt template.</p>
             <p className="text-xs text-t-secondary mt-1">Click &quot;Add Template&quot; to customize or test multiple prompts.</p>
           </div>
@@ -907,7 +907,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
       </div>
 
       {/* Summary + Submit footer */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-300 p-6">
+      <div className="bg-surface-100 rounded-2xl border border-visible p-6">
         <div className="grid grid-cols-4 gap-4 mb-5">
           <div className="text-center rounded-lg bg-surface-50 py-3">
             <p className="text-xs text-t-secondary mb-1">Combinations</p>
