@@ -20,7 +20,7 @@ def list_token_usage(
     model_name: Optional[str] = Query(None),
     experiment_id: Optional[int] = Query(None),
     days: int = Query(30, ge=1, le=365),
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(100, ge=1, le=10000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
