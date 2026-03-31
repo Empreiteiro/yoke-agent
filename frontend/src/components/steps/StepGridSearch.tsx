@@ -307,24 +307,9 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
       </div>
 
-      {/* Pipeline Type + Summary */}
+      {/* Pipeline Type */}
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
-              <Grid3X3 className="w-5 h-5 text-secondary" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-primary">Hyperparameters</h3>
-              <p className="text-sm text-t-secondary">Configure the grid search space</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-primary">{totalCombinations}</p>
-            <p className="text-xs text-t-secondary">combinations</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4 mt-4 pt-4 border-t border-surface-200/30">
+        <div className="flex items-center gap-4">
           <label className="text-sm font-medium text-t-secondary">Pipeline</label>
             <div className="flex gap-3">
               {[
@@ -1010,50 +995,55 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         )}
       </div>
 
-      {/* Cost estimate */}
-      {costEstimate && (
-        <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
-          <div className="grid grid-cols-4 gap-4">
-            <div className="text-center">
-              <p className="text-xs text-t-secondary">Combinations</p>
-              <p className="text-lg font-bold text-primary">{costEstimate.total_combinations}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-t-secondary">Est. Tokens</p>
-              <p className="text-lg font-bold text-primary">
-                {costEstimate.estimated_total_tokens >= 1_000_000
-                  ? `${(costEstimate.estimated_total_tokens / 1_000_000).toFixed(1)}M`
-                  : `${(costEstimate.estimated_total_tokens / 1_000).toFixed(0)}K`}
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-t-secondary">Questions</p>
-              <p className="text-lg font-bold text-primary">{costEstimate.num_questions}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-t-secondary">Est. Cost</p>
-              <p className="text-lg font-bold text-amber-400">${costEstimate.estimated_cost_usd}</p>
-            </div>
+      {/* Summary + Submit footer */}
+      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+        <div className="flex items-center gap-6 mb-4">
+          <div>
+            <p className="text-xs text-t-secondary">Combinations</p>
+            <p className="text-xl font-bold text-primary">{totalCombinations}</p>
           </div>
-          <p className="text-xs text-muted mt-3 text-center">
+          {costEstimate && (
+            <>
+              <div className="w-px h-8 bg-surface-200/50" />
+              <div>
+                <p className="text-xs text-t-secondary">Est. Tokens</p>
+                <p className="text-xl font-bold text-primary">
+                  {costEstimate.estimated_total_tokens >= 1_000_000
+                    ? `${(costEstimate.estimated_total_tokens / 1_000_000).toFixed(1)}M`
+                    : `${(costEstimate.estimated_total_tokens / 1_000).toFixed(0)}K`}
+                </p>
+              </div>
+              <div className="w-px h-8 bg-surface-200/50" />
+              <div>
+                <p className="text-xs text-t-secondary">Questions</p>
+                <p className="text-xl font-bold text-primary">{costEstimate.num_questions}</p>
+              </div>
+              <div className="w-px h-8 bg-surface-200/50" />
+              <div>
+                <p className="text-xs text-t-secondary">Est. Cost</p>
+                <p className="text-xl font-bold text-amber-400">${costEstimate.estimated_cost_usd}</p>
+              </div>
+            </>
+          )}
+        </div>
+        {costEstimate && (
+          <p className="text-xs text-muted mb-4">
             Approximate values. Actual cost depends on provider and model.
           </p>
-        </div>
-      )}
-
-      {/* Submit */}
-      <button
-        onClick={handleSubmit}
-        disabled={loading || totalCombinations === 0}
-        className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-      >
-        {loading ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <Grid3X3 className="w-4 h-4" />
         )}
-        Confirm Grid Search Configuration & Continue
-      </button>
+        <button
+          onClick={handleSubmit}
+          disabled={loading || totalCombinations === 0}
+          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {loading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Grid3X3 className="w-4 h-4" />
+          )}
+          Confirm & Continue
+        </button>
+      </div>
     </div>
   );
 }
