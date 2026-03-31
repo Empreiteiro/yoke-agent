@@ -480,9 +480,6 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                 </label>
               ))}
             </div>
-            <p className="text-xs text-muted mt-2">
-              Multi-Query and Agentic use extra LLM calls during retrieval, increasing cost.
-            </p>
 
             {/* Multi-Query sub-parameter */}
             {config.search_types.includes("multi_query") && (
