@@ -12,6 +12,7 @@ def get_llm(
     provider_id: Optional[int] = None,
     model: Optional[str] = None,
     temperature: float = 0.0,
+    format: Optional[str] = None,
 ):
     """Create a LangChain LLM instance from a provider configuration."""
     provider = _resolve_provider(db, provider_id, capability="llm", model=model)
@@ -57,11 +58,10 @@ def get_llm(
     elif ptype == "ollama":
         from langchain_ollama import ChatOllama
         base_url = provider.base_url or "http://localhost:11434"
-        return ChatOllama(
-            model=model_name,
-            base_url=base_url,
-            temperature=temperature,
-        )
+        kwargs = dict(model=model_name, base_url=base_url, temperature=temperature)
+        if format:
+            kwargs["format"] = format
+        return ChatOllama(**kwargs)
 
     elif ptype == "azure_openai":
         from langchain_openai import AzureChatOpenAI

@@ -12,6 +12,7 @@ class Dataset(Base):
     status = Column(String(50), default="draft")  # draft, generating, generated, error, approved
     error_message = Column(Text, nullable=True)
     document_ids = Column(JSON)
+    sampled_pages = Column(JSON, nullable=True)  # Pages sent to LLM in partial reading mode
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     items = relationship("DatasetItem", back_populates="dataset", cascade="all, delete-orphan")
