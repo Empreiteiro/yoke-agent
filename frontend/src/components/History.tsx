@@ -520,9 +520,6 @@ function ExpandedReport({ report }: { report: any }) {
           <div className="flex items-center gap-2 mb-4">
             <Trophy className="w-5 h-5 text-amber-400" />
             <h4 className="text-primary font-semibold">Best Configuration</h4>
-            <span className="text-accent font-bold ml-auto">
-              {((best.overall_score ?? 0) * 100).toFixed(1)}%
-            </span>
           </div>
 
           <div className="grid grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
