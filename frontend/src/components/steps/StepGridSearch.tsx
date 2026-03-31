@@ -259,9 +259,11 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
   return (
     <div className="space-y-6">
-      {/* Experiment name */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
-        <div className="grid grid-cols-2 gap-4">
+      {/* ════ Main form card ════ */}
+      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8 space-y-8">
+
+        {/* Experiment setup */}
+        <div className="grid grid-cols-3 gap-5">
           <div>
             <label className="block text-sm font-medium text-t-hover mb-2">Experiment Name <span className="text-muted font-normal">(optional)</span></label>
             <input
@@ -269,15 +271,16 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               value={experimentName}
               onChange={(e) => setExperimentName(e.target.value)}
               placeholder="e.g., Documentation RAG v1"
-              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary placeholder-muted focus:outline-none focus:border-accent/50"
+              className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
             />
+            <p className="text-xs text-muted mt-1.5">A name to identify this experiment run.</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-t-hover mb-2">Vector Store</label>
             <select
               value={vectorStoreType}
               onChange={(e) => setVectorStoreType(e.target.value)}
-              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary focus:outline-none focus:border-accent/50"
+              className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-sm focus:outline-none focus:border-accent/50"
             >
               <option value="chromadb">ChromaDB (Default)</option>
               <option value="pinecone">Pinecone</option>
@@ -285,13 +288,14 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               <option value="qdrant">Qdrant</option>
               <option value="pgvector">PGVector</option>
             </select>
+            <p className="text-xs text-muted mt-1.5">Backend for storing and searching embeddings.</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-t-hover mb-2">Answer Language</label>
             <select
               value={config.answer_language}
               onChange={(e) => setConfig((prev) => ({ ...prev, answer_language: e.target.value }))}
-              className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary focus:outline-none focus:border-accent/50"
+              className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-sm focus:outline-none focus:border-accent/50"
             >
               <option value="auto">Auto (same as document)</option>
               <option value="English">English</option>
@@ -303,14 +307,15 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               <option value="Chinese">Chinese</option>
               <option value="Japanese">Japanese</option>
             </select>
+            <p className="text-xs text-muted mt-1.5">Language for LLM-generated answers.</p>
           </div>
         </div>
-      </div>
 
-      {/* Pipeline Type */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+        {/* Divider */}
+        <div className="border-t border-surface-200/30" />
+
+        {/* Pipeline type */}
         <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-t-secondary">Pipeline</label>
             <div className="flex gap-3">
               {[
                 { id: "rag", label: "RAG" },
@@ -348,18 +353,14 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               </p>
             )}
         </div>
-      </div>
 
-      {/* ═══ Chunking ═══ */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <Scissors className="w-4 h-4 text-accent" />
-          <h4 className="text-sm font-semibold text-primary">Chunking</h4>
-        </div>
+        {/* Divider */}
+        <div className="border-t border-surface-200/30" />
+
+        {/* Chunk Size + Overlap */}
         <div className="grid grid-cols-2 gap-6">
-          {/* Chunk sizes */}
           <div>
-            <label className="block text-xs font-medium text-t-secondary mb-2">Size (tokens)</label>
+            <label className="block text-sm font-medium text-t-hover mb-2">Chunk Size (tokens)</label>
             {renderChips("chunk_sizes", config.chunk_sizes)}
             <div className="flex gap-2 mt-2">
               <input
@@ -383,9 +384,8 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
             </div>
           </div>
 
-          {/* Chunk overlap */}
           <div>
-            <label className="block text-xs font-medium text-t-secondary mb-2">Overlap (%)</label>
+            <label className="block text-sm font-medium text-t-hover mb-2">Chunk Overlap (%)</label>
             {renderChips("chunk_overlaps", config.chunk_overlaps)}
             <div className="flex gap-2 mt-2">
               {[5, 10, 15, 20, 25, 30].map((val) => (
@@ -405,8 +405,8 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
         </div>
         {/* Chunking Strategy */}
-        <div className="mt-5 pt-5 border-t border-surface-200/30">
-          <label className="block text-xs font-medium text-t-secondary mb-2">Strategy</label>
+        <div>
+          <label className="block text-sm font-medium text-t-hover mb-2">Chunking Strategy</label>
             <div className="flex gap-3 flex-wrap">
               {CHUNKING_STRATEGIES.map((cs) => (
                 <label
@@ -438,17 +438,13 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               ))}
             </div>
         </div>
-      </div>
 
-      {/* ═══ Embedding ═══ */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <Cpu className="w-4 h-4 text-secondary" />
-          <h4 className="text-sm font-semibold text-primary">Embedding</h4>
-        </div>
+        {/* Divider */}
+        <div className="border-t border-surface-200/30" />
+
         {/* Embedding models */}
         <div>
-          <label className="block text-xs font-medium text-t-secondary mb-2">Models</label>
+          <label className="block text-sm font-medium text-t-hover mb-2">Embedding Models</label>
             {noProviders && (
               <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -473,19 +469,15 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
             </div>
           </div>
 
-      </div>
+        {/* Retrieval (RAG only) */}
+        {config.pipeline_types.includes("rag") && (<>
 
-      {/* ═══ Retrieval (RAG only) ═══ */}
-      {config.pipeline_types.includes("rag") && (
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <Search className="w-4 h-4 text-accent" />
-          <h4 className="text-sm font-semibold text-primary">Retrieval</h4>
-        </div>
+        {/* Divider */}
+        <div className="border-t border-surface-200/30" />
+
         <div className="grid grid-cols-2 gap-6">
-          {/* Top-K */}
           <div>
-            <label className="block text-xs font-medium text-t-secondary mb-2">Top-K (retrieved docs)</label>
+            <label className="block text-sm font-medium text-t-hover mb-2">Top-K (retrieved docs)</label>
             {renderChips("top_k_values", config.top_k_values)}
             <div className="flex gap-2 mt-2">
               <input
@@ -509,9 +501,8 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
             </div>
           </div>
 
-          {/* Distance Metric */}
           <div>
-            <label className="block text-xs font-medium text-t-secondary mb-2">Distance Metric</label>
+            <label className="block text-sm font-medium text-t-hover mb-2">Distance Metric</label>
             <div className="flex flex-wrap gap-3">
               {DISTANCE_METRICS.map((dm) => (
                 <label key={dm.id} className="flex items-center gap-2 cursor-pointer">
@@ -535,8 +526,8 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Search Type */}
-        <div className="mt-5 pt-5 border-t border-surface-200/30">
-          <label className="block text-xs font-medium text-t-secondary mb-3">Search Type</label>
+        <div>
+          <label className="block text-sm font-medium text-t-hover mb-3">Search Type</label>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {SEARCH_TYPES.map((st) => (
                 <label
@@ -750,20 +741,20 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               </div>
             )}
         </div>
-      </div>
-      )}
+        </>)}
 
-      {/* ═══ GraphRAG (conditional) ═══ */}
-      {config.pipeline_types.includes("graphrag") && (
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
-        <div className="flex items-center gap-2 mb-2">
-          <Grid3X3 className="w-4 h-4 text-secondary" />
-          <h4 className="text-sm font-semibold text-primary">GraphRAG Parameters</h4>
-        </div>
-        <div className="flex items-start gap-2 mb-5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
-          <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-          <span>GraphRAG extracts entities via LLM for every chunk — significantly more expensive than standard RAG.</span>
-        </div>
+        {/* GraphRAG Parameters */}
+        {config.pipeline_types.includes("graphrag") && (<>
+
+        {/* Divider */}
+        <div className="border-t border-surface-200/30" />
+
+        <div>
+          <label className="block text-sm font-medium text-t-hover mb-2">GraphRAG Parameters</label>
+          <div className="flex items-start gap-2 mb-4 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>GraphRAG extracts entities via LLM for every chunk — significantly more expensive than standard RAG.</span>
+          </div>
 
                 {/* Entity Extraction Model */}
                 <div className="mb-4">
@@ -858,8 +849,11 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                     ))}
                   </div>
                 </div>
+        </div>
+        </>)}
+
+      {/* Close the main form card */}
       </div>
-      )}
 
       {/* RAGAS Metrics */}
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
