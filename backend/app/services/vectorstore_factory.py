@@ -224,6 +224,43 @@ class PGVectorBackend(VectorStoreBackend):
         self._vectorstore = None
 
 
+class AstraDBBackend(VectorStoreBackend):
+    """DataStax AstraDB vector store backend."""
+
+    def __init__(self, api_endpoint: str, token: str, collection_name: str = "documents"):
+        self.api_endpoint = api_endpoint
+        self.token = token
+        self.collection_name = collection_name
+        self._vectorstore = None
+
+    def create_collection(self, name: str, documents: List[Document], embeddings: Embeddings, distance_metric: str = "cosine") -> None:
+        from langchain_astradb import AstraDBVectorStore
+
+        self._vectorstore = AstraDBVectorStore.from_documents(
+            documents=documents,
+            embedding=embeddings,
+            collection_name=name,
+            api_endpoint=self.api_endpoint,
+            token=self.token,
+        )
+
+    def similarity_search(self, query: str, k: int = 5) -> List[Document]:
+        if not self._vectorstore:
+            raise RuntimeError("Collection not initialized.")
+        return self._vectorstore.similarity_search(query, k=k)
+
+    def hybrid_search(self, query: str, k: int = 5) -> List[Document]:
+        return self.similarity_search(query, k=k)
+
+    def mmr_search(self, query: str, k: int = 5) -> List[Document]:
+        if not self._vectorstore:
+            raise RuntimeError("Collection not initialized.")
+        return self._vectorstore.max_marginal_relevance_search(query, k=k)
+
+    def delete_collection(self, name: str) -> None:
+        self._vectorstore = None
+
+
 def create_vectorstore_backend(
     store_type: str,
     config: Optional[Dict[str, Any]] = None,
@@ -252,6 +289,11 @@ def create_vectorstore_backend(
         ),
         "pgvector": lambda: PGVectorBackend(
             connection_string=config["connection_string"],
+            collection_name=config.get("collection_name", "documents"),
+        ),
+        "astradb": lambda: AstraDBBackend(
+            api_endpoint=config["api_endpoint"],
+            token=config["api_key"],
             collection_name=config.get("collection_name", "documents"),
         ),
     }

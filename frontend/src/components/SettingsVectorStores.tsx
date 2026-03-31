@@ -281,7 +281,7 @@ function AddVectorStoreForm({
   };
 
   return (
-    <div className="bg-surface-100 rounded-2xl border border-accent/30 p-6 space-y-5">
+    <div className="bg-surface-100 rounded-2xl border border-visible p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-primary">Add Vector Store</h3>
         <button onClick={onCancel} className="p-1 hover:bg-surface-200 rounded-lg"><X className="w-5 h-5 text-t-secondary" /></button>

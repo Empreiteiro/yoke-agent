@@ -37,6 +37,7 @@ chromadb>=0.5.7
 pinecone-client>=3.0.0
 qdrant-client>=1.7.0
 pgvector>=0.2.0
+langchain-astradb>=0.3.0
 
 # MCP Server
 fastmcp>=2.0.0

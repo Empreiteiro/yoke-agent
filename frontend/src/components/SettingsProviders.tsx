@@ -179,7 +179,7 @@ export default function SettingsProviders() {
 
       {/* Provider List */}
       {providers.length === 0 && !showAddForm ? (
-        <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-12 text-center">
+        <div className="bg-surface-100 rounded-2xl border border-visible p-12 text-center">
           <Sparkles className="w-12 h-12 text-muted mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-primary mb-2">
             No providers configured
@@ -199,7 +199,7 @@ export default function SettingsProviders() {
           {providers.map((provider) => (
             <div
               key={provider.id}
-              className="bg-surface-100 rounded-2xl border border-surface-200/50 overflow-hidden"
+              className="bg-surface-100 rounded-2xl border border-visible overflow-hidden"
             >
               {/* Provider header row */}
               <div className="flex items-center gap-4 px-6 py-4">
@@ -379,7 +379,7 @@ function AddProviderForm({
   };
 
   return (
-    <div className="bg-surface-100 rounded-2xl border border-accent/30 p-6 space-y-5">
+    <div className="bg-surface-100 rounded-2xl border border-visible p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-primary">Add Provider</h3>
         <button onClick={onCancel} className="p-1 hover:bg-surface-200 rounded-lg">
@@ -400,7 +400,7 @@ function AddProviderForm({
               className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition-all ${
                 providerType === key
                   ? "border-accent bg-accent/10 text-primary"
-                  : "border-surface-200/50 text-t-secondary hover:border-surface-300"
+                  : "border-visible text-t-secondary hover:border-surface-300"
               }`}
             >
               <span>{PROVIDER_ICONS[key]}</span>
@@ -418,7 +418,7 @@ function AddProviderForm({
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-sm focus:outline-none focus:border-accent"
+              className="w-full px-4 py-2.5 bg-surface-50 border border-visible rounded-xl text-primary text-sm focus:outline-none focus:border-accent"
             />
           </div>
 
@@ -432,7 +432,7 @@ function AddProviderForm({
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="sk-..."
-                  className="w-full px-4 py-2.5 pr-10 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-sm focus:outline-none focus:border-accent"
+                  className="w-full px-4 py-2.5 pr-10 bg-surface-50 border border-visible rounded-xl text-primary text-sm focus:outline-none focus:border-accent"
                 />
                 <button
                   type="button"
@@ -457,7 +457,7 @@ function AddProviderForm({
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
                 placeholder={entry.default_base_url || "https://..."}
-                className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-sm focus:outline-none focus:border-accent"
+                className="w-full px-4 py-2.5 bg-surface-50 border border-visible rounded-xl text-primary text-sm focus:outline-none focus:border-accent"
               />
             </div>
           )}
@@ -476,8 +476,8 @@ function AddProviderForm({
                     onClick={() => toggleModel(m, selectedLlmModels, setSelectedLlmModels)}
                     className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                       selectedLlmModels.includes(m)
-                        ? "bg-accent/15 text-accent border border-accent/30"
-                        : "bg-surface-50 text-muted border border-dashed border-surface-300 hover:border-accent/30 hover:text-accent"
+                        ? "bg-accent/15 text-accent border border-visible"
+                        : "bg-surface-50 text-muted border border-dashed border-surface-300 hover:border-visible hover:text-accent"
                     }`}
                   >
                     {m}
@@ -489,7 +489,7 @@ function AddProviderForm({
                     <button
                       key={m}
                       onClick={() => toggleModel(m, selectedLlmModels, setSelectedLlmModels)}
-                      className="px-3 py-1.5 rounded-lg text-xs bg-accent/15 text-accent border border-accent/30"
+                      className="px-3 py-1.5 rounded-lg text-xs bg-accent/15 text-accent border border-visible"
                     >
                       {m} ✕
                     </button>
@@ -501,7 +501,7 @@ function AddProviderForm({
                   onChange={(e) => setCustomModel(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addCustomModel(customModel, selectedLlmModels, setSelectedLlmModels, setCustomModel)}
                   placeholder="Add custom model..."
-                  className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
+                  className="flex-1 px-3 py-1.5 bg-surface-50 border border-visible rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
                 />
                 <button
                   onClick={() => addCustomModel(customModel, selectedLlmModels, setSelectedLlmModels, setCustomModel)}
@@ -552,7 +552,7 @@ function AddProviderForm({
                   onChange={(e) => setCustomEmbModel(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addCustomModel(customEmbModel, selectedEmbModels, setSelectedEmbModels, setCustomEmbModel)}
                   placeholder="Add custom model..."
-                  className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
+                  className="flex-1 px-3 py-1.5 bg-surface-50 border border-visible rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
                 />
                 <button
                   onClick={() => addCustomModel(customEmbModel, selectedEmbModels, setSelectedEmbModels, setCustomEmbModel)}
@@ -663,14 +663,14 @@ function ProviderDetails({
   const catalogEmbModels = catalog?.embedding_models || [];
 
   return (
-    <div className="px-6 pb-5 pt-3 border-t border-surface-200/50 space-y-5">
+    <div className="px-6 pb-5 pt-3 border-t border-visible space-y-5">
       {/* Display Name */}
       <div>
         <label className="block text-xs font-medium text-t-secondary mb-1">Display Name</label>
         <input
           value={name}
           onChange={(e) => { setName(e.target.value); markDirty(); }}
-          className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent"
+          className="w-full px-3 py-2 bg-surface-50 border border-visible rounded-lg text-primary text-sm focus:outline-none focus:border-accent"
         />
       </div>
 
@@ -686,7 +686,7 @@ function ProviderDetails({
               value={apiKey}
               onChange={(e) => { setApiKey(e.target.value); markDirty(); }}
               placeholder="Enter new API key to update..."
-              className="w-full px-3 py-2 pr-8 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent"
+              className="w-full px-3 py-2 pr-8 bg-surface-50 border border-visible rounded-lg text-primary text-sm focus:outline-none focus:border-accent"
             />
             <button
               onClick={() => setShowKey(!showKey)}
@@ -706,7 +706,7 @@ function ProviderDetails({
             value={baseUrl}
             onChange={(e) => { setBaseUrl(e.target.value); markDirty(); }}
             placeholder={catalog.default_base_url || "https://..."}
-            className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent"
+            className="w-full px-3 py-2 bg-surface-50 border border-visible rounded-lg text-primary text-sm focus:outline-none focus:border-accent"
           />
         </div>
       )}
@@ -725,7 +725,7 @@ function ProviderDetails({
                 key={m}
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all ${
                   m === defaultLlm
-                    ? "bg-accent/15 text-accent border border-accent/30"
+                    ? "bg-accent/15 text-accent border border-visible"
                     : "bg-surface-200 text-t-hover border border-surface-200"
                 }`}
                 onClick={() => { setDefaultLlm(m); markDirty(); }}
@@ -747,7 +747,7 @@ function ProviderDetails({
               <button
                 key={m}
                 onClick={() => toggleModel(m, llmModels, setLlmModels)}
-                className="px-2.5 py-1 bg-surface-50 text-muted text-xs rounded-lg border border-dashed border-surface-300 hover:border-accent/30 hover:text-accent transition-all"
+                className="px-2.5 py-1 bg-surface-50 text-muted text-xs rounded-lg border border-dashed border-surface-300 hover:border-visible hover:text-accent transition-all"
               >
                 + {m}
               </button>
@@ -759,7 +759,7 @@ function ProviderDetails({
               onChange={(e) => setCustomLlm(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addModel(customLlm, llmModels, setLlmModels, setCustomLlm)}
               placeholder="Add custom model..."
-              className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
+              className="flex-1 px-3 py-1.5 bg-surface-50 border border-visible rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
             />
             <button
               onClick={() => addModel(customLlm, llmModels, setLlmModels, setCustomLlm)}
@@ -818,7 +818,7 @@ function ProviderDetails({
               onChange={(e) => setCustomEmb(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addModel(customEmb, embModels, setEmbModels, setCustomEmb)}
               placeholder="Add custom model..."
-              className="flex-1 px-3 py-1.5 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
+              className="flex-1 px-3 py-1.5 bg-surface-50 border border-visible rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
             />
             <button
               onClick={() => addModel(customEmb, embModels, setEmbModels, setCustomEmb)}

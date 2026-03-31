@@ -51,6 +51,16 @@ VECTORSTORE_CATALOG = {
             {"name": "connection_string", "label": "Connection String", "required": True, "placeholder": "postgresql://user:pass@localhost/db"},
         ],
     },
+    "astradb": {
+        "label": "AstraDB",
+        "description": "DataStax Astra cloud-native vector database built on Cassandra",
+        "icon": "⭐",
+        "requires_api_key": True,
+        "config_fields": [
+            {"name": "api_endpoint", "label": "API Endpoint", "required": True, "placeholder": "https://<db-id>-<region>.apps.astra.datastax.com"},
+            {"name": "collection_name", "label": "Collection Name", "required": False, "placeholder": "my_collection"},
+        ],
+    },
 }
 
 
