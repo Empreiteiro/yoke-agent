@@ -804,8 +804,8 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               onClick={() => toggleMetric(metric.id)}
               className={`p-4 rounded-xl border text-left transition-all ${
                 config.optional_metrics.includes(metric.id)
-                  ? "bg-accent/5 border-accent/30"
-                  : "bg-surface-50 border-surface-200/50 hover:border-visible"
+                  ? "bg-accent/5 border-accent"
+                  : "bg-surface-50 border-visible hover:border-accent/50"
               }`}
             >
               <div className="flex items-center gap-2 mb-1">

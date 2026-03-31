@@ -199,7 +199,13 @@ async def run_experiment(
     filepaths = [doc.filepath for doc in doc_models]
     source_documents = load_documents(filepaths)
 
-    optional_metrics = None
+    # Read optional metrics from the first combination's params (shared across all combos)
+    first_combo = (
+        db.query(ExperimentCombination)
+        .filter(ExperimentCombination.experiment_id == experiment_id)
+        .first()
+    )
+    optional_metrics = first_combo.params.get("optional_metrics") if first_combo else None
 
     experiment.status = "running"
     db.commit()

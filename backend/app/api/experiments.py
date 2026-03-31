@@ -384,6 +384,8 @@ def configure_grid(
                     "embedding_dimensions": dim,
                     "answer_language": config.answer_language,
                 }
+                if config.optional_metrics:
+                    base_params["optional_metrics"] = config.optional_metrics
                 if pt is not None:
                     base_params["prompt_template"] = pt
 
@@ -467,6 +469,8 @@ def configure_grid(
                     "search_mode": combo[7],
                     "answer_language": config.answer_language,
                 }
+                if config.optional_metrics:
+                    params["optional_metrics"] = config.optional_metrics
                 db_combo = ExperimentCombination(
                     experiment_id=experiment_id,
                     params=params,
