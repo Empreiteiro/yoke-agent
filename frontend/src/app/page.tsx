@@ -11,6 +11,7 @@ import StepGridSearch from "@/components/steps/StepGridSearch";
 import StepExecution from "@/components/steps/StepExecution";
 import StepResults from "@/components/steps/StepResults";
 import SettingsProviders from "@/components/SettingsProviders";
+import SettingsVectorStores from "@/components/SettingsVectorStores";
 import History from "@/components/History";
 import Logs from "@/components/Logs";
 import Glossary from "@/components/Glossary";
@@ -27,7 +28,7 @@ const STEPS = [
 
 type StepId = (typeof STEPS)[number]["id"];
 
-const VALID_VIEWS = ["history", "logs", "settings", "glossary", "collections"];
+const VALID_VIEWS = ["history", "logs", "settings", "glossary", "collections", "vectorstores"];
 const VALID_STEPS = STEPS.map((s) => s.id);
 
 function HomeContent() {
@@ -148,6 +149,7 @@ function HomeContent() {
 
   const VIEW_COMPONENTS: Record<string, React.ReactNode> = {
     settings: <SettingsProviders />,
+    vectorstores: <SettingsVectorStores />,
     history: <History onViewResults={(experimentId: number) => {
       setPipelineData((prev) => ({ ...prev, experimentId }));
       setCompletedSteps((prev) => new Set([...prev, "upload", "dataset", "review", "grid-search", "execution"] as StepId[]));
