@@ -101,6 +101,26 @@ body {
   border-color: var(--input-border);
 }
 
+/* Theme-aware chip styles for search type sub-parameters */
+.chip-amber {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.5);
+}
+.chip-red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.5);
+}
+[data-theme="dark"] .chip-amber,
+[data-theme="neon"] .chip-amber {
+  color: #fbbf24;
+}
+[data-theme="dark"] .chip-red,
+[data-theme="neon"] .chip-red {
+  color: #f87171;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

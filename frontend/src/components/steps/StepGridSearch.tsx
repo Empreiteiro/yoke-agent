@@ -483,7 +483,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
             {/* Multi-Query sub-parameter */}
             {config.search_types.includes("multi_query") && (
-              <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500/30">
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500">
                 <label className="block text-xs font-medium text-t-secondary mb-2">
                   Alternative Queries (multi_query_count)
                 </label>
@@ -501,7 +501,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                       }}
                       className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.multi_query_counts.includes(n)
-                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          ? "chip-amber border"
                           : "bg-surface-50 text-muted border border-surface-200/50"
                       }`}
                     >
@@ -514,7 +514,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
             {/* Agentic sub-parameter */}
             {config.search_types.includes("agentic") && (
-              <div className="mt-3 ml-5 pl-3 border-l-2 border-red-500/30">
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-red-500">
                 <label className="block text-xs font-medium text-t-secondary mb-2">
                   Max Agent Steps (agent_max_steps)
                 </label>
@@ -532,7 +532,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                       }}
                       className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.agent_max_steps.includes(n)
-                          ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                          ? "chip-red border"
                           : "bg-surface-50 text-muted border border-surface-200/50"
                       }`}
                     >
@@ -545,7 +545,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
             {/* CRAG sub-parameters */}
             {config.search_types.includes("crag") && (
-              <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500/30 space-y-3">
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500 space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-t-secondary mb-2">Relevance Threshold</label>
                   <div className="flex gap-2">
@@ -556,7 +556,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                           : [...prev.crag_relevance_thresholds, v].sort(),
                       }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.crag_relevance_thresholds.includes(v)
-                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          ? "chip-amber border"
                           : "bg-surface-50 text-muted border border-surface-200/50"
                       }`}>{v}</button>
                     ))}
@@ -572,7 +572,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                           : [...prev.crag_max_retries, v].sort(),
                       }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.crag_max_retries.includes(v)
-                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          ? "chip-amber border"
                           : "bg-surface-50 text-muted border border-surface-200/50"
                       }`}>{v}</button>
                     ))}
@@ -583,7 +583,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
             {/* Self-RAG sub-parameter */}
             {config.search_types.includes("self_rag") && (
-              <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500/30">
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500">
                 <label className="block text-xs font-medium text-t-secondary mb-2">Retrieval Threshold</label>
                 <div className="flex gap-2">
                   {[0.3, 0.5, 0.7].map((v) => (
@@ -593,7 +593,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                         : [...prev.self_rag_retrieval_thresholds, v].sort(),
                     }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                       config.self_rag_retrieval_thresholds.includes(v)
-                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                        ? "chip-amber border"
                         : "bg-surface-50 text-muted border border-surface-200/50"
                     }`}>{v}</button>
                   ))}
@@ -603,7 +603,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
             {/* RAPTOR sub-parameters */}
             {config.search_types.includes("raptor") && (
-              <div className="mt-3 ml-5 pl-3 border-l-2 border-red-500/30 space-y-3">
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-red-500 space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-t-secondary mb-2">Max Levels</label>
                   <div className="flex gap-2">
@@ -614,7 +614,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                           : [...prev.raptor_max_levels, v].sort(),
                       }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.raptor_max_levels.includes(v)
-                          ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                          ? "chip-red border"
                           : "bg-surface-50 text-muted border border-surface-200/50"
                       }`}>{v}</button>
                     ))}
@@ -630,7 +630,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                           : [...prev.raptor_clustering, v],
                       }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.raptor_clustering.includes(v)
-                          ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                          ? "chip-red border"
                           : "bg-surface-50 text-muted border border-surface-200/50"
                       }`}>{v}</button>
                     ))}
@@ -646,7 +646,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                           : [...prev.raptor_retrieval_modes, v],
                       }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.raptor_retrieval_modes.includes(v)
-                          ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                          ? "chip-red border"
                           : "bg-surface-50 text-muted border border-surface-200/50"
                       }`}>{v.replace("_", " ")}</button>
                     ))}
