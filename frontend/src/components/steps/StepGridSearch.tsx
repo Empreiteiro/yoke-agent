@@ -260,27 +260,28 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
   return (
     <div className="space-y-6">
       {/* ════ Main form card ════ */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8 space-y-8">
+      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8 space-y-6">
 
         {/* Experiment setup */}
         <div className="grid grid-cols-3 gap-5">
-          <div>
-            <label className="block text-sm font-medium text-t-hover mb-2">Experiment Name <span className="text-muted font-normal">(optional)</span></label>
+          <div className="rounded-xl border border-surface-300/40 p-4">
+            <label className="block text-sm font-medium text-t-hover mb-1">Experiment Name</label>
+            <p className="text-xs text-muted mb-2">A name to identify this experiment run.</p>
             <input
               type="text"
               value={experimentName}
               onChange={(e) => setExperimentName(e.target.value)}
               placeholder="e.g., Documentation RAG v1"
-              className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
+              className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
             />
-            <p className="text-xs text-muted mt-1.5">A name to identify this experiment run.</p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-t-hover mb-2">Vector Store</label>
+          <div className="rounded-xl border border-surface-300/40 p-4">
+            <label className="block text-sm font-medium text-t-hover mb-1">Vector Store</label>
+            <p className="text-xs text-muted mb-2">Backend for storing and searching embeddings.</p>
             <select
               value={vectorStoreType}
               onChange={(e) => setVectorStoreType(e.target.value)}
-              className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-sm focus:outline-none focus:border-accent/50"
+              className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
             >
               <option value="chromadb">ChromaDB (Default)</option>
               <option value="pinecone">Pinecone</option>
@@ -288,14 +289,14 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               <option value="qdrant">Qdrant</option>
               <option value="pgvector">PGVector</option>
             </select>
-            <p className="text-xs text-muted mt-1.5">Backend for storing and searching embeddings.</p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-t-hover mb-2">Answer Language</label>
+          <div className="rounded-xl border border-surface-300/40 p-4">
+            <label className="block text-sm font-medium text-t-hover mb-1">Answer Language</label>
+            <p className="text-xs text-muted mb-2">Language for LLM-generated answers.</p>
             <select
               value={config.answer_language}
               onChange={(e) => setConfig((prev) => ({ ...prev, answer_language: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-sm focus:outline-none focus:border-accent/50"
+              className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
             >
               <option value="auto">Auto (same as document)</option>
               <option value="English">English</option>
@@ -307,38 +308,28 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               <option value="Chinese">Chinese</option>
               <option value="Japanese">Japanese</option>
             </select>
-            <p className="text-xs text-muted mt-1.5">Language for LLM-generated answers.</p>
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="border-t border-surface-200/30" />
-
         {/* Pipeline type */}
-        <div className="flex items-center gap-4">
-            <div className="flex gap-3">
+        <div className="rounded-xl border border-surface-300/40 p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Pipeline Type</label>
+          <p className="text-xs text-muted mb-3">Select which pipeline architectures to compare.</p>
+          <div className="flex items-center gap-4">
+            <div className="flex gap-4">
               {[
                 { id: "rag", label: "RAG" },
                 { id: "graphrag", label: "GraphRAG" },
               ].map((pt) => (
-                <label
-                  key={pt.id}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
+                <label key={pt.id} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={config.pipeline_types.includes(pt.id)}
                     onChange={() => {
                       setConfig((prev) => {
                         const includes = prev.pipeline_types.includes(pt.id);
-                        // Don't allow removing the last pipeline type
                         if (includes && prev.pipeline_types.length === 1) return prev;
-                        return {
-                          ...prev,
-                          pipeline_types: includes
-                            ? prev.pipeline_types.filter((t) => t !== pt.id)
-                            : [...prev.pipeline_types, pt.id],
-                        };
+                        return { ...prev, pipeline_types: includes ? prev.pipeline_types.filter((t) => t !== pt.id) : [...prev.pipeline_types, pt.id] };
                       });
                     }}
                     className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
@@ -348,161 +339,87 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               ))}
             </div>
             {ragCombinations > 0 && graphragCombinations > 0 && (
-              <p className="text-xs text-muted ml-auto">
-                RAG: {ragCombinations} + GraphRAG: {graphragCombinations}
-              </p>
+              <p className="text-xs text-muted ml-auto">RAG: {ragCombinations} + GraphRAG: {graphragCombinations}</p>
             )}
+          </div>
         </div>
 
-        {/* Divider */}
-        <div className="border-t border-surface-200/30" />
-
-        {/* Chunk Size + Overlap */}
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-t-hover mb-2">Chunk Size (tokens)</label>
-            {renderChips("chunk_sizes", config.chunk_sizes)}
-            <div className="flex gap-2 mt-2">
-              <input
-                type="number"
-                value={newChunkSize}
-                onChange={(e) => setNewChunkSize(e.target.value)}
-                placeholder="Add size..."
-                className="px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm w-32 focus:outline-none focus:border-accent/50"
-              />
-              <button
-                onClick={() => {
-                  if (newChunkSize) {
-                    addToArray("chunk_sizes", parseInt(newChunkSize));
-                    setNewChunkSize("");
-                  }
-                }}
-                className="p-2 bg-surface-200 rounded-lg hover:bg-surface-300 transition-colors"
-              >
-                <Plus className="w-4 h-4 text-t-hover" />
-              </button>
-            </div>
+        {/* Chunk Size */}
+        <div className="rounded-xl border border-surface-300/40 p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Chunk Size (tokens)</label>
+          <p className="text-xs text-muted mb-3">Number of characters per text fragment. Smaller = more precise retrieval, larger = more surrounding context.</p>
+          {renderChips("chunk_sizes", config.chunk_sizes)}
+          <div className="flex gap-2 mt-2">
+            <input type="number" value={newChunkSize} onChange={(e) => setNewChunkSize(e.target.value)} placeholder="Add size..." className="px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm w-28 focus:outline-none focus:border-accent/50" />
+            <button onClick={() => { if (newChunkSize) { addToArray("chunk_sizes", parseInt(newChunkSize)); setNewChunkSize(""); } }} className="p-2 bg-surface-200 rounded-lg hover:bg-surface-300 transition-colors"><Plus className="w-4 h-4 text-t-hover" /></button>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-t-hover mb-2">Chunk Overlap (%)</label>
-            {renderChips("chunk_overlaps", config.chunk_overlaps)}
-            <div className="flex gap-2 mt-2">
-              {[5, 10, 15, 20, 25, 30].map((val) => (
-                <button
-                  key={val}
-                  onClick={() => {
-                    if (!config.chunk_overlaps.includes(val)) addToArray("chunk_overlaps", val);
-                  }}
-                  disabled={config.chunk_overlaps.includes(val)}
-                  className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 disabled:opacity-30 transition-colors"
-                >
-                  {val}%
-                </button>
-              ))}
-            </div>
-          </div>
-
         </div>
+
+        {/* Chunk Overlap */}
+        <div className="rounded-xl border border-surface-300/40 p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Chunk Overlap (%)</label>
+          <p className="text-xs text-muted mb-3">Percentage of overlap between consecutive chunks. Prevents important information from being cut at boundaries.</p>
+          {renderChips("chunk_overlaps", config.chunk_overlaps)}
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {[5, 10, 15, 20, 25, 30].map((val) => (
+              <button key={val} onClick={() => { if (!config.chunk_overlaps.includes(val)) addToArray("chunk_overlaps", val); }} disabled={config.chunk_overlaps.includes(val)} className="px-2.5 py-1 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 disabled:opacity-30 transition-colors">{val}%</button>
+            ))}
+          </div>
+        </div>
+
         {/* Chunking Strategy */}
-        <div>
-          <label className="block text-sm font-medium text-t-hover mb-2">Chunking Strategy</label>
-            <div className="flex gap-3 flex-wrap">
-              {CHUNKING_STRATEGIES.map((cs) => (
-                <label
-                  key={cs.id}
-                  className="flex items-center gap-2 cursor-pointer"
-                  title={cs.description}
-                >
-                  <input
-                    type="checkbox"
-                    checked={config.chunking_strategies.includes(cs.id)}
-                    onChange={() => {
-                      if (config.chunking_strategies.includes(cs.id)) {
-                        setConfig((prev) => ({
-                          ...prev,
-                          chunking_strategies: prev.chunking_strategies.filter((s) => s !== cs.id),
-                        }));
-                      } else {
-                        setConfig((prev) => ({
-                          ...prev,
-                          chunking_strategies: [...prev.chunking_strategies, cs.id],
-                        }));
-                      }
-                    }}
-                    className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
-                  />
-                  <span className="text-sm text-t-hover">{cs.label}</span>
-                  <span className="text-xs text-muted">({cs.description})</span>
-                </label>
-              ))}
-            </div>
+        <div className="rounded-xl border border-surface-300/40 p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Chunking Strategy</label>
+          <p className="text-xs text-muted mb-3">Algorithm for splitting documents into chunks.</p>
+          <div className="flex gap-3 flex-wrap">
+            {CHUNKING_STRATEGIES.map((cs) => (
+              <label key={cs.id} className="flex items-center gap-2 cursor-pointer" title={cs.description}>
+                <input type="checkbox" checked={config.chunking_strategies.includes(cs.id)} onChange={() => { if (config.chunking_strategies.includes(cs.id)) { setConfig((prev) => ({ ...prev, chunking_strategies: prev.chunking_strategies.filter((s) => s !== cs.id) })); } else { setConfig((prev) => ({ ...prev, chunking_strategies: [...prev.chunking_strategies, cs.id] })); } }} className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25" />
+                <span className="text-sm text-t-hover">{cs.label}</span>
+                <span className="text-xs text-muted">({cs.description})</span>
+              </label>
+            ))}
+          </div>
         </div>
-
-        {/* Divider */}
-        <div className="border-t border-surface-200/30" />
 
         {/* Embedding models */}
-        <div>
-          <label className="block text-sm font-medium text-t-hover mb-2">Embedding Models</label>
-            {noProviders && (
-              <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                No providers configured. Go to Settings → Providers to add one.
-              </div>
-            )}
-            {renderChips("embedding_models", config.embedding_models, "secondary")}
-            <div className="flex flex-wrap gap-2 mt-2">
-              {availableEmbeddings
-                .filter((em) => !config.embedding_models.includes(em.model))
-                .map((em) => (
-                  <button
-                    key={`${em.provider_name}-${em.model}`}
-                    onClick={() => addToArray("embedding_models", em.model)}
-                    className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 transition-colors"
-                    title={`Provider: ${em.provider_name}`}
-                  >
-                    + {em.model}
-                    <span className="ml-1 text-muted">({em.provider_name})</span>
-                  </button>
-                ))}
+        <div className="rounded-xl border border-surface-300/40 p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Embedding Models</label>
+          <p className="text-xs text-muted mb-3">Neural networks that convert text into vectors for similarity search.</p>
+          {noProviders && (
+            <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              No providers configured. Go to Settings &rarr; Providers to add one.
             </div>
+          )}
+          {renderChips("embedding_models", config.embedding_models, "secondary")}
+          <div className="flex flex-wrap gap-2 mt-2">
+            {availableEmbeddings.filter((em) => !config.embedding_models.includes(em.model)).map((em) => (
+              <button key={`${em.provider_name}-${em.model}`} onClick={() => addToArray("embedding_models", em.model)} className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 transition-colors" title={`Provider: ${em.provider_name}`}>
+                + {em.model}<span className="ml-1 text-muted">({em.provider_name})</span>
+              </button>
+            ))}
           </div>
+        </div>
 
         {/* Retrieval (RAG only) */}
         {config.pipeline_types.includes("rag") && (<>
 
-        {/* Divider */}
-        <div className="border-t border-surface-200/30" />
-
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-t-hover mb-2">Top-K (retrieved docs)</label>
-            {renderChips("top_k_values", config.top_k_values)}
-            <div className="flex gap-2 mt-2">
-              <input
-                type="number"
-                value={newTopK}
-                onChange={(e) => setNewTopK(e.target.value)}
-                placeholder="Add value..."
-                className="px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm w-32 focus:outline-none focus:border-accent/50"
-              />
-              <button
-                onClick={() => {
-                  if (newTopK) {
-                    addToArray("top_k_values", parseInt(newTopK));
-                    setNewTopK("");
-                  }
-                }}
-                className="p-2 bg-surface-200 rounded-lg hover:bg-surface-300 transition-colors"
-              >
-                <Plus className="w-4 h-4 text-t-hover" />
-              </button>
-            </div>
+        {/* Top-K */}
+        <div className="rounded-xl border border-surface-300/40 p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Top-K (retrieved docs)</label>
+          <p className="text-xs text-muted mb-3">Number of most similar chunks retrieved per query. Higher = more context but more noise.</p>
+          {renderChips("top_k_values", config.top_k_values)}
+          <div className="flex gap-2 mt-2">
+            <input type="number" value={newTopK} onChange={(e) => setNewTopK(e.target.value)} placeholder="Add..." className="px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm w-24 focus:outline-none focus:border-accent/50" />
+            <button onClick={() => { if (newTopK) { addToArray("top_k_values", parseInt(newTopK)); setNewTopK(""); } }} className="p-2 bg-surface-200 rounded-lg hover:bg-surface-300 transition-colors"><Plus className="w-4 h-4 text-t-hover" /></button>
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-t-hover mb-2">Distance Metric</label>
+        {/* Distance Metric */}
+        <div className="rounded-xl border border-surface-300/40 p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Distance Metric</label>
+          <p className="text-xs text-muted mb-3">Mathematical function to measure how similar two embedding vectors are.</p>
             <div className="flex flex-wrap gap-3">
               {DISTANCE_METRICS.map((dm) => (
                 <label key={dm.id} className="flex items-center gap-2 cursor-pointer">
@@ -522,12 +439,12 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                 </label>
               ))}
             </div>
-          </div>
         </div>
 
         {/* Search Type */}
-        <div>
-          <label className="block text-sm font-medium text-t-hover mb-3">Search Type</label>
+        <div className="rounded-xl border border-surface-300/40 p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Search Type</label>
+          <p className="text-xs text-muted mb-3">Algorithm for finding relevant chunks. Strategies with $$ use extra LLM calls.</p>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {SEARCH_TYPES.map((st) => (
                 <label
