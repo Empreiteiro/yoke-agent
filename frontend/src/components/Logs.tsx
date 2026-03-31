@@ -303,7 +303,7 @@ export default function Logs() {
           days,
           operation: filterOperation || undefined,
           model_type: filterModelType || undefined,
-          limit: 200,
+          limit: 10000,
         }),
       ]);
       setSummary(summaryData);
