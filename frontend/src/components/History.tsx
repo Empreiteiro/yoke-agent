@@ -17,6 +17,7 @@ import {
   Square,
   Download,
   Database,
+  Eye,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import {
@@ -48,7 +49,7 @@ const statusConfig: Record<string, { icon: any; color: string; label: string }> 
   proposing: { icon: Loader2, color: "text-purple-400", label: "Proposing" },
 };
 
-export default function History() {
+export default function History({ onViewResults }: { onViewResults?: (experimentId: number) => void } = {}) {
   const [experiments, setExperiments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -307,19 +308,52 @@ export default function History() {
 
                     return (
                       <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                        {/* Delete */}
-                        <button
-                          onClick={() => { if (!isRunning) setConfirmDeleteId(exp.id); }}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isRunning
-                              ? "text-muted/30 cursor-not-allowed"
-                              : "text-muted hover:text-red-400 hover:bg-red-500/10"
-                          }`}
-                          title={isRunning ? "Stop first" : "Delete"}
-                          disabled={isRunning}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {/* View Results */}
+                        {onViewResults && completedCount > 0 && (
+                          <button
+                            onClick={() => onViewResults(exp.id)}
+                            className="p-1.5 rounded-lg text-muted hover:text-accent hover:bg-accent/10 transition-colors"
+                            title="View results"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        {/* Resume / Retry — always visible, disabled when nothing to resume */}
+                        {isResuming ? (
+                          <span className="p-1.5">
+                            <Loader2 className="w-3.5 h-3.5 text-accent animate-spin" />
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => canResume ? handleResume(exp.id, false) : undefined}
+                            disabled={!canResume || isRunning}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              canResume && !isRunning
+                                ? "text-accent hover:bg-accent/10"
+                                : "text-muted/30 cursor-not-allowed"
+                            }`}
+                            title={
+                              isRunning ? "Experiment is running"
+                                : canResume
+                                  ? resumableCount > 0 ? `Resume (${resumableCount} pending)` : "Resume"
+                                  : "No pending combinations"
+                            }
+                          >
+                            <Play className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        {/* Retry failed */}
+                        {failedCount > 0 && !isRunning && !isResuming && (
+                          <button
+                            onClick={() => handleResume(exp.id, true)}
+                            className="p-1.5 rounded-lg text-orange-400 hover:bg-orange-500/10 transition-colors"
+                            title={`Retry failed (${failedCount})`}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
                         {/* Stop (only when running) */}
                         {isRunning && (
@@ -336,32 +370,6 @@ export default function History() {
                             )}
                           </button>
                         )}
-
-                        {/* Resume / Retry */}
-                        {isResuming ? (
-                          <span className="p-1.5">
-                            <Loader2 className="w-3.5 h-3.5 text-accent animate-spin" />
-                          </span>
-                        ) : canResume ? (
-                          <>
-                            {failedCount > 0 && (
-                              <button
-                                onClick={() => handleResume(exp.id, true)}
-                                className="p-1.5 rounded-lg text-orange-400 hover:bg-orange-500/10 transition-colors"
-                                title={`Retry failed (${failedCount})`}
-                              >
-                                <RotateCcw className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleResume(exp.id, false)}
-                              className="p-1.5 rounded-lg text-accent hover:bg-accent/10 transition-colors"
-                              title={resumableCount > 0 ? `Resume (${resumableCount})` : "Resume"}
-                            >
-                              <Play className="w-3.5 h-3.5" />
-                            </button>
-                          </>
-                        ) : null}
 
                         {/* Save collection + Download report */}
                         {completedCount > 0 && (
@@ -387,6 +395,20 @@ export default function History() {
                             </button>
                           </>
                         )}
+
+                        {/* Delete */}
+                        <button
+                          onClick={() => { if (!isRunning) setConfirmDeleteId(exp.id); }}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            isRunning
+                              ? "text-muted/30 cursor-not-allowed"
+                              : "text-muted hover:text-red-400 hover:bg-red-500/10"
+                          }`}
+                          title={isRunning ? "Stop first" : "Delete"}
+                          disabled={isRunning}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     );
                   })()}

@@ -148,7 +148,11 @@ function HomeContent() {
 
   const VIEW_COMPONENTS: Record<string, React.ReactNode> = {
     settings: <SettingsProviders />,
-    history: <History />,
+    history: <History onViewResults={(experimentId: number) => {
+      setPipelineData((prev) => ({ ...prev, experimentId }));
+      setCompletedSteps((prev) => new Set([...prev, "upload", "dataset", "review", "grid-search", "execution"] as StepId[]));
+      router.push("/?step=results");
+    }} />,
     logs: <Logs />,
     glossary: <Glossary />,
     collections: <Collections />,
