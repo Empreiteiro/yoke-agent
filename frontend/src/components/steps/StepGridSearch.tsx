@@ -264,7 +264,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
         {/* Experiment setup */}
         <div className="grid grid-cols-3 gap-5">
-          <div className="rounded-xl border border-surface-300/40 p-4">
+          <div className="rounded-xl border border-surface-300 p-4">
             <label className="block text-sm font-medium text-t-hover mb-1">Experiment Name</label>
             <p className="text-xs text-muted mb-2">A name to identify this experiment run.</p>
             <input
@@ -275,7 +275,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
             />
           </div>
-          <div className="rounded-xl border border-surface-300/40 p-4">
+          <div className="rounded-xl border border-surface-300 p-4">
             <label className="block text-sm font-medium text-t-hover mb-1">Vector Store</label>
             <p className="text-xs text-muted mb-2">Backend for storing and searching embeddings.</p>
             <select
@@ -290,7 +290,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               <option value="pgvector">PGVector</option>
             </select>
           </div>
-          <div className="rounded-xl border border-surface-300/40 p-4">
+          <div className="rounded-xl border border-surface-300 p-4">
             <label className="block text-sm font-medium text-t-hover mb-1">Answer Language</label>
             <p className="text-xs text-muted mb-2">Language for LLM-generated answers.</p>
             <select
@@ -312,7 +312,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Pipeline type */}
-        <div className="rounded-xl border border-surface-300/40 p-4">
+        <div className="rounded-xl border border-surface-300 p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Pipeline Type</label>
           <p className="text-xs text-muted mb-3">Select which pipeline architectures to compare.</p>
           <div className="flex items-center gap-4">
@@ -345,7 +345,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Chunk Size */}
-        <div className="rounded-xl border border-surface-300/40 p-4">
+        <div className="rounded-xl border border-surface-300 p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Chunk Size (tokens)</label>
           <p className="text-xs text-muted mb-3">Number of characters per text fragment. Smaller = more precise retrieval, larger = more surrounding context.</p>
           {renderChips("chunk_sizes", config.chunk_sizes)}
@@ -356,7 +356,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Chunk Overlap */}
-        <div className="rounded-xl border border-surface-300/40 p-4">
+        <div className="rounded-xl border border-surface-300 p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Chunk Overlap (%)</label>
           <p className="text-xs text-muted mb-3">Percentage of overlap between consecutive chunks. Prevents important information from being cut at boundaries.</p>
           {renderChips("chunk_overlaps", config.chunk_overlaps)}
@@ -368,7 +368,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Chunking Strategy */}
-        <div className="rounded-xl border border-surface-300/40 p-4">
+        <div className="rounded-xl border border-surface-300 p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Chunking Strategy</label>
           <p className="text-xs text-muted mb-3">Algorithm for splitting documents into chunks.</p>
           <div className="flex gap-3 flex-wrap">
@@ -383,7 +383,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Embedding models */}
-        <div className="rounded-xl border border-surface-300/40 p-4">
+        <div className="rounded-xl border border-surface-300 p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Embedding Models</label>
           <p className="text-xs text-muted mb-3">Neural networks that convert text into vectors for similarity search.</p>
           {noProviders && (
@@ -406,7 +406,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         {config.pipeline_types.includes("rag") && (<>
 
         {/* Top-K */}
-        <div className="rounded-xl border border-surface-300/40 p-4">
+        <div className="rounded-xl border border-surface-300 p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Top-K (retrieved docs)</label>
           <p className="text-xs text-muted mb-3">Number of most similar chunks retrieved per query. Higher = more context but more noise.</p>
           {renderChips("top_k_values", config.top_k_values)}
@@ -417,7 +417,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Distance Metric */}
-        <div className="rounded-xl border border-surface-300/40 p-4">
+        <div className="rounded-xl border border-surface-300 p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Distance Metric</label>
           <p className="text-xs text-muted mb-3">Mathematical function to measure how similar two embedding vectors are.</p>
             <div className="flex flex-wrap gap-3">
@@ -442,7 +442,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Search Type */}
-        <div className="rounded-xl border border-surface-300/40 p-4">
+        <div className="rounded-xl border border-surface-300 p-4">
           <label className="block text-sm font-medium text-t-hover mb-1">Search Type</label>
           <p className="text-xs text-muted mb-3">Algorithm for finding relevant chunks. Strategies with $$ use extra LLM calls.</p>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -907,41 +907,36 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
       </div>
 
       {/* Summary + Submit footer */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
-        <div className="flex items-center gap-6 mb-4">
-          <div>
-            <p className="text-xs text-t-secondary">Combinations</p>
-            <p className="text-xl font-bold text-primary">{totalCombinations}</p>
+      <div className="bg-surface-100 rounded-2xl border border-surface-300 p-6">
+        <div className="grid grid-cols-4 gap-4 mb-5">
+          <div className="text-center rounded-lg bg-surface-50 py-3">
+            <p className="text-xs text-t-secondary mb-1">Combinations</p>
+            <p className="text-2xl font-bold text-primary">{totalCombinations}</p>
           </div>
-          {costEstimate && (
-            <>
-              <div className="w-px h-8 bg-surface-200/50" />
-              <div>
-                <p className="text-xs text-t-secondary">Est. Tokens</p>
-                <p className="text-xl font-bold text-primary">
-                  {costEstimate.estimated_total_tokens >= 1_000_000
-                    ? `${(costEstimate.estimated_total_tokens / 1_000_000).toFixed(1)}M`
-                    : `${(costEstimate.estimated_total_tokens / 1_000).toFixed(0)}K`}
-                </p>
-              </div>
-              <div className="w-px h-8 bg-surface-200/50" />
-              <div>
-                <p className="text-xs text-t-secondary">Questions</p>
-                <p className="text-xl font-bold text-primary">{costEstimate.num_questions}</p>
-              </div>
-              <div className="w-px h-8 bg-surface-200/50" />
-              <div>
-                <p className="text-xs text-t-secondary">Est. Cost</p>
-                <p className="text-xl font-bold text-amber-400">${costEstimate.estimated_cost_usd}</p>
-              </div>
-            </>
-          )}
+          <div className="text-center rounded-lg bg-surface-50 py-3">
+            <p className="text-xs text-t-secondary mb-1">Est. Tokens</p>
+            <p className="text-2xl font-bold text-primary">
+              {costEstimate
+                ? costEstimate.estimated_total_tokens >= 1_000_000
+                  ? `${(costEstimate.estimated_total_tokens / 1_000_000).toFixed(1)}M`
+                  : `${(costEstimate.estimated_total_tokens / 1_000).toFixed(0)}K`
+                : "—"}
+            </p>
+          </div>
+          <div className="text-center rounded-lg bg-surface-50 py-3">
+            <p className="text-xs text-t-secondary mb-1">Questions</p>
+            <p className="text-2xl font-bold text-primary">{costEstimate?.num_questions ?? "—"}</p>
+          </div>
+          <div className="text-center rounded-lg bg-surface-50 py-3">
+            <p className="text-xs text-t-secondary mb-1">Est. Cost</p>
+            <p className="text-2xl font-bold text-amber-400">{costEstimate ? `$${costEstimate.estimated_cost_usd}` : "—"}</p>
+          </div>
         </div>
-        {costEstimate && (
-          <p className="text-xs text-muted mb-4">
-            Approximate values. Actual cost depends on provider and model.
-          </p>
-        )}
+        <p className="text-xs text-muted mb-4 text-center">
+          {costEstimate
+            ? "Approximate values. Actual cost depends on provider and model."
+            : "Cost estimate will appear once a dataset is selected in a previous step."}
+        </p>
         <button
           onClick={handleSubmit}
           disabled={loading || totalCombinations === 0}
