@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -16,11 +16,45 @@ from app.schemas.provider import (
 
 router = APIRouter()
 
+EMBEDDING_FAMILIES = {"bert", "nomic-bert"}
+
 
 @router.get("/catalog")
 def get_provider_catalog():
     """Return the catalog of supported provider types and their known models."""
     return PROVIDER_CATALOG
+
+
+@router.get("/ollama/discover")
+def discover_ollama_models(base_url: str = Query(..., description="Ollama server URL")):
+    """Discover available LLM and embedding models from an Ollama server."""
+    import httpx
+
+    url = base_url.rstrip("/")
+    try:
+        resp = httpx.get(f"{url}/api/tags", timeout=10)
+        resp.raise_for_status()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Cannot reach Ollama at {url}: {e}")
+
+    data = resp.json()
+    llm_models = []
+    embedding_models = []
+
+    for m in data.get("models", []):
+        name = m.get("name", "")
+        family = m.get("details", {}).get("family", "")
+        if family in EMBEDDING_FAMILIES:
+            embedding_models.append(name)
+        else:
+            llm_models.append(name)
+
+    return {
+        "base_url": url,
+        "llm_models": llm_models,
+        "embedding_models": embedding_models,
+        "total": len(llm_models) + len(embedding_models),
+    }
 
 
 @router.get("/", response_model=List[ProviderResponse])

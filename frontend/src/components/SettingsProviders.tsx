@@ -328,6 +328,28 @@ function AddProviderForm({
   const [customEmbModel, setCustomEmbModel] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveredLlm, setDiscoveredLlm] = useState<string[]>([]);
+  const [discoveredEmb, setDiscoveredEmb] = useState<string[]>([]);
+
+  const isOllama = providerType === "ollama";
+
+  const handleDiscover = async () => {
+    if (!baseUrl) return;
+    setDiscovering(true);
+    setError(null);
+    try {
+      const result = await api.discoverOllamaModels(baseUrl);
+      setDiscoveredLlm(result.llm_models);
+      setDiscoveredEmb(result.embedding_models);
+      setSelectedLlmModels(result.llm_models);
+      setSelectedEmbModels(result.embedding_models);
+    } catch (e: any) {
+      setError(e.message || "Failed to discover models");
+    } finally {
+      setDiscovering(false);
+    }
+  };
 
   const entry = providerType ? catalog[providerType] : null;
 
@@ -453,12 +475,25 @@ function AddProviderForm({
           {entry.supports_base_url && (
             <div>
               <label className="block text-sm font-medium text-t-secondary mb-1">Base URL</label>
-              <input
-                value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
-                placeholder={entry.default_base_url || "https://..."}
-                className="w-full px-4 py-2.5 bg-surface-50 border border-visible rounded-xl text-primary text-sm focus:outline-none focus:border-accent"
-              />
+              <div className="flex gap-2">
+                <input
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder={entry.default_base_url || "https://..."}
+                  className="flex-1 px-4 py-2.5 bg-surface-50 border border-visible rounded-xl text-primary text-sm focus:outline-none focus:border-accent"
+                />
+                {isOllama && (
+                  <button
+                    onClick={handleDiscover}
+                    disabled={discovering || !baseUrl}
+                    className="px-4 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                  >
+                    {discovering ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                    {discovering ? "Discovering..." : "Discover Models"}
+                  </button>
+                )}
+              </div>
+              {isOllama && <p className="text-xs text-muted mt-1.5">Enter the Ollama server URL and click Discover to fetch available models.</p>}
             </div>
           )}
 
@@ -468,9 +503,15 @@ function AddProviderForm({
               <label className="block text-sm font-medium text-t-secondary mb-2">
                 <Brain className="w-4 h-4 inline mr-1 text-accent" />
                 LLM Models
+                {isOllama && discoveredLlm.length === 0 && <span className="text-xs text-muted font-normal ml-2">(click Discover to load)</span>}
               </label>
+              {isOllama && discoveredLlm.length === 0 && !discovering ? (
+                <p className="text-xs text-muted px-3 py-3 border border-dashed border-surface-300 rounded-lg text-center">
+                  Enter the Base URL above and click &quot;Discover Models&quot; to fetch available models.
+                </p>
+              ) : (<>
               <div className="flex flex-wrap gap-2 mb-2">
-                {entry.llm_models.map((m) => (
+                {(isOllama ? discoveredLlm : entry.llm_models).map((m) => (
                   <button
                     key={m}
                     onClick={() => toggleModel(m, selectedLlmModels, setSelectedLlmModels)}
@@ -484,7 +525,7 @@ function AddProviderForm({
                   </button>
                 ))}
                 {selectedLlmModels
-                  .filter((m) => !entry.llm_models.includes(m))
+                  .filter((m) => !(isOllama ? discoveredLlm : entry.llm_models).includes(m))
                   .map((m) => (
                     <button
                       key={m}
@@ -510,6 +551,7 @@ function AddProviderForm({
                   Add
                 </button>
               </div>
+              </>)}
             </div>
           )}
 
@@ -519,15 +561,21 @@ function AddProviderForm({
               <label className="block text-sm font-medium text-t-secondary mb-2">
                 <Box className="w-4 h-4 inline mr-1 text-secondary" />
                 Embedding Models
+                {isOllama && discoveredEmb.length === 0 && <span className="text-xs text-muted font-normal ml-2">(click Discover to load)</span>}
               </label>
+              {isOllama && discoveredEmb.length === 0 && !discovering ? (
+                <p className="text-xs text-muted px-3 py-3 border border-dashed border-surface-300 rounded-lg text-center">
+                  Embedding models will appear after discovery.
+                </p>
+              ) : (<>
               <div className="flex flex-wrap gap-2 mb-2">
-                {entry.embedding_models.map((m) => (
+                {(isOllama ? discoveredEmb : entry.embedding_models).map((m) => (
                   <button
                     key={m}
                     onClick={() => toggleModel(m, selectedEmbModels, setSelectedEmbModels)}
                     className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                       selectedEmbModels.includes(m)
-                        ? "bg-secondary/15 text-secondary border border-secondary/30"
+                        ? "bg-secondary/15 text-secondary border border-visible"
                         : "bg-surface-50 text-muted border border-dashed border-surface-300 hover:border-secondary/30 hover:text-secondary"
                     }`}
                   >
@@ -535,12 +583,12 @@ function AddProviderForm({
                   </button>
                 ))}
                 {selectedEmbModels
-                  .filter((m) => !entry.embedding_models.includes(m))
+                  .filter((m) => !(isOllama ? discoveredEmb : entry.embedding_models).includes(m))
                   .map((m) => (
                     <button
                       key={m}
                       onClick={() => toggleModel(m, selectedEmbModels, setSelectedEmbModels)}
-                      className="px-3 py-1.5 rounded-lg text-xs bg-secondary/15 text-secondary border border-secondary/30"
+                      className="px-3 py-1.5 rounded-lg text-xs bg-secondary/15 text-secondary border border-visible"
                     >
                       {m} ✕
                     </button>
@@ -561,6 +609,7 @@ function AddProviderForm({
                   Add
                 </button>
               </div>
+              </>)}
             </div>
           )}
 

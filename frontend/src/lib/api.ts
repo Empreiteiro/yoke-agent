@@ -120,6 +120,8 @@ export const api = {
     request<any>(`/providers/${id}`, { method: "DELETE" }),
   testProvider: (id: number) =>
     request<any>(`/providers/${id}/test`, { method: "POST" }),
+  discoverOllamaModels: (baseUrl: string) =>
+    request<any>(`/providers/ollama/discover?base_url=${encodeURIComponent(baseUrl)}`),
   getAvailableModels: () => request<any>("/providers/models/available"),
   getEmbeddingDimensions: () => request<any>("/providers/models/embedding-dimensions"),
 
