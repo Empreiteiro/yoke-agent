@@ -137,14 +137,58 @@ def test_config(config_id: int, db: Session = Depends(get_db)):
     if not vs:
         raise HTTPException(status_code=404, detail="Config not found")
 
-    try:
-        config = dict(vs.config or {})
-        if vs.api_key:
-            config["api_key"] = vs.api_key
+    config = dict(vs.config or {})
+    if vs.api_key:
+        config["api_key"] = vs.api_key
+    vs_type = vs.vectorstore_type
 
-        from app.services.vectorstore_factory import create_vectorstore_backend
-        backend = create_vectorstore_backend(vs.vectorstore_type, config)
-        return {"success": True, "message": f"Connection to {vs.vectorstore_type} initialized successfully."}
+    try:
+        if vs_type == "pinecone":
+            from pinecone import Pinecone
+            pc = Pinecone(api_key=config.get("api_key", ""))
+            pc.list_indexes()
+            return {"success": True, "message": "Connected to Pinecone. Indexes listed successfully."}
+
+        elif vs_type == "qdrant":
+            from qdrant_client import QdrantClient
+            url = config.get("url", "http://localhost:6333")
+            client = QdrantClient(url=url, api_key=config.get("api_key"))
+            client.get_collections()
+            return {"success": True, "message": f"Connected to Qdrant at {url}."}
+
+        elif vs_type == "weaviate":
+            import weaviate
+            url = config.get("url", "http://localhost:8080")
+            auth = weaviate.AuthApiKey(api_key=config["api_key"]) if config.get("api_key") else None
+            client = weaviate.Client(url=url, auth_client_secret=auth)
+            client.schema.get()
+            return {"success": True, "message": f"Connected to Weaviate at {url}."}
+
+        elif vs_type == "pgvector":
+            from sqlalchemy import create_engine, text
+            conn_str = config.get("connection_string", "")
+            engine = create_engine(conn_str)
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            engine.dispose()
+            return {"success": True, "message": "Connected to PostgreSQL successfully."}
+
+        elif vs_type == "astradb":
+            import httpx
+            endpoint = config.get("api_endpoint", "")
+            token = config.get("api_key", "")
+            resp = httpx.get(
+                f"{endpoint.rstrip('/')}/api/json/v1",
+                headers={"Token": token, "Content-Type": "application/json"},
+                timeout=10,
+            )
+            if resp.status_code < 500:
+                return {"success": True, "message": f"Connected to AstraDB at {endpoint}."}
+            return {"success": False, "message": f"AstraDB returned status {resp.status_code}."}
+
+        else:
+            return {"success": False, "message": f"No connection test available for {vs_type}."}
+
     except Exception as e:
         return {"success": False, "message": str(e)}
 
