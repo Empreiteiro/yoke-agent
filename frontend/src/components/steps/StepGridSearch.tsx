@@ -663,106 +663,83 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         {/* Divider */}
         <div className="border-t border-surface-200/30" />
 
-        <div>
-          <label className="block text-sm font-medium text-t-hover mb-2">GraphRAG Parameters</label>
-          <div className="flex items-start gap-2 mb-4 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            <span>GraphRAG extracts entities via LLM for every chunk — significantly more expensive than standard RAG.</span>
+        <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span>GraphRAG extracts entities via LLM for every chunk — significantly more expensive than standard RAG.</span>
+        </div>
+
+        {/* Entity Extraction Model */}
+        <div className="rounded-xl border border-visible p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Entity Extraction Model</label>
+          <p className="text-xs text-muted mb-3">LLM used to extract entities and relationships from each chunk.</p>
+          {renderChips("entity_extraction_models", config.entity_extraction_models, "secondary")}
+          <div className="flex flex-wrap gap-2 mt-2">
+            {availableLLMs
+              .filter((lm) => !config.entity_extraction_models.includes(lm.model))
+              .map((lm) => (
+                <button
+                  key={`${lm.provider_name}-${lm.model}`}
+                  onClick={() => addToArray("entity_extraction_models", lm.model)}
+                  className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 transition-colors"
+                  title={`Provider: ${lm.provider_name}`}
+                >
+                  + {lm.model}
+                  <span className="ml-1 text-muted">({lm.provider_name})</span>
+                </button>
+              ))}
+            {availableLLMs.length === 0 && (
+              <span className="text-xs text-muted">No LLM models available. Configure providers in Settings.</span>
+            )}
           </div>
+        </div>
 
-                {/* Entity Extraction Model */}
-                <div className="mb-4">
-                  <label className="block text-xs font-medium text-t-secondary mb-3">Entity Extraction Model</label>
-                  {renderChips("entity_extraction_models", config.entity_extraction_models, "secondary")}
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {availableLLMs
-                      .filter((lm) => !config.entity_extraction_models.includes(lm.model))
-                      .map((lm) => (
-                        <button
-                          key={`${lm.provider_name}-${lm.model}`}
-                          onClick={() => addToArray("entity_extraction_models", lm.model)}
-                          className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 transition-colors"
-                          title={`Provider: ${lm.provider_name}`}
-                        >
-                          + {lm.model}
-                          <span className="ml-1 text-muted">({lm.provider_name})</span>
-                        </button>
-                      ))}
-                    {availableLLMs.length === 0 && (
-                      <span className="text-xs text-muted">No LLM models available. Configure providers in Settings.</span>
-                    )}
-                  </div>
-                </div>
+        {/* Max Gleanings */}
+        <div className="rounded-xl border border-visible p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Max Gleanings</label>
+          <p className="text-xs text-muted mb-3">Number of extraction passes per chunk. More passes catch missed entities but increase cost.</p>
+          {renderChips("max_gleanings", config.max_gleanings)}
+          <div className="flex gap-2 mt-2">
+            {[1, 2, 3].map((val) => (
+              <button key={val} onClick={() => { if (!config.max_gleanings.includes(val)) addToArray("max_gleanings", val); }} disabled={config.max_gleanings.includes(val)} className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 disabled:opacity-30 transition-colors">{val}</button>
+            ))}
+          </div>
+        </div>
 
-                {/* Max Gleanings */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-t-hover mb-3">Max Gleanings</label>
-                  {renderChips("max_gleanings", config.max_gleanings)}
-                  <div className="flex gap-2 mt-2">
-                    {[1, 2, 3].map((val) => (
-                      <button
-                        key={val}
-                        onClick={() => {
-                          if (!config.max_gleanings.includes(val)) addToArray("max_gleanings", val);
-                        }}
-                        disabled={config.max_gleanings.includes(val)}
-                        className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 disabled:opacity-30 transition-colors"
-                      >
-                        {val}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+        {/* Community Levels */}
+        <div className="rounded-xl border border-visible p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Community Levels</label>
+          <p className="text-xs text-muted mb-3">Granularity of the Leiden community detection. Higher levels produce finer-grained communities.</p>
+          {renderChips("community_levels", config.community_levels)}
+          <div className="flex gap-2 mt-2">
+            {[1, 2, 3].map((val) => (
+              <button key={val} onClick={() => { if (!config.community_levels.includes(val)) addToArray("community_levels", val); }} disabled={config.community_levels.includes(val)} className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 disabled:opacity-30 transition-colors">{val}</button>
+            ))}
+          </div>
+        </div>
 
-                {/* Community Levels */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-t-hover mb-3">Community Levels</label>
-                  {renderChips("community_levels", config.community_levels)}
-                  <div className="flex gap-2 mt-2">
-                    {[1, 2, 3].map((val) => (
-                      <button
-                        key={val}
-                        onClick={() => {
-                          if (!config.community_levels.includes(val)) addToArray("community_levels", val);
-                        }}
-                        disabled={config.community_levels.includes(val)}
-                        className="px-3 py-1.5 bg-surface-200 text-t-hover text-xs rounded-lg hover:bg-surface-300 disabled:opacity-30 transition-colors"
-                      >
-                        {val}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Search Mode */}
-                <div>
-                  <label className="block text-sm font-medium text-t-hover mb-3">Search Mode</label>
-                  <div className="flex gap-3">
-                    {["local", "global", "hybrid"].map((mode) => (
-                      <label
-                        key={mode}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={config.search_modes.includes(mode)}
-                          onChange={() => {
-                            if (config.search_modes.includes(mode)) {
-                              setConfig((prev) => ({
-                                ...prev,
-                                search_modes: prev.search_modes.filter((m) => m !== mode),
-                              }));
-                            } else {
-                              addToArray("search_modes", mode);
-                            }
-                          }}
-                          className="rounded border-visible bg-surface-50 text-accent focus:ring-accent/25"
-                        />
-                        <span className="text-sm text-t-hover capitalize">{mode}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+        {/* Search Mode */}
+        <div className="rounded-xl border border-visible p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Search Mode</label>
+          <p className="text-xs text-muted mb-3">How the graph is queried. Local traverses entity neighborhoods, global searches community summaries, hybrid combines both.</p>
+          <div className="flex gap-3">
+            {["local", "global", "hybrid"].map((mode) => (
+              <label key={mode} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.search_modes.includes(mode)}
+                  onChange={() => {
+                    if (config.search_modes.includes(mode)) {
+                      setConfig((prev) => ({ ...prev, search_modes: prev.search_modes.filter((m) => m !== mode) }));
+                    } else {
+                      addToArray("search_modes", mode);
+                    }
+                  }}
+                  className="rounded border-visible bg-surface-50 text-accent focus:ring-accent/25"
+                />
+                <span className="text-sm text-t-hover capitalize">{mode}</span>
+              </label>
+            ))}
+          </div>
         </div>
         </>)}
 
