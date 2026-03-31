@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Grid3X3, Plus, X, Loader2, AlertCircle, DollarSign } from "lucide-react";
+import { Grid3X3, Plus, X, Loader2, AlertCircle, DollarSign, Scissors, Cpu, Search } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepGridSearchProps {
@@ -307,25 +307,25 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
       </div>
 
-      {/* Hyperparameters */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
-            <Grid3X3 className="w-5 h-5 text-secondary" />
+      {/* Pipeline Type + Summary */}
+      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+              <Grid3X3 className="w-5 h-5 text-secondary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-primary">Hyperparameters</h3>
+              <p className="text-sm text-t-secondary">Configure the grid search space</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-primary">RAG Hyperparameters</h3>
-            <p className="text-sm text-t-secondary">
-              Configure the grid search space. Total combinations:{" "}
-              <span className="text-primary font-semibold">{totalCombinations}</span>
-            </p>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-primary">{totalCombinations}</p>
+            <p className="text-xs text-t-secondary">combinations</p>
           </div>
         </div>
-
-        <div className="space-y-6">
-          {/* Pipeline Type */}
-          <div>
-            <label className="block text-sm font-medium text-t-hover mb-3">Pipeline Type</label>
+        <div className="flex items-center gap-4 mt-4 pt-4 border-t border-surface-200/30">
+          <label className="text-sm font-medium text-t-secondary">Pipeline</label>
             <div className="flex gap-3">
               {[
                 { id: "rag", label: "RAG" },
@@ -358,15 +358,23 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               ))}
             </div>
             {ragCombinations > 0 && graphragCombinations > 0 && (
-              <p className="text-xs text-muted mt-2">
-                RAG: {ragCombinations} combos + GraphRAG: {graphragCombinations} combos = {totalCombinations} total
+              <p className="text-xs text-muted ml-auto">
+                RAG: {ragCombinations} + GraphRAG: {graphragCombinations}
               </p>
             )}
-          </div>
+        </div>
+      </div>
 
+      {/* ═══ Chunking ═══ */}
+      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+        <div className="flex items-center gap-2 mb-5">
+          <Scissors className="w-4 h-4 text-accent" />
+          <h4 className="text-sm font-semibold text-primary">Chunking</h4>
+        </div>
+        <div className="grid grid-cols-2 gap-6">
           {/* Chunk sizes */}
           <div>
-            <label className="block text-sm font-medium text-t-hover mb-3">Chunk Size (tokens)</label>
+            <label className="block text-xs font-medium text-t-secondary mb-2">Size (tokens)</label>
             {renderChips("chunk_sizes", config.chunk_sizes)}
             <div className="flex gap-2 mt-2">
               <input
@@ -392,7 +400,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
 
           {/* Chunk overlap */}
           <div>
-            <label className="block text-sm font-medium text-t-hover mb-3">Chunk Overlap (%)</label>
+            <label className="block text-xs font-medium text-t-secondary mb-2">Overlap (%)</label>
             {renderChips("chunk_overlaps", config.chunk_overlaps)}
             <div className="flex gap-2 mt-2">
               {[5, 10, 15, 20, 25, 30].map((val) => (
@@ -410,9 +418,10 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
             </div>
           </div>
 
-          {/* Chunking Strategy */}
-          <div>
-            <label className="block text-sm font-medium text-t-hover mb-3">Chunking Strategy</label>
+        </div>
+        {/* Chunking Strategy */}
+        <div className="mt-5 pt-5 border-t border-surface-200/30">
+          <label className="block text-xs font-medium text-t-secondary mb-2">Strategy</label>
             <div className="flex gap-3 flex-wrap">
               {CHUNKING_STRATEGIES.map((cs) => (
                 <label
@@ -443,11 +452,18 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                 </label>
               ))}
             </div>
-          </div>
+        </div>
+      </div>
 
-          {/* Embedding models */}
-          <div>
-            <label className="block text-sm font-medium text-t-hover mb-3">Embedding Models</label>
+      {/* ═══ Embedding ═══ */}
+      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+        <div className="flex items-center gap-2 mb-5">
+          <Cpu className="w-4 h-4 text-secondary" />
+          <h4 className="text-sm font-semibold text-primary">Embedding</h4>
+        </div>
+        {/* Embedding models */}
+        <div>
+          <label className="block text-xs font-medium text-t-secondary mb-2">Models</label>
             {noProviders && (
               <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -472,10 +488,19 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
             </div>
           </div>
 
-          {/* Top-K (RAG only) */}
-          {config.pipeline_types.includes("rag") && (
+      </div>
+
+      {/* ═══ Retrieval (RAG only) ═══ */}
+      {config.pipeline_types.includes("rag") && (
+      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+        <div className="flex items-center gap-2 mb-5">
+          <Search className="w-4 h-4 text-accent" />
+          <h4 className="text-sm font-semibold text-primary">Retrieval</h4>
+        </div>
+        <div className="grid grid-cols-2 gap-6">
+          {/* Top-K */}
           <div>
-            <label className="block text-sm font-medium text-t-hover mb-3">Top-K (retrieved docs)</label>
+            <label className="block text-xs font-medium text-t-secondary mb-2">Top-K (retrieved docs)</label>
             {renderChips("top_k_values", config.top_k_values)}
             <div className="flex gap-2 mt-2">
               <input
@@ -498,12 +523,35 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               </button>
             </div>
           </div>
-          )}
 
-          {/* Search type (RAG only) */}
-          {config.pipeline_types.includes("rag") && (
+          {/* Distance Metric */}
           <div>
-            <label className="block text-sm font-medium text-t-hover mb-3">Search Type</label>
+            <label className="block text-xs font-medium text-t-secondary mb-2">Distance Metric</label>
+            <div className="flex flex-wrap gap-3">
+              {DISTANCE_METRICS.map((dm) => (
+                <label key={dm.id} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.distance_metrics.includes(dm.id)}
+                    onChange={() => {
+                      if (config.distance_metrics.includes(dm.id)) {
+                        setConfig((prev) => ({ ...prev, distance_metrics: prev.distance_metrics.filter((d) => d !== dm.id) }));
+                      } else {
+                        setConfig((prev) => ({ ...prev, distance_metrics: [...prev.distance_metrics, dm.id] }));
+                      }
+                    }}
+                    className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
+                  />
+                  <span className="text-sm text-t-hover">{dm.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Search Type */}
+        <div className="mt-5 pt-5 border-t border-surface-200/30">
+          <label className="block text-xs font-medium text-t-secondary mb-3">Search Type</label>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {SEARCH_TYPES.map((st) => (
                 <label
@@ -716,127 +764,25 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                 </div>
               </div>
             )}
-          </div>
-          )}
+        </div>
+      </div>
+      )}
 
-          {/* Distance Metric (RAG only) */}
-          {config.pipeline_types.includes("rag") && (
-          <div>
-            <label className="block text-sm font-medium text-t-hover mb-3">Distance Metric</label>
-            <div className="flex gap-3">
-              {DISTANCE_METRICS.map((dm) => (
-                <label
-                  key={dm.id}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={config.distance_metrics.includes(dm.id)}
-                    onChange={() => {
-                      if (config.distance_metrics.includes(dm.id)) {
-                        setConfig((prev) => ({
-                          ...prev,
-                          distance_metrics: prev.distance_metrics.filter((d) => d !== dm.id),
-                        }));
-                      } else {
-                        setConfig((prev) => ({
-                          ...prev,
-                          distance_metrics: [...prev.distance_metrics, dm.id],
-                        }));
-                      }
-                    }}
-                    className="rounded border-surface-300 bg-surface-50 text-accent focus:ring-accent/25"
-                  />
-                  <span className="text-sm text-t-hover">{dm.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-          )}
-
-          {/* Embedding Dimensions */}
-          <div>
-            <label className="block text-sm font-medium text-t-hover mb-1">Embedding Dimensions</label>
-            <p className="text-xs text-muted mb-3">
-              Leave empty to use each model&apos;s default. Only models that support custom dimensions will be tested with non-default values.
-            </p>
-            {(() => {
-              // Collect all valid dimensions from selected models
-              const allDims = new Set<number>();
-              const modelDefaults: Record<string, number> = {};
-              for (const model of config.embedding_models) {
-                const info = dimensionsMap[model];
-                if (info) {
-                  modelDefaults[model] = info.default;
-                  if (info.supports_custom) {
-                    info.supported.forEach((d: number) => allDims.add(d));
-                  }
-                }
-              }
-              const sortedDims = Array.from(allDims).sort((a, b) => a - b);
-
-              if (sortedDims.length === 0) {
-                return (
-                  <div className="text-xs text-t-secondary px-3 py-2 bg-surface-50 rounded-lg border border-surface-200/50">
-                    Selected models do not support custom dimensions — defaults will be used
-                    {Object.entries(modelDefaults).map(([model, dim]) => (
-                      <span key={model} className="ml-2 text-muted">({model}: {dim}d)</span>
-                    ))}
-                  </div>
-                );
-              }
-
-              return (
-                <div className="flex flex-wrap gap-2">
-                  {sortedDims.map((dim) => {
-                    const selected = config.embedding_dimensions.includes(dim);
-                    // Which selected models support this dim?
-                    const supportedBy = config.embedding_models.filter((m) => {
-                      const info = dimensionsMap[m];
-                      return info?.supported.includes(dim);
-                    });
-                    return (
-                      <button
-                        key={dim}
-                        onClick={() => {
-                          setConfig((prev) => ({
-                            ...prev,
-                            embedding_dimensions: selected
-                              ? prev.embedding_dimensions.filter((d) => d !== dim)
-                              : [...prev.embedding_dimensions, dim],
-                          }));
-                        }}
-                        className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                          selected
-                            ? "bg-accent/10 text-accent border-accent/30"
-                            : "bg-surface-200 text-t-hover border-surface-200/50 hover:bg-surface-300"
-                        }`}
-                        title={`Supported by: ${supportedBy.join(", ")}`}
-                      >
-                        {dim}d
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* GraphRAG Parameters */}
-          {config.pipeline_types.includes("graphrag") && (
-            <>
-              <div className="border-t border-surface-200/30 pt-6">
-                <h4 className="text-sm font-semibold text-primary mb-4">GraphRAG Parameters</h4>
-
-                {/* Warning banner */}
-                <div className="flex items-start gap-2 mb-4 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>GraphRAG extracts entities via LLM for every chunk — significantly more expensive than standard RAG.</span>
-                </div>
+      {/* ═══ GraphRAG (conditional) ═══ */}
+      {config.pipeline_types.includes("graphrag") && (
+      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Grid3X3 className="w-4 h-4 text-secondary" />
+          <h4 className="text-sm font-semibold text-primary">GraphRAG Parameters</h4>
+        </div>
+        <div className="flex items-start gap-2 mb-5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span>GraphRAG extracts entities via LLM for every chunk — significantly more expensive than standard RAG.</span>
+        </div>
 
                 {/* Entity Extraction Model */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-t-hover mb-3">Entity Extraction Model</label>
+                  <label className="block text-xs font-medium text-t-secondary mb-3">Entity Extraction Model</label>
                   {renderChips("entity_extraction_models", config.entity_extraction_models, "secondary")}
                   <div className="flex flex-wrap gap-2 mt-2">
                     {availableLLMs
@@ -927,11 +873,8 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                     ))}
                   </div>
                 </div>
-              </div>
-            </>
-          )}
-        </div>
       </div>
+      )}
 
       {/* RAGAS Metrics */}
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
