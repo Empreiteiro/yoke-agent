@@ -714,7 +714,7 @@ function ExpandedReport({ report }: { report: any }) {
                                               <p className="text-[10px] font-medium text-t-secondary mb-0.5">Retrieved Contexts ({(q.retrieved_contexts || q.contexts || []).length})</p>
                                               <div className="space-y-1">
                                                 {(q.retrieved_contexts || q.contexts || []).map((ctx: string, ci: number) => (
-                                                  <div key={ci} className="text-[10px] text-t-secondary bg-surface-50 rounded px-2 py-1.5 border-l-2 border-accent/20">
+                                                  <div key={ci} className="text-[10px] text-t-secondary bg-surface-50 rounded px-2 py-1.5 border-l-2 border-visible">
                                                     {ctx.length > 400 ? ctx.slice(0, 400) + "..." : ctx}
                                                   </div>
                                                 ))}

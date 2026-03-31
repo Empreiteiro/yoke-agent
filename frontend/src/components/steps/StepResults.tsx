@@ -199,7 +199,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
               <a
                 href={api.exportExperimentCSV(experimentId)}
                 download
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent bg-accent/10 border border-accent/20 rounded-lg hover:bg-accent/20 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent bg-accent/10 border border-visible rounded-lg hover:bg-accent/20 transition-colors"
               >
                 <Download className="w-3 h-3" />
                 CSV
@@ -354,7 +354,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                                             </p>
                                             <div className="space-y-1.5">
                                               {(q.retrieved_contexts || q.contexts || []).map((ctx: string, ci: number) => (
-                                                <div key={ci} className="text-xs text-t-secondary bg-surface-50 rounded-lg px-3 py-2 border-l-2 border-accent/20">
+                                                <div key={ci} className="text-xs text-t-secondary bg-surface-50 rounded-lg px-3 py-2 border-l-2 border-visible">
                                                   {ctx.length > 500 ? ctx.slice(0, 500) + "..." : ctx}
                                                 </div>
                                               ))}
