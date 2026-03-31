@@ -52,10 +52,10 @@ const themes: { key: Theme; icon: any; label: string }[] = [
 
 const UTILITY_ITEMS = [
   { id: "history", label: "History", icon: Clock },
-  { id: "logs", label: "Logs", icon: FileText },
-  { id: "settings", label: "Providers", icon: Settings },
-  { id: "glossary", label: "Concepts", icon: BookOpen },
   { id: "collections", label: "Collections", icon: MessageSquare },
+  { id: "logs", label: "Logs", icon: FileText },
+  { id: "glossary", label: "Concepts", icon: BookOpen },
+  { id: "settings", label: "Providers", icon: Settings },
 ];
 
 export default function Sidebar({
