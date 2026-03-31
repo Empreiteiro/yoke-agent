@@ -494,7 +494,7 @@ function ExpandedReport({ report }: { report: any }) {
 
       {/* Best config */}
       {best && (
-        <div className="bg-gradient-to-br from-accent/5 to-secondary/5 rounded-xl border border-accent/20 p-5">
+        <div className="bg-gradient-to-br from-accent/5 to-secondary/5 rounded-xl border border-visible p-5">
           <div className="flex items-center gap-2 mb-4">
             <Trophy className="w-5 h-5 text-amber-400" />
             <h4 className="text-primary font-semibold">Best Configuration</h4>

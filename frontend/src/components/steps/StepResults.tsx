@@ -94,7 +94,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
     <div className="space-y-6">
       {/* Best combination */}
       {best && (
-        <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-2xl border border-accent/20 p-8">
+        <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-2xl border border-visible p-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
               <Trophy className="w-6 h-6 text-primary" />
