@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { CheckCircle, Plus, Upload, Trash2, Edit3, Save, X, Loader2, AlertCircle } from "lucide-react";
+import { CheckCircle, Plus, Upload, Trash2, Edit3, Save, X, Loader2, AlertCircle, ScanSearch, FileText } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepReviewProps {
@@ -17,6 +17,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
   const [newItem, setNewItem] = useState({ question: "", ground_truth: "", context: "" });
   const [showAddForm, setShowAddForm] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showPagesModal, setShowPagesModal] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -127,6 +128,15 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
         <div className="flex items-center justify-end mb-6">
           <div className="flex items-center gap-2">
+            {dataset?.sampled_pages?.length > 0 && (
+              <button
+                onClick={() => setShowPagesModal(true)}
+                title="View pages sent to LLM"
+                className="p-2 bg-surface-200 text-t-secondary hover:text-accent hover:bg-accent/10 rounded-xl transition-colors"
+              >
+                <ScanSearch className="w-4 h-4" />
+              </button>
+            )}
             <label className="px-4 py-2 bg-surface-200 text-t-hover text-sm font-medium rounded-xl hover:bg-surface-300 transition-colors cursor-pointer flex items-center gap-2">
               <Upload className="w-4 h-4" />
               Import JSON
@@ -294,6 +304,59 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
             ? `Approve Dataset (${itemCount} items) & Continue`
             : "Add items to continue"}
         </button>
+      )}
+
+      {/* Sampled Pages Modal */}
+      {showPagesModal && dataset?.sampled_pages && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowPagesModal(false)}
+        >
+          <div
+            className="bg-surface-100 rounded-2xl border border-surface-200/50 w-full max-w-2xl max-h-[80vh] flex flex-col mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200/50">
+              <div className="flex items-center gap-2">
+                <ScanSearch className="w-5 h-5 text-accent" />
+                <h3 className="text-base font-semibold text-primary">Pages sent to LLM</h3>
+                <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full">
+                  {dataset.sampled_pages.length} page{dataset.sampled_pages.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowPagesModal(false)}
+                className="p-1.5 hover:bg-surface-200 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4 text-t-secondary" />
+              </button>
+            </div>
+
+            {/* Pages list */}
+            <div className="overflow-y-auto flex-1 p-4 space-y-3">
+              {dataset.sampled_pages.map((pg: any, i: number) => (
+                <div key={i} className="p-4 bg-surface-50 rounded-xl border border-surface-200/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-4 h-4 text-accent flex-shrink-0" />
+                    <span className="text-xs font-medium text-t-hover truncate">
+                      {pg.source ? pg.source.split("/").pop() : "Unknown file"}
+                    </span>
+                    {pg.page != null && (
+                      <span className="ml-auto text-xs px-2 py-0.5 bg-surface-200 text-t-secondary rounded-full flex-shrink-0">
+                        page {pg.page + 1}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted leading-relaxed font-mono whitespace-pre-wrap break-words">
+                    {pg.preview}
+                    {pg.preview?.length >= 300 ? "…" : ""}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -52,7 +52,7 @@ async def _generate_dataset_task(dataset_id: int, options: Optional[dict] = None
             db.commit()
             return
 
-        pairs = await generate_qa_pairs(
+        pairs, sampled_pages_info = await generate_qa_pairs(
             documents,
             db=db,
             num_questions=options.get("num_questions"),
@@ -62,6 +62,9 @@ async def _generate_dataset_task(dataset_id: int, options: Optional[dict] = None
             provider_id=options.get("provider_id"),
             model=options.get("model"),
         )
+
+        if sampled_pages_info:
+            dataset.sampled_pages = sampled_pages_info
 
         for pair in pairs:
             item = DatasetItem(

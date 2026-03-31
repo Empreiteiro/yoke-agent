@@ -42,6 +42,7 @@ class DatasetResponse(BaseModel):
     status: str
     error_message: Optional[str] = None
     document_ids: Optional[list[int]] = None
+    sampled_pages: Optional[list] = None
     items: list[DatasetItemResponse] = []
     created_at: datetime
     updated_at: datetime

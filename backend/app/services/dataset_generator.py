@@ -102,7 +102,7 @@ async def generate_qa_pairs(
     reading_mode: str = "full",
     max_pages: Optional[int] = None,
     language: str = "auto",
-) -> List[Dict[str, str]]:
+) -> tuple[List[Dict[str, str]], List[Dict]]:
     """Generate Q&A evaluation pairs from documents using an LLM.
 
     Args:
@@ -114,12 +114,21 @@ async def generate_qa_pairs(
         reading_mode: "full" to read all pages, "partial" to read a subset
         max_pages: When reading_mode="partial", max pages to read (random selection)
     """
-    llm = get_llm(db, provider_id=provider_id, model=model, temperature=0.3)
     provider = _resolve_provider(db, provider_id, capability="llm")
+    # Ollama models often ignore JSON format instructions — use native JSON mode to enforce it
+    ollama_format = "json" if provider.provider_type == "ollama" else None
+    llm = get_llm(db, provider_id=provider_id, model=model, temperature=0.3, format=ollama_format)
 
     # Apply page selection
+    sampled_pages_info: List[Dict] = []
     if reading_mode == "partial" and max_pages and max_pages > 0:
         docs_to_process = _select_pages(documents, max_pages, randomize=True)
+        for doc in docs_to_process:
+            sampled_pages_info.append({
+                "source": doc.metadata.get("source", ""),
+                "page": doc.metadata.get("page", None),
+                "preview": doc.page_content[:300],
+            })
     else:
         docs_to_process = documents
 
@@ -191,18 +200,25 @@ async def generate_qa_pairs(
             logging.getLogger(__name__).warning(f"Batch generation failed: {e}")
             continue
 
-    return all_pairs
+    return all_pairs, sampled_pages_info
 
 
 def _parse_llm_response(content: str) -> List[Dict[str, str]]:
     """Parse JSON Q&A pairs from LLM response, handling markdown code blocks."""
+    import re
     content = content.strip()
 
-    if content.startswith("```"):
-        content = content.split("```")[1]
-        if content.startswith("json"):
-            content = content[4:]
-    content = content.strip()
+    # Strip markdown code fences (anywhere in the string, not just at start)
+    fence_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", content)
+    if fence_match:
+        content = fence_match.group(1).strip()
+    else:
+        # Fallback: strip leading ``` if present
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        content = content.strip()
 
     try:
         pairs = json.loads(content)
@@ -212,6 +228,24 @@ def _parse_llm_response(content: str) -> List[Dict[str, str]]:
         if start >= 0 and end > start:
             pairs = json.loads(content[start:end])
         else:
-            raise ValueError("Failed to parse LLM response as JSON")
+            raise ValueError(f"Failed to parse LLM response as JSON. Response: {content[:200]!r}")
 
-    return pairs
+    # If model returned a dict wrapping the array (e.g. {"questions": [...]}), unwrap it
+    if isinstance(pairs, dict):
+        # Find the first list value
+        list_value = next((v for v in pairs.values() if isinstance(v, list)), None)
+        if list_value is not None:
+            pairs = list_value
+        else:
+            # Single Q&A object — wrap it
+            pairs = [pairs]
+
+    if not isinstance(pairs, list):
+        raise ValueError(f"Expected JSON array, got {type(pairs).__name__}")
+
+    # Filter out any non-dict items (e.g. Ollama returning strings instead of objects)
+    valid_pairs = [p for p in pairs if isinstance(p, dict)]
+    if not valid_pairs and pairs:
+        raise ValueError(f"JSON array contained no objects (got {type(pairs[0]).__name__})")
+
+    return valid_pairs
