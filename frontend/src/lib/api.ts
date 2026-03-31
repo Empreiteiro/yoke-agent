@@ -97,9 +97,17 @@ export const api = {
     `${API_BASE}/experiments/${id}/export?format=csv`,
 
   // Vector stores
-  listVectorStores: () => request<any>("/vectorstores/"),
-  validateVectorStore: (data: { type: string; config?: Record<string, string> }) =>
-    request<any>("/vectorstores/validate", { method: "POST", body: JSON.stringify(data) }),
+  getVectorStoreCatalog: () => request<any>("/vectorstores/catalog"),
+  listVectorStoreConfigs: () => request<any[]>("/vectorstores/configs"),
+  createVectorStoreConfig: (data: any) =>
+    request<any>("/vectorstores/configs", { method: "POST", body: JSON.stringify(data) }),
+  updateVectorStoreConfig: (id: number, data: any) =>
+    request<any>(`/vectorstores/configs/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteVectorStoreConfig: (id: number) =>
+    request<any>(`/vectorstores/configs/${id}`, { method: "DELETE" }),
+  testVectorStoreConfig: (id: number) =>
+    request<any>(`/vectorstores/configs/${id}/test`, { method: "POST" }),
+  getAvailableVectorStores: () => request<any[]>("/vectorstores/available"),
 
   // Providers
   getProviderCatalog: () => request<any>("/providers/catalog"),

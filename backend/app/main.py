@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.api import documents, datasets, experiments, vectorstores, providers, token_usage, collections
 from app.models import saved_collection  # noqa: F401 — ensure table creation
+from app.models import vectorstore_config  # noqa: F401 — ensure table creation
 
 logger = logging.getLogger(__name__)
 

@@ -55,6 +55,7 @@ const UTILITY_ITEMS = [
   { id: "collections", label: "Collections", icon: MessageSquare },
   { id: "logs", label: "Logs", icon: FileText },
   { id: "glossary", label: "Concepts", icon: BookOpen },
+  { id: "vectorstores", label: "Vector Stores", icon: Database },
   { id: "settings", label: "Providers", icon: Settings },
 ];
 

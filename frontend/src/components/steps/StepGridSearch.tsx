@@ -79,6 +79,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
   const [dimensionsMap, setDimensionsMap] = useState<Record<string, {default: number; supports_custom: boolean; supported: number[]}>>({});
   const [costEstimate, setCostEstimate] = useState<any>(null);
   const [tempExperimentId, setTempExperimentId] = useState<number | null>(null);
+  const [availableVectorStores, setAvailableVectorStores] = useState<Array<{type: string; name: string}>>([{ type: "chromadb", name: "ChromaDB (Default)" }]);
 
   useEffect(() => {
     api.getAvailableModels().then((data) => {
@@ -96,6 +97,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
       setNoProviders(true);
     });
     api.getEmbeddingDimensions().then(setDimensionsMap).catch(() => {});
+    api.getAvailableVectorStores().then(setAvailableVectorStores).catch(() => {});
   }, []);
 
   // Calculate combinations accounting for per-model dimension expansion
@@ -283,11 +285,9 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
               onChange={(e) => setVectorStoreType(e.target.value)}
               className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
             >
-              <option value="chromadb">ChromaDB (Default)</option>
-              <option value="pinecone">Pinecone</option>
-              <option value="weaviate">Weaviate</option>
-              <option value="qdrant">Qdrant</option>
-              <option value="pgvector">PGVector</option>
+              {availableVectorStores.map((vs) => (
+                <option key={vs.type + vs.name} value={vs.type}>{vs.name}</option>
+              ))}
             </select>
           </div>
           <div className="rounded-xl border border-visible p-4">

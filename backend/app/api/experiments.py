@@ -28,7 +28,22 @@ def _run_experiment_sync(experiment_id: int, max_workers: int = 2):
     """Synchronous wrapper for background experiment execution."""
     db = SessionLocal()
     try:
-        asyncio.run(run_experiment_service(experiment_id, db, max_workers=max_workers))
+        # Load vectorstore config from DB if configured
+        from app.models.experiment import Experiment as ExpModel
+        from app.models.vectorstore_config import VectorStoreConfig as VSConfig
+        exp = db.query(ExpModel).filter(ExpModel.id == experiment_id).first()
+        vs_config = None
+        if exp and exp.vectorstore_type != "chromadb":
+            vs_entry = db.query(VSConfig).filter(
+                VSConfig.vectorstore_type == exp.vectorstore_type,
+                VSConfig.is_active == True,
+            ).first()
+            if vs_entry:
+                vs_config = dict(vs_entry.config or {})
+                if vs_entry.api_key:
+                    vs_config["api_key"] = vs_entry.api_key
+
+        asyncio.run(run_experiment_service(experiment_id, db, vectorstore_config=vs_config, max_workers=max_workers))
     finally:
         db.close()
 
