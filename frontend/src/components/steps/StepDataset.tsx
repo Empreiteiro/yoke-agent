@@ -22,6 +22,9 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
   const [maxPages, setMaxPages] = useState(20);
   const [numQuestions, setNumQuestions] = useState<number | "">("");
   const [language, setLanguage] = useState("auto");
+  const [selectedProviderId, setSelectedProviderId] = useState<string>("");
+  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [availableLLMs, setAvailableLLMs] = useState<Array<{provider_id: number; provider_name: string; model: string}>>([]);
 
   // Existing datasets state
   const [existingDatasets, setExistingDatasets] = useState<any[]>([]);
@@ -33,6 +36,14 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
       loadExistingDatasets();
     }
   }, [mode]);
+
+  useEffect(() => {
+    api.getAvailableModels().then((data) => {
+      if (data.llm_models) {
+        setAvailableLLMs(data.llm_models);
+      }
+    }).catch(() => {});
+  }, []);
 
   const loadExistingDatasets = async () => {
     setLoadingDatasets(true);
@@ -97,6 +108,12 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
       }
       if (numQuestions && Number(numQuestions) > 0) {
         genOptions.num_questions = Number(numQuestions);
+      }
+      if (selectedProviderId) {
+        genOptions.provider_id = Number(selectedProviderId);
+      }
+      if (selectedModel) {
+        genOptions.model = selectedModel;
       }
       await api.generateDataset(dataset.id, genOptions);
 
@@ -279,6 +296,34 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                   disabled={generating}
                   className="px-3 py-2 bg-surface border border-surface-200/50 rounded-lg text-primary text-sm w-32 placeholder-muted focus:outline-none focus:border-accent/50 disabled:opacity-50"
                 />
+              </div>
+
+              {/* LLM Provider & Model */}
+              <div>
+                <label className="block text-xs font-medium text-t-hover mb-1.5">
+                  LLM for Generation
+                  <span className="text-muted font-normal ml-1">(empty = first active provider)</span>
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedModel(val);
+                      const match = availableLLMs.find((m) => m.model === val);
+                      if (match) setSelectedProviderId(String(match.provider_id));
+                    }}
+                    disabled={generating}
+                    className="flex-1 px-3 py-2 bg-surface border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50 disabled:opacity-50"
+                  >
+                    <option value="">Auto (first active provider)</option>
+                    {availableLLMs.map((lm) => (
+                      <option key={`${lm.provider_id}-${lm.model}`} value={lm.model}>
+                        {lm.model} ({lm.provider_name})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>

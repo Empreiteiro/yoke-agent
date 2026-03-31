@@ -55,6 +55,8 @@ class DatasetGenerateOptions(BaseModel):
     max_pages: Optional[int] = None  # When partial, max pages to read (random)
     num_questions: Optional[int] = None  # None = auto-calculate based on content size
     language: str = "auto"  # "auto", "English", "Portuguese", "Spanish", etc.
+    provider_id: Optional[int] = None  # LLM provider ID (None = auto-detect first active)
+    model: Optional[str] = None  # LLM model name (None = provider default)
 
 
 class DatasetApprove(BaseModel):
