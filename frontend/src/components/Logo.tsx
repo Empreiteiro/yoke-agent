@@ -38,7 +38,7 @@ export default function Logo({ size = 32, className = "" }: LogoProps) {
         </defs>
       )}
       <path
-        d="M12 3v26M12 5l9 6M12 12.5l9 6"
+        d="M12 3v16M12 5l9 6M12 12.5l9 6"
         stroke={colors.stroke}
         strokeWidth="2.6"
         strokeLinecap="round"
