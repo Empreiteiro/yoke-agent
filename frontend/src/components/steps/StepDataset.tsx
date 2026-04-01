@@ -416,7 +416,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                       onClick={() => setSelectedDatasetId(ds.id)}
                       className={`w-full text-left px-4 py-4 rounded-xl border transition-colors cursor-pointer ${
                         selectedDatasetId === ds.id
-                          ? "bg-accent/5 border-accent/30"
+                          ? "bg-accent/10 border-accent ring-1 ring-accent/30"
                           : "bg-surface-50 border-surface-200/50 hover:border-surface-200"
                       }`}
                     >

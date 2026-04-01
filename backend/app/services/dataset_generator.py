@@ -127,7 +127,7 @@ async def generate_qa_pairs(
             sampled_pages_info.append({
                 "source": doc.metadata.get("source", ""),
                 "page": doc.metadata.get("page", None),
-                "preview": doc.page_content[:300],
+                "preview": doc.page_content,
             })
     else:
         docs_to_process = documents
