@@ -350,7 +350,6 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
                   </div>
                   <p className="text-xs text-muted leading-relaxed font-mono whitespace-pre-wrap break-words">
                     {pg.preview}
-                    {pg.preview?.length >= 300 ? "…" : ""}
                   </p>
                 </div>
               ))}
