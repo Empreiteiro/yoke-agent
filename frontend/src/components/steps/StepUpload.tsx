@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Upload, FileText, X, CheckCircle, AlertCircle, FolderOpen } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatBytes } from "@/lib/utils";
+import { useWalkthrough } from "@/contexts/WalkthroughContext";
 
 interface StepUploadProps {
   onComplete: (documentIds: number[]) => void;
 }
 
 export default function StepUpload({ onComplete }: StepUploadProps) {
+  const { startIfNew } = useWalkthrough();
+  useEffect(() => { startIfNew("upload"); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState<any[]>([]);
@@ -121,6 +124,7 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
+          data-walkthrough="upload-dropzone"
           className={`relative border-2 border-dashed rounded-xl p-12 text-center transition-all ${
             dragActive
               ? "border-accent bg-accent/5"
@@ -131,7 +135,7 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
           <p className="text-sm text-t-hover mb-3">
             Drag and drop files or folders here
           </p>
-          <div className="flex items-center justify-center gap-3 mb-3">
+          <div className="flex items-center justify-center gap-3 mb-3" data-walkthrough="upload-buttons">
             <label className="flex items-center gap-1.5 px-4 py-2 bg-accent/10 text-accent text-sm font-medium rounded-lg cursor-pointer hover:bg-accent/20 transition-colors">
               <FileText className="w-4 h-4" />
               Select Files
@@ -189,6 +193,7 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
             <button
               onClick={handleUpload}
               disabled={uploading}
+              data-walkthrough="upload-submit"
               className="mt-4 w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {uploading ? "Uploading..." : `Upload ${files.length} file(s)`}

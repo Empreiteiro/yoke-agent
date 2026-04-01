@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import uuid
+from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
@@ -24,6 +25,72 @@ from app.services.dataset_generator import generate_qa_pairs
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+BENCHMARKS_DIR = Path(__file__).parent.parent.parent / "data" / "benchmarks"
+
+BENCHMARK_DEFINITIONS = [
+    {
+        "name": "Reading Comprehension Benchmark",
+        "description": "25 factual Q&A pairs testing reading comprehension across science, history, and technology topics.",
+        "filename": "reading_comprehension.json",
+    },
+    {
+        "name": "Multi-Hop Reasoning Benchmark",
+        "description": "25 Q&A pairs requiring multi-hop reasoning — connecting information from multiple contexts to answer.",
+        "filename": "multi_hop_reasoning.json",
+    },
+    {
+        "name": "Real-World Questions Benchmark",
+        "description": "25 natural language Q&A pairs resembling real user queries about everyday phenomena and science.",
+        "filename": "real_world_questions.json",
+    },
+]
+
+
+def seed_benchmarks(db: Session) -> int:
+    """Seed built-in benchmark datasets if they don't already exist."""
+    created = 0
+    for bench in BENCHMARK_DEFINITIONS:
+        exists = (
+            db.query(Dataset)
+            .filter(Dataset.name == bench["name"], Dataset.is_benchmark == 1)
+            .first()
+        )
+        if exists:
+            continue
+
+        filepath = BENCHMARKS_DIR / bench["filename"]
+        if not filepath.exists():
+            logger.warning(f"Benchmark file not found: {filepath}")
+            continue
+
+        items_data = json.loads(filepath.read_text(encoding="utf-8"))
+
+        dataset = Dataset(
+            name=bench["name"],
+            description=bench["description"],
+            document_ids=[],
+            status="approved",
+            is_benchmark=1,
+        )
+        db.add(dataset)
+        db.flush()
+
+        for item_data in items_data:
+            db.add(DatasetItem(
+                dataset_id=dataset.id,
+                question=item_data["question"],
+                ground_truth=item_data["ground_truth"],
+                context=item_data.get("context", ""),
+                is_manual=0,
+            ))
+
+        created += 1
+        logger.info(f"Seeded benchmark dataset: {bench['name']}")
+
+    if created:
+        db.commit()
+    return created
 
 
 def _generate_dataset_sync(dataset_id: int, options: Optional[dict] = None):
@@ -124,9 +191,17 @@ def delete_dataset(dataset_id: int, db: Session = Depends(get_db)):
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+    if dataset.is_benchmark:
+        raise HTTPException(status_code=403, detail="Benchmark datasets cannot be deleted")
     db.delete(dataset)
     db.commit()
     return {"detail": "Dataset deleted", "dataset_id": dataset_id}
+
+
+@router.post("/seed-benchmarks")
+def seed_benchmarks_endpoint(db: Session = Depends(get_db)):
+    count = seed_benchmarks(db)
+    return {"detail": f"Seeded {count} benchmark dataset(s)"}
 
 
 @router.post("/{dataset_id}/generate")

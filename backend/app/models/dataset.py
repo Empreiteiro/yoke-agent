@@ -13,6 +13,7 @@ class Dataset(Base):
     error_message = Column(Text, nullable=True)
     document_ids = Column(JSON)
     sampled_pages = Column(JSON, nullable=True)  # Pages sent to LLM in partial reading mode
+    is_benchmark = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     items = relationship("DatasetItem", back_populates="dataset", cascade="all, delete-orphan")

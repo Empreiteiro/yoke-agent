@@ -43,6 +43,7 @@ class DatasetResponse(BaseModel):
     error_message: Optional[str] = None
     document_ids: Optional[list[int]] = None
     sampled_pages: Optional[list] = None
+    is_benchmark: int = 0
     items: list[DatasetItemResponse] = []
     created_at: datetime
     updated_at: datetime

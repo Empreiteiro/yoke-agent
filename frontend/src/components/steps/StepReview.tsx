@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { CheckCircle, Plus, Upload, Trash2, Edit3, Save, X, Loader2, AlertCircle, ScanSearch, FileText } from "lucide-react";
 import { api } from "@/lib/api";
+import { useWalkthrough } from "@/contexts/WalkthroughContext";
 
 interface StepReviewProps {
   datasetId: number | null;
@@ -10,6 +11,8 @@ interface StepReviewProps {
 }
 
 export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
+  const { startIfNew } = useWalkthrough();
+  useEffect(() => { startIfNew("review"); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [dataset, setDataset] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -126,7 +129,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
   return (
     <div className="space-y-6">
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
-        <div className="flex items-center justify-end mb-6">
+        <div className="flex items-center justify-end mb-6" data-walkthrough="review-actions">
           <div className="flex items-center gap-2">
             {dataset?.sampled_pages?.length > 0 && (
               <button
@@ -214,7 +217,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
         )}
 
         {/* Items table */}
-        <div className="space-y-2">
+        <div className="space-y-2" data-walkthrough="review-list">
           {dataset?.items?.map((item: any, index: number) => (
             <div
               key={item.id}
@@ -297,6 +300,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
         <button
           onClick={handleApprove}
           disabled={itemCount === 0}
+          data-walkthrough="review-approve"
           className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <CheckCircle className="w-4 h-4" />

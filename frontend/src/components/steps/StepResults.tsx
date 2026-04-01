@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { BarChart3, Trophy, Download, ArrowUpDown, ChevronDown, ChevronRight, Eye } from "lucide-react";
 import { api } from "@/lib/api";
+import { useWalkthrough } from "@/contexts/WalkthroughContext";
 import {
   BarChart,
   Bar,
@@ -24,6 +25,8 @@ interface StepResultsProps {
 }
 
 export default function StepResults({ experimentId }: StepResultsProps) {
+  const { startIfNew } = useWalkthrough();
+  useEffect(() => { startIfNew("results"); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<string>("overall_score");
@@ -94,7 +97,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
     <div className="space-y-6">
       {/* Best combination */}
       {best && (
-        <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-2xl border border-visible p-8">
+        <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-2xl border border-visible p-8" data-walkthrough="results-best">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
               <Trophy className="w-6 h-6 text-primary" />
@@ -142,7 +145,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
           </div>
 
           {/* Radar chart */}
-          <div className="h-64">
+          <div className="h-64" data-walkthrough="results-radar">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radarData}>
                 <PolarGrid stroke="var(--surface-200)" />
@@ -190,7 +193,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
       )}
 
       {/* Detailed table */}
-      <div className="bg-surface-100 rounded-2xl border border-visible p-8">
+      <div className="bg-surface-100 rounded-2xl border border-visible p-8" data-walkthrough="results-table">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-primary">All Results</h3>
           <div className="flex items-center gap-3">
