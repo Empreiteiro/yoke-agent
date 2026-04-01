@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, useCallback } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import PipelineHeader from "@/components/PipelineHeader";
@@ -16,6 +16,8 @@ import History from "@/components/History";
 import Logs from "@/components/Logs";
 import Glossary from "@/components/Glossary";
 import Collections from "@/components/Collections";
+import WalkthroughOverlay from "@/components/Walkthrough";
+import { useWalkthrough } from "@/contexts/WalkthroughContext";
 
 const STEPS = [
   { id: "upload", label: "Upload Documents", icon: "upload", description: "Upload one or more documents to analyze. Supported formats: PDF, TXT, DOCX, MD." },
@@ -34,6 +36,12 @@ const VALID_STEPS = STEPS.map((s) => s.id);
 function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { startIfNew } = useWalkthrough();
+
+  // Trigger sidebar walkthrough on first ever visit
+  useEffect(() => {
+    startIfNew("sidebar");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derive current view from URL
   const urlView = searchParams.get("view");
@@ -188,6 +196,7 @@ function HomeContent() {
           )}
         </div>
       </main>
+      <WalkthroughOverlay />
     </div>
   );
 }

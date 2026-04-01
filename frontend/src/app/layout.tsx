@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { WalkthroughProvider } from "@/contexts/WalkthroughContext";
 
 export const metadata: Metadata = {
   title: "RAG Optimization Pipeline",
@@ -34,7 +35,9 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased min-h-screen bg-surface">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <WalkthroughProvider>{children}</WalkthroughProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

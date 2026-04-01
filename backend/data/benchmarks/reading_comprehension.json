@@ -1,0 +1,127 @@
+[
+  {
+    "question": "What is the primary function of mitochondria in eukaryotic cells?",
+    "ground_truth": "Mitochondria are responsible for producing adenosine triphosphate (ATP) through oxidative phosphorylation, serving as the main energy source for cellular processes.",
+    "context": "Mitochondria are membrane-bound organelles found in eukaryotic cells. They are often referred to as the powerhouses of the cell because they generate most of the cell's supply of adenosine triphosphate (ATP), used as a source of chemical energy. ATP is produced through a process called oxidative phosphorylation, which occurs in the inner mitochondrial membrane."
+  },
+  {
+    "question": "When was the first successful powered flight achieved by the Wright brothers?",
+    "ground_truth": "The Wright brothers achieved the first successful powered flight on December 17, 1903, at Kitty Hawk, North Carolina.",
+    "context": "On December 17, 1903, Orville and Wilbur Wright made history at Kitty Hawk, North Carolina, by achieving the first sustained, controlled, powered heavier-than-air flight. The first flight lasted 12 seconds and covered 120 feet. They completed four flights that day, with the longest lasting 59 seconds and covering 852 feet."
+  },
+  {
+    "question": "How does photosynthesis convert sunlight into chemical energy?",
+    "ground_truth": "Photosynthesis uses chlorophyll to capture sunlight energy, which drives reactions that convert carbon dioxide and water into glucose and oxygen through light-dependent and light-independent reactions.",
+    "context": "Photosynthesis is a process used by plants, algae, and certain bacteria to convert light energy into chemical energy stored in glucose. The process occurs in two stages: light-dependent reactions, which take place in the thylakoid membranes using chlorophyll to capture sunlight, and light-independent reactions (Calvin cycle), which occur in the stroma. Overall, six molecules of carbon dioxide and six molecules of water are converted into one molecule of glucose and six molecules of oxygen."
+  },
+  {
+    "question": "What caused the extinction of the dinosaurs approximately 66 million years ago?",
+    "ground_truth": "The leading theory is that a massive asteroid impact at Chicxulub in present-day Mexico triggered catastrophic environmental changes including prolonged darkness and cooling that led to mass extinction.",
+    "context": "Approximately 66 million years ago, at the end of the Cretaceous period, a mass extinction event wiped out approximately 75% of all species on Earth, including all non-avian dinosaurs. The leading scientific explanation is the Chicxulub impact hypothesis, which proposes that a large asteroid approximately 10 kilometers in diameter struck what is now the Yucatan Peninsula in Mexico. The impact caused massive tsunamis, global wildfires, and ejected debris that blocked sunlight for months to years, causing a prolonged period of darkness and cooling known as an impact winter."
+  },
+  {
+    "question": "What is the function of the ozone layer in Earth's atmosphere?",
+    "ground_truth": "The ozone layer absorbs the majority of the Sun's harmful ultraviolet radiation, particularly UV-B and UV-C rays, protecting life on Earth from DNA damage and increased cancer risk.",
+    "context": "The ozone layer is a region of Earth's stratosphere, approximately 15 to 35 kilometers above the surface, that contains high concentrations of ozone (O3) molecules. This layer is critically important because it absorbs 97-99% of the Sun's medium-frequency ultraviolet light (UV-B radiation), which would otherwise be harmful to exposed life forms near the surface. UV-B radiation can cause DNA damage, leading to skin cancer in humans and harming marine ecosystems."
+  },
+  {
+    "question": "How does the human immune system distinguish between self and non-self cells?",
+    "ground_truth": "The immune system uses Major Histocompatibility Complex (MHC) molecules on cell surfaces to identify self cells. Cells lacking proper MHC markers or displaying foreign antigens are recognized as non-self and targeted for destruction.",
+    "context": "The human immune system relies on a sophisticated recognition mechanism to distinguish the body's own cells from foreign invaders. Every nucleated cell in the body displays Major Histocompatibility Complex (MHC) class I molecules on its surface, which act as molecular identity cards. T cells are trained in the thymus to recognize self-MHC markers and tolerate them. When a cell is infected by a pathogen, it presents foreign antigens through MHC molecules, alerting cytotoxic T cells to destroy the compromised cell. Cells that lack MHC class I molecules, such as some tumor cells, are targeted by natural killer (NK) cells."
+  },
+  {
+    "question": "What was the significance of the Rosetta Stone in understanding ancient Egyptian writing?",
+    "ground_truth": "The Rosetta Stone contained the same text written in three scripts (hieroglyphic, demotic, and Greek), which allowed Jean-Francois Champollion to decipher Egyptian hieroglyphics in 1822.",
+    "context": "The Rosetta Stone, discovered in 1799 by French soldiers in the town of Rashid (Rosetta) in Egypt, became the key to deciphering ancient Egyptian hieroglyphics. The stone features a decree issued in 196 BC inscribed in three scripts: Egyptian hieroglyphics, Egyptian demotic script, and ancient Greek. Since scholars could read ancient Greek, they were able to use it as a reference to decode the other two scripts. French scholar Jean-Francois Champollion made the breakthrough in 1822, establishing the phonetic nature of hieroglyphic writing and opening the door to understanding ancient Egyptian civilization."
+  },
+  {
+    "question": "What principle explains why airplanes can fly?",
+    "ground_truth": "Airplane flight is explained primarily by Bernoulli's principle and Newton's third law. The wing shape creates faster airflow over the top surface, generating lower pressure above the wing and higher pressure below, producing lift.",
+    "context": "The physics of airplane flight involves several principles working together. According to Bernoulli's principle, the curved upper surface of an airplane wing (airfoil) causes air to move faster over the top than the bottom, creating lower pressure above the wing and higher pressure below. This pressure differential generates an upward force called lift. Additionally, Newton's third law applies: the wing deflects air downward, and the equal and opposite reaction pushes the wing upward. For sustained flight, the lift force must equal or exceed the weight of the aircraft, while thrust from engines must overcome aerodynamic drag."
+  },
+  {
+    "question": "How do vaccines work to protect against infectious diseases?",
+    "ground_truth": "Vaccines introduce a weakened, inactivated, or partial form of a pathogen to stimulate the immune system to produce antibodies and memory cells, enabling a faster and stronger response upon future exposure to the actual pathogen.",
+    "context": "Vaccines work by training the immune system to recognize and fight specific pathogens without causing the disease itself. They contain weakened (attenuated), inactivated (killed), or partial components (such as proteins or mRNA instructions) of the target pathogen. When administered, the vaccine triggers an immune response, causing the body to produce antibodies specific to the pathogen. Crucially, the immune system also creates memory B cells and memory T cells that persist long after the initial response. If the vaccinated person later encounters the actual pathogen, these memory cells enable a rapid and robust immune response that can neutralize the threat before it causes significant illness."
+  },
+  {
+    "question": "What is the role of plate tectonics in shaping Earth's surface?",
+    "ground_truth": "Plate tectonics drives the movement of Earth's lithospheric plates, causing continental drift, formation of mountain ranges, volcanic activity, and earthquakes at plate boundaries.",
+    "context": "Plate tectonics is the scientific theory explaining the large-scale movement of Earth's lithosphere, which is divided into several tectonic plates that float on the semi-fluid asthenosphere beneath. These plates move at rates of a few centimeters per year, driven by convection currents in the mantle. At convergent boundaries, plates collide, forming mountain ranges like the Himalayas or causing one plate to subduct beneath another, generating volcanic arcs. At divergent boundaries, plates move apart, creating mid-ocean ridges and new oceanic crust. Transform boundaries, where plates slide past each other, produce earthquakes, as seen along the San Andreas Fault."
+  },
+  {
+    "question": "What is CRISPR-Cas9 and how is it used in genetic engineering?",
+    "ground_truth": "CRISPR-Cas9 is a gene-editing tool that uses a guide RNA to direct the Cas9 enzyme to a specific DNA sequence, where it makes a precise cut, allowing scientists to add, remove, or modify genetic material.",
+    "context": "CRISPR-Cas9 is a revolutionary gene-editing technology adapted from a natural defense mechanism found in bacteria. The system consists of two key components: a guide RNA (gRNA) that is designed to match the target DNA sequence, and the Cas9 enzyme that acts as molecular scissors. The gRNA directs Cas9 to the precise location in the genome, where it creates a double-strand break in the DNA. The cell's natural repair mechanisms then kick in, and researchers can exploit this process to insert, delete, or modify specific genetic sequences. Since its development for genome editing in 2012, CRISPR-Cas9 has been applied in agriculture, medicine, and basic research."
+  },
+  {
+    "question": "How does the greenhouse effect regulate Earth's temperature?",
+    "ground_truth": "The greenhouse effect occurs when gases like carbon dioxide and methane in the atmosphere trap heat radiated from Earth's surface, keeping the planet warm enough to sustain life at an average of about 15 degrees Celsius.",
+    "context": "The greenhouse effect is a natural process that warms the Earth's surface. When the Sun's energy reaches the Earth, some of it is reflected back to space and the rest is absorbed, warming the surface. The heated surface then radiates infrared energy back toward space. Greenhouse gases in the atmosphere, including carbon dioxide (CO2), methane (CH4), water vapor, and nitrous oxide, absorb and re-emit this infrared radiation in all directions, including back toward the surface. This process traps heat in the lower atmosphere, maintaining Earth's average temperature at approximately 15 degrees Celsius, compared to an estimated minus 18 degrees Celsius without the greenhouse effect."
+  },
+  {
+    "question": "What are the main differences between DNA and RNA?",
+    "ground_truth": "DNA is double-stranded with deoxyribose sugar and uses thymine as a base, while RNA is typically single-stranded with ribose sugar and uses uracil instead of thymine. DNA stores genetic information; RNA helps express it.",
+    "context": "DNA (deoxyribonucleic acid) and RNA (ribonucleic acid) are both nucleic acids essential for life, but they differ in several key ways. Structurally, DNA is typically double-stranded, forming a double helix, while RNA is usually single-stranded. The sugar component in DNA is deoxyribose (lacking one oxygen atom), whereas RNA contains ribose. In terms of nitrogenous bases, both use adenine, guanine, and cytosine, but DNA uses thymine while RNA uses uracil. Functionally, DNA serves as the long-term storage of genetic information and is located primarily in the cell nucleus. RNA plays multiple roles in gene expression, including carrying genetic messages (mRNA), forming ribosomal structures (rRNA), and transporting amino acids (tRNA)."
+  },
+  {
+    "question": "What led to the fall of the Roman Empire in 476 AD?",
+    "ground_truth": "The fall of the Western Roman Empire resulted from a combination of factors including military overextension, economic decline, political instability, barbarian invasions, and the weakening of central authority over several centuries.",
+    "context": "The fall of the Western Roman Empire in 476 AD, when the Germanic chieftain Odoacer deposed the last emperor Romulus Augustulus, was not a sudden event but the culmination of centuries of decline. Military overextension made it increasingly difficult to defend the vast borders against persistent barbarian incursions. The economy suffered from heavy taxation, inflation, and disrupted trade routes. Political instability was rampant, with frequent civil wars and rapid turnover of emperors. The administrative division of the empire into Western and Eastern halves in 285 AD further weakened the West. Additionally, the reliance on Germanic mercenaries to fill military ranks eroded loyalty to Roman institutions."
+  },
+  {
+    "question": "How does fiber optic communication transmit data?",
+    "ground_truth": "Fiber optic cables transmit data as pulses of light through thin glass or plastic fibers using total internal reflection, enabling high-speed data transfer over long distances with minimal signal loss.",
+    "context": "Fiber optic communication systems transmit information by sending pulses of light through optical fibers made of ultra-pure glass or plastic. The core principle is total internal reflection: light entering the fiber at a specific angle bounces off the inner walls of the core, which has a higher refractive index than the surrounding cladding, allowing it to travel long distances with minimal loss. Data is encoded as patterns of light pulses generated by lasers or LEDs. Modern fiber optic cables can carry multiple wavelengths of light simultaneously through wavelength-division multiplexing (WDM), achieving data transfer rates of terabits per second over distances of hundreds of kilometers."
+  },
+  {
+    "question": "What is the significance of the Higgs boson particle?",
+    "ground_truth": "The Higgs boson confirms the existence of the Higgs field, which gives elementary particles their mass through interaction with this field, completing the Standard Model of particle physics.",
+    "context": "The Higgs boson, discovered at CERN's Large Hadron Collider in 2012, is a fundamental particle that confirms the existence of the Higgs field, a concept first proposed by Peter Higgs and others in 1964. The Higgs field permeates all of space, and elementary particles acquire mass through their interaction with this field. Particles that interact strongly with the field have greater mass, while those that interact weakly have less mass. Photons do not interact with the Higgs field at all and therefore remain massless. The discovery of the Higgs boson was the final piece needed to complete the Standard Model of particle physics, which describes the fundamental forces and particles of the universe."
+  },
+  {
+    "question": "How do antibiotics work against bacterial infections?",
+    "ground_truth": "Antibiotics work by either killing bacteria (bactericidal) or inhibiting their growth (bacteriostatic) through mechanisms like disrupting cell wall synthesis, blocking protein production, or interfering with DNA replication.",
+    "context": "Antibiotics are medications designed to combat bacterial infections through several mechanisms of action. Bactericidal antibiotics, such as penicillin, kill bacteria directly by disrupting cell wall synthesis, causing the bacterial cell to lyse and die. Bacteriostatic antibiotics, such as tetracycline, inhibit bacterial growth by blocking essential processes like protein synthesis at the ribosomal level. Other antibiotics target DNA replication (fluoroquinolones), RNA synthesis (rifampin), or metabolic pathways (sulfonamides). Antibiotics are effective against bacteria but do not work against viral infections because viruses have fundamentally different structures and replication mechanisms."
+  },
+  {
+    "question": "What is quantum entanglement?",
+    "ground_truth": "Quantum entanglement is a phenomenon where two or more particles become correlated such that measuring the quantum state of one particle instantaneously determines the state of the other, regardless of the distance separating them.",
+    "context": "Quantum entanglement is one of the most counterintuitive phenomena in quantum mechanics. When two particles become entangled, their quantum states become correlated in such a way that the measurement of one particle's state instantaneously determines the state of the other particle, no matter how far apart they are. For example, if two entangled electrons are measured for spin, and one is found to have spin-up, the other will always be found to have spin-down. Albert Einstein famously described this as spooky action at a distance. Despite appearing to involve faster-than-light communication, entanglement cannot be used to transmit classical information faster than light. It is, however, the foundation for emerging technologies like quantum computing, quantum cryptography, and quantum teleportation."
+  },
+  {
+    "question": "What was the Industrial Revolution and when did it begin?",
+    "ground_truth": "The Industrial Revolution was a period of major technological, economic, and social transformation that began in Britain in the mid-18th century, transitioning from agrarian hand-production methods to machine manufacturing in factories.",
+    "context": "The Industrial Revolution was a period of profound economic and technological transformation that began in Great Britain around the 1760s and gradually spread to other parts of the world throughout the 19th century. It marked the transition from agrarian, handicraft economies to ones dominated by industry and machine manufacturing. Key innovations included the steam engine (improved by James Watt), the spinning jenny, and the power loom, which revolutionized textile production. The development of iron and steel production, railroad networks, and factory systems fundamentally changed how goods were produced and transported. The revolution led to urbanization, the rise of a new industrial working class, and significant improvements in living standards over time."
+  },
+  {
+    "question": "How does the human digestive system break down food?",
+    "ground_truth": "The digestive system breaks down food through mechanical processes (chewing, churning) and chemical processes (enzymes and acids) as it moves through the mouth, stomach, and intestines, extracting nutrients for absorption into the bloodstream.",
+    "context": "The human digestive system processes food through both mechanical and chemical digestion. Digestion begins in the mouth, where teeth mechanically break food into smaller pieces while salivary amylase begins the chemical breakdown of starches. The food then travels through the esophagus to the stomach, where hydrochloric acid and pepsin break down proteins in an acidic environment. The partially digested food (chyme) moves into the small intestine, where pancreatic enzymes and bile from the liver further break down fats, proteins, and carbohydrates. The small intestine is the primary site of nutrient absorption, with its large surface area enhanced by villi and microvilli. The large intestine absorbs water and electrolytes from the remaining material, and beneficial bacteria help ferment undigested fiber."
+  },
+  {
+    "question": "What is the theory of general relativity?",
+    "ground_truth": "General relativity, proposed by Einstein in 1915, describes gravity not as a force but as the curvature of spacetime caused by mass and energy. Massive objects bend the fabric of spacetime, and other objects follow curved paths through this warped geometry.",
+    "context": "Albert Einstein published his theory of general relativity in 1915, fundamentally changing our understanding of gravity. Rather than describing gravity as a force acting between masses (as Newton did), Einstein proposed that massive objects cause a curvature in the fabric of spacetime itself. Objects in the vicinity of a massive body follow the curved geometry of spacetime, which we perceive as gravitational attraction. The theory predicts several phenomena confirmed by observation: the bending of light around massive objects (gravitational lensing), the precession of Mercury's orbit, gravitational time dilation (clocks run slower in stronger gravitational fields), and the existence of gravitational waves (detected in 2015 by LIGO)."
+  },
+  {
+    "question": "What causes ocean tides?",
+    "ground_truth": "Ocean tides are primarily caused by the gravitational pull of the Moon and, to a lesser extent, the Sun on Earth's oceans. The Moon's gravity creates tidal bulges on opposite sides of the Earth, resulting in two high tides and two low tides daily.",
+    "context": "Ocean tides are the regular rise and fall of sea levels caused primarily by the gravitational interaction between the Earth and the Moon, with a secondary contribution from the Sun. The Moon's gravitational pull creates a tidal bulge in the ocean on the side of Earth nearest to the Moon. Simultaneously, on the opposite side of Earth, inertia creates another bulge. As the Earth rotates through these two bulges, most coastal locations experience two high tides and two low tides each day (semidiurnal tides). When the Sun, Moon, and Earth align during new and full moons, the combined gravitational forces produce especially large spring tides. When the Sun and Moon are at right angles relative to Earth, the weaker neap tides occur."
+  },
+  {
+    "question": "How do semiconductors work in electronic devices?",
+    "ground_truth": "Semiconductors have electrical conductivity between conductors and insulators. By doping them with impurities to create n-type and p-type regions, they can control the flow of electrical current, forming the basis of transistors and integrated circuits.",
+    "context": "Semiconductors are materials with electrical conductivity between that of a conductor (like copper) and an insulator (like glass). Silicon is the most commonly used semiconductor. Pure semiconductors have limited conductivity, but through a process called doping, small amounts of impurities are added to dramatically alter their electrical properties. Adding elements with extra electrons (like phosphorus) creates n-type semiconductors with excess negative charge carriers. Adding elements with fewer electrons (like boron) creates p-type semiconductors with positive holes as charge carriers. When n-type and p-type materials are joined to form a p-n junction, they create a diode that allows current to flow in only one direction. Combining multiple junctions creates transistors, which serve as switches and amplifiers in virtually all modern electronic devices."
+  },
+  {
+    "question": "What is the water cycle and what are its main stages?",
+    "ground_truth": "The water cycle is the continuous movement of water through the environment via evaporation from surface water, transpiration from plants, condensation into clouds, precipitation as rain or snow, and collection in bodies of water and groundwater.",
+    "context": "The water cycle, also known as the hydrological cycle, describes the continuous circulation of water within the Earth's hydrosphere. The main stages include evaporation, where solar energy heats surface water in oceans, lakes, and rivers, converting it to water vapor. Transpiration adds additional moisture as plants release water vapor through their leaves. The warm, moist air rises and cools, leading to condensation, where water vapor forms tiny droplets around particles in the atmosphere, creating clouds. When these droplets combine and grow heavy enough, precipitation occurs as rain, snow, sleet, or hail. The precipitated water either flows over the land surface as runoff into rivers and eventually the ocean, or it infiltrates the ground to become groundwater, which may feed springs and wells or slowly return to the surface."
+  },
+  {
+    "question": "What was the Manhattan Project?",
+    "ground_truth": "The Manhattan Project was a secret U.S.-led research program during World War II (1942-1946) that developed the first nuclear weapons, culminating in the atomic bombings of Hiroshima and Nagasaki in August 1945.",
+    "context": "The Manhattan Project was a top-secret research and development program undertaken during World War II, primarily by the United States with support from the United Kingdom and Canada. Officially established in 1942 under the direction of General Leslie Groves and scientific leadership of physicist J. Robert Oppenheimer, the project aimed to develop an atomic bomb before Nazi Germany could do so. The project employed over 125,000 workers across multiple secret facilities, including Los Alamos in New Mexico, Oak Ridge in Tennessee, and Hanford in Washington. The first successful nuclear test, code-named Trinity, took place on July 16, 1945. The resulting weapons were used against the Japanese cities of Hiroshima (August 6, 1945) and Nagasaki (August 9, 1945), leading to Japan's surrender and the end of World War II."
+  }
+]

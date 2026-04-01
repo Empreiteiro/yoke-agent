@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Grid3X3, Plus, X, Loader2, AlertCircle, DollarSign, Scissors, Cpu, Search } from "lucide-react";
 import { api } from "@/lib/api";
+import { useWalkthrough } from "@/contexts/WalkthroughContext";
 
 interface StepGridSearchProps {
   datasetId: number | null;
@@ -67,6 +68,8 @@ const AVAILABLE_METRICS = [
 ];
 
 export default function StepGridSearch({ datasetId, onComplete }: StepGridSearchProps) {
+  const { startIfNew } = useWalkthrough();
+  useEffect(() => { startIfNew("grid-search"); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [experimentName, setExperimentName] = useState("");
   const [vectorStoreType, setVectorStoreType] = useState("chromadb");
@@ -265,7 +268,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8 space-y-6">
 
         {/* Experiment setup */}
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-3 gap-5" data-walkthrough="grid-experiment">
           <div className="rounded-xl border border-visible p-4">
             <label className="block text-sm font-medium text-t-hover mb-1">Experiment Name</label>
             <p className="text-xs text-muted mb-2">A name to identify this experiment run.</p>
@@ -345,7 +348,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Chunk Size */}
-        <div className="rounded-xl border border-visible p-4">
+        <div className="rounded-xl border border-visible p-4" data-walkthrough="grid-chunking">
           <label className="block text-sm font-medium text-t-hover mb-1">Chunk Size (tokens)</label>
           <p className="text-xs text-muted mb-3">Number of characters per text fragment. Smaller = more precise retrieval, larger = more surrounding context.</p>
           {renderChips("chunk_sizes", config.chunk_sizes)}
@@ -383,7 +386,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Embedding models */}
-        <div className="rounded-xl border border-visible p-4">
+        <div className="rounded-xl border border-visible p-4" data-walkthrough="grid-embeddings">
           <label className="block text-sm font-medium text-t-hover mb-1">Embedding Models</label>
           <p className="text-xs text-muted mb-3">Neural networks that convert text into vectors for similarity search.</p>
           {noProviders && (
@@ -442,7 +445,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         </div>
 
         {/* Search Type */}
-        <div className="rounded-xl border border-visible p-4">
+        <div className="rounded-xl border border-visible p-4" data-walkthrough="grid-search-types">
           <label className="block text-sm font-medium text-t-hover mb-1">Search Type</label>
           <p className="text-xs text-muted mb-3">Algorithm for finding relevant chunks. Strategies with $$ use extra LLM calls.</p>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -914,6 +917,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         <button
           onClick={handleSubmit}
           disabled={loading || totalCombinations === 0}
+          data-walkthrough="grid-create"
           className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {loading ? (

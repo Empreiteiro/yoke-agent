@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Play, Loader2, CheckCircle, XCircle, Clock, AlertCircle, ChevronDown, ChevronUp, Square, StopCircle, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
+import { useWalkthrough } from "@/contexts/WalkthroughContext";
 
 interface StepExecutionProps {
   experimentId: number | null;
@@ -10,6 +11,8 @@ interface StepExecutionProps {
 }
 
 export default function StepExecution({ experimentId, onComplete }: StepExecutionProps) {
+  const { startIfNew } = useWalkthrough();
+  useEffect(() => { startIfNew("execution"); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [experiment, setExperiment] = useState<any>(null);
   const [running, setRunning] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -123,7 +126,7 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
   return (
     <div className="space-y-6">
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
-        <div className="flex items-center justify-end gap-3 mb-6">
+        <div className="flex items-center justify-end gap-3 mb-6" data-walkthrough="execution-controls">
           {running ? (
             <button
               onClick={handleStop}
@@ -160,7 +163,7 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
         </div>
 
         {/* Progress */}
-        <div className="mb-6">
+        <div className="mb-6" data-walkthrough="execution-progress">
           <div className="flex items-center justify-between text-sm mb-2">
             <span className="text-t-secondary">Progress</span>
             <span className="text-primary">
@@ -294,6 +297,7 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
       {!isDone && !running && !canResume && (
         <button
           onClick={handleRun}
+          data-walkthrough="execution-start"
           className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <Play className="w-4 h-4" />

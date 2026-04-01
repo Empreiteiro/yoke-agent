@@ -21,6 +21,7 @@ def _run_migrations(engine):
         ("experiment_combinations", "error_message", "TEXT"),
         ("experiment_combinations", "total_tokens", "INTEGER DEFAULT 0"),
         ("experiment_combinations", "total_cost", "REAL DEFAULT 0.0"),
+        ("datasets", "is_benchmark", "INTEGER DEFAULT 0"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:
@@ -36,6 +37,14 @@ def _run_migrations(engine):
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     _run_migrations(engine)
+    # Seed built-in benchmark datasets
+    from app.api.datasets import seed_benchmarks
+    from app.core.database import SessionLocal
+    db = SessionLocal()
+    try:
+        seed_benchmarks(db)
+    finally:
+        db.close()
     yield
 
 

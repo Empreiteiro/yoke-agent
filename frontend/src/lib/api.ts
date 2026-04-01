@@ -69,6 +69,8 @@ export const api = {
   },
   approveDataset: (id: number) =>
     request<any>(`/datasets/${id}/approve`, { method: "POST" }),
+  seedBenchmarks: () =>
+    request<any>("/datasets/seed-benchmarks", { method: "POST" }),
 
   // Experiments
   createExperiment: (data: { name: string; description?: string; dataset_id: number; vectorstore_type?: string }) =>

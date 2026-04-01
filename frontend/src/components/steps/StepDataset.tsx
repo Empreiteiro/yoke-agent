@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Database, Loader2, CheckCircle, AlertCircle, List, Plus, FileText, Trash2, BookOpen, Shuffle, Copy } from "lucide-react";
+import { Database, Loader2, CheckCircle, AlertCircle, List, Plus, FileText, Trash2, BookOpen, Shuffle, Copy, FlaskConical } from "lucide-react";
 import { api } from "@/lib/api";
+import { useWalkthrough } from "@/contexts/WalkthroughContext";
 
 interface StepDatasetProps {
   documentIds: number[];
@@ -10,6 +11,8 @@ interface StepDatasetProps {
 }
 
 export default function StepDataset({ documentIds, onComplete }: StepDatasetProps) {
+  const { startIfNew } = useWalkthrough();
+  useEffect(() => { startIfNew("dataset"); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [mode, setMode] = useState<"new" | "existing">("new");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -162,8 +165,17 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
     }
   };
 
+  const handleUseBenchmark = async (datasetId: number) => {
+    try {
+      const copy = await api.duplicateDataset(datasetId);
+      onComplete(copy.id, true);
+    } catch (err) {
+      console.error("Failed to clone benchmark:", err);
+    }
+  };
+
   const modeToggle = (
-    <div className="flex gap-2 p-1 bg-surface-50 rounded-xl border border-surface-200/50 w-fit">
+    <div className="flex gap-2 p-1 bg-surface-50 rounded-xl border border-surface-200/50 w-fit" data-walkthrough="dataset-mode-toggle">
       <button
         onClick={() => setMode("new")}
         className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors ${
@@ -232,7 +244,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
             </div>
 
             {/* Reading Mode */}
-            <div className="bg-surface-50 rounded-xl p-5 border border-surface-200/50 space-y-4">
+            <div className="bg-surface-50 rounded-xl p-5 border border-surface-200/50 space-y-4" data-walkthrough="dataset-options">
               <div>
                 <label className="block text-sm font-medium text-t-hover mb-3">
                   <BookOpen className="w-4 h-4 inline mr-1.5 -mt-0.5" />
@@ -299,7 +311,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
               </div>
 
               {/* LLM Provider & Model */}
-              <div>
+              <div data-walkthrough="dataset-llm">
                 <label className="block text-xs font-medium text-t-hover mb-1.5">
                   LLM for Generation
                   <span className="text-muted font-normal ml-1">(empty = first active provider)</span>
@@ -406,75 +418,110 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
               </div>
             ) : (
               <>
-                <p className="text-sm text-t-secondary mb-2">
-                  Select a previously generated dataset to reuse:
-                </p>
-                <div className="space-y-2">
-                  {existingDatasets.map((ds: any) => (
-                    <div
-                      key={ds.id}
-                      onClick={() => setSelectedDatasetId(ds.id)}
-                      className={`w-full text-left px-4 py-4 rounded-xl border transition-colors cursor-pointer ${
-                        selectedDatasetId === ds.id
-                          ? "bg-accent/10 border-accent ring-1 ring-accent/30"
-                          : "bg-surface-50 border-surface-200/50 hover:border-surface-200"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-accent flex-shrink-0" />
-                            <span className="text-sm font-medium text-primary truncate">
-                              {ds.name}
-                            </span>
-                          </div>
-                          {ds.description && (
-                            <p className="text-xs text-muted mt-1 ml-6 line-clamp-1">
-                              {ds.description}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-3 mt-2 ml-6 text-xs text-t-secondary">
-                            <span>{ds.items?.length ?? 0} Q&A pairs</span>
-                            <span>{ds.document_ids?.length ?? 0} document(s)</span>
-                            <span>{new Date(ds.created_at).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded-full ${
-                              ds.status === "approved"
-                                ? "bg-emerald-500/10 text-emerald-400"
-                                : "bg-accent/10 text-accent"
-                            }`}
-                          >
-                            {ds.status}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDuplicateDataset(ds.id);
-                            }}
-                            className="p-1.5 text-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
-                            title="Duplicate dataset"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteDataset(ds.id);
-                            }}
-                            className="p-1.5 text-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                            title="Delete dataset"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
+                {/* Benchmark Datasets */}
+                {existingDatasets.some((ds: any) => ds.is_benchmark === 1) && (
+                  <div data-walkthrough="dataset-benchmarks">
+                    <div className="flex items-center gap-2 mb-3">
+                      <FlaskConical className="w-4 h-4 text-purple-400" />
+                      <h3 className="text-sm font-semibold text-primary">Benchmark Datasets</h3>
+                      <span className="text-[10px] text-muted">No documents needed</span>
                     </div>
-                  ))}
-                </div>
+                    <div className="space-y-2 mb-6">
+                      {existingDatasets.filter((ds: any) => ds.is_benchmark === 1).map((ds: any) => (
+                        <div
+                          key={ds.id}
+                          className="w-full text-left px-4 py-4 rounded-xl border bg-surface-50 border-surface-200/50 hover:border-purple-400/40 transition-colors"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <FlaskConical className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                                <span className="text-sm font-medium text-primary truncate">{ds.name}</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400">Benchmark</span>
+                              </div>
+                              {ds.description && (
+                                <p className="text-xs text-muted mt-1 ml-6 line-clamp-2">{ds.description}</p>
+                              )}
+                              <div className="flex items-center gap-3 mt-2 ml-6 text-xs text-t-secondary">
+                                <span>{ds.items?.length ?? 0} Q&A pairs</span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleUseBenchmark(ds.id)}
+                              className="px-4 py-2 bg-purple-500/10 text-purple-400 text-xs font-medium rounded-lg hover:bg-purple-500/20 transition-colors flex-shrink-0"
+                            >
+                              Use Benchmark
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
+                {/* User Datasets */}
+                {existingDatasets.some((ds: any) => ds.is_benchmark !== 1) && (
+                  <>
+                    <p className="text-sm text-t-secondary mb-2">
+                      Select a previously generated dataset to reuse:
+                    </p>
+                    <div className="space-y-2">
+                      {existingDatasets.filter((ds: any) => ds.is_benchmark !== 1).map((ds: any) => (
+                        <div
+                          key={ds.id}
+                          onClick={() => setSelectedDatasetId(ds.id)}
+                          className={`w-full text-left px-4 py-4 rounded-xl border transition-colors cursor-pointer ${
+                            selectedDatasetId === ds.id
+                              ? "bg-accent/10 border-accent ring-1 ring-accent/30"
+                              : "bg-surface-50 border-surface-200/50 hover:border-surface-200"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-accent flex-shrink-0" />
+                                <span className="text-sm font-medium text-primary truncate">{ds.name}</span>
+                              </div>
+                              {ds.description && (
+                                <p className="text-xs text-muted mt-1 ml-6 line-clamp-1">{ds.description}</p>
+                              )}
+                              <div className="flex items-center gap-3 mt-2 ml-6 text-xs text-t-secondary">
+                                <span>{ds.items?.length ?? 0} Q&A pairs</span>
+                                <span>{ds.document_ids?.length ?? 0} document(s)</span>
+                                <span>{new Date(ds.created_at).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full ${
+                                  ds.status === "approved"
+                                    ? "bg-emerald-500/10 text-emerald-400"
+                                    : "bg-accent/10 text-accent"
+                                }`}
+                              >
+                                {ds.status}
+                              </span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDuplicateDataset(ds.id); }}
+                                className="p-1.5 text-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                                title="Duplicate dataset"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteDataset(ds.id); }}
+                                className="p-1.5 text-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                title="Delete dataset"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>

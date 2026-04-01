@@ -73,7 +73,7 @@ export default function Sidebar({
   return (
     <aside className="w-60 bg-surface-50 flex flex-col h-screen">
       <div className="px-4 py-4">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5" data-walkthrough="sidebar-welcome">
           <Logo size={32} />
           <div>
             <h1 className="text-sm font-bold text-primary leading-tight">RAG Pipeline</h1>
@@ -100,7 +100,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto" data-walkthrough="sidebar-steps">
         {steps.map((step) => {
           const Icon = iconMap[step.icon] || Database;
           const isActive = currentStep === step.id && !isAnySpecialView;
@@ -151,7 +151,7 @@ export default function Sidebar({
         <div className="!my-3 mx-2 border-t border-surface-200/40" />
 
         {/* Utility pages - always accessible */}
-        <div className="space-y-0.5">
+        <div className="space-y-0.5" data-walkthrough="sidebar-history">
           {UTILITY_ITEMS.map((item) => {
             const ItemIcon = item.icon;
             const isActive = currentView === item.id;
@@ -159,6 +159,7 @@ export default function Sidebar({
               <button
                 key={item.id}
                 onClick={() => onNavigate(`/?view=${item.id}`)}
+                {...(item.id === "settings" ? { "data-walkthrough": "sidebar-settings" } : {})}
                 className={cn(
                   "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
                   isActive
@@ -184,7 +185,7 @@ export default function Sidebar({
       </nav>
 
       {/* Theme toggle at bottom */}
-      <div className="px-3 py-3">
+      <div className="px-3 py-3" data-walkthrough="sidebar-theme">
         <div className="flex items-center gap-1 px-1.5 py-1 bg-surface-100 rounded-lg border border-surface-200/50">
           {themes.map(({ key, icon: ThemeIcon, label }) => (
             <button
