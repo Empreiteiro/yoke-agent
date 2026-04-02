@@ -6,8 +6,14 @@ Connects to the FastAPI backend via HTTP.
 Usage:
     fastmcp run mcp_server.py
     # or via stdio for Claude Code integration
+
+Environment variables:
+    RAG_API_KEY  - API key for authenticating with the backend
+    RAG_BASE_URL - Backend base URL (default: http://localhost:7070/api)
 """
 
+import os
+import json
 import httpx
 from fastmcp import FastMCP
 
@@ -16,31 +22,52 @@ mcp = FastMCP(
     description="Control the RAG optimization pipeline: upload documents, generate datasets, configure and run experiments, view results.",
 )
 
-BASE_URL = "http://localhost:7070/api"
+API_KEY = os.environ.get("RAG_API_KEY", "")
+BASE_URL = os.environ.get("RAG_BASE_URL", "http://localhost:7070/api")
+
+# Load disabled tools from config
+_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "mcp_config.json")
+_disabled_tools: set[str] = set()
+if os.path.exists(_config_path):
+    try:
+        with open(_config_path) as f:
+            _disabled_tools = set(json.load(f).get("disabled_tools", []))
+    except Exception:
+        pass
 
 
 def _client() -> httpx.Client:
-    return httpx.Client(base_url=BASE_URL, timeout=120)
+    headers = {}
+    if API_KEY:
+        headers["X-API-Key"] = API_KEY
+    return httpx.Client(base_url=BASE_URL, timeout=120, headers=headers)
+
+
+def _register(func):
+    """Register as MCP tool only if not disabled."""
+    if func.__name__ not in _disabled_tools:
+        return mcp.tool()(func)
+    return func
 
 
 # ─── Documents ───────────────────────────────────────────
 
-@mcp.tool()
+@_register
 def list_documents() -> list[dict]:
     """List all uploaded documents."""
     with _client() as c:
         return c.get("/documents/").json()
 
 
-@mcp.tool()
+@_register
 def upload_document(filepath: str) -> dict:
     """Upload a document file (PDF, TXT, DOCX, MD) to the pipeline.
 
     Args:
         filepath: Absolute path to the file to upload.
     """
-    import os
-    filename = os.path.basename(filepath)
+    import os as _os
+    filename = _os.path.basename(filepath)
     with open(filepath, "rb") as f:
         with _client() as c:
             return c.post("/documents/upload", files={"file": (filename, f)}).json()
@@ -48,14 +75,14 @@ def upload_document(filepath: str) -> dict:
 
 # ─── Datasets ────────────────────────────────────────────
 
-@mcp.tool()
+@_register
 def list_datasets() -> list[dict]:
     """List all evaluation datasets."""
     with _client() as c:
         return c.get("/datasets/").json()
 
 
-@mcp.tool()
+@_register
 def get_dataset(dataset_id: int) -> dict:
     """Get a dataset by ID with all Q&A items.
 
@@ -66,7 +93,7 @@ def get_dataset(dataset_id: int) -> dict:
         return c.get(f"/datasets/{dataset_id}").json()
 
 
-@mcp.tool()
+@_register
 def create_dataset(document_ids: list[int], name: str = "", description: str = "") -> dict:
     """Create a new evaluation dataset from uploaded documents.
 
@@ -83,7 +110,7 @@ def create_dataset(document_ids: list[int], name: str = "", description: str = "
         }).json()
 
 
-@mcp.tool()
+@_register
 def generate_dataset(
     dataset_id: int,
     reading_mode: str = "full",
@@ -107,7 +134,7 @@ def generate_dataset(
         return c.post(f"/datasets/{dataset_id}/generate", json=options).json()
 
 
-@mcp.tool()
+@_register
 def approve_dataset(dataset_id: int) -> dict:
     """Approve a dataset for use in experiments.
 
@@ -120,14 +147,14 @@ def approve_dataset(dataset_id: int) -> dict:
 
 # ─── Experiments ─────────────────────────────────────────
 
-@mcp.tool()
+@_register
 def list_experiments() -> list[dict]:
     """List all experiments with their status and scores."""
     with _client() as c:
         return c.get("/experiments/").json()
 
 
-@mcp.tool()
+@_register
 def create_experiment(dataset_id: int, name: str = "", vectorstore_type: str = "chromadb") -> dict:
     """Create a new experiment.
 
@@ -144,7 +171,7 @@ def create_experiment(dataset_id: int, name: str = "", vectorstore_type: str = "
         }).json()
 
 
-@mcp.tool()
+@_register
 def configure_grid_search(
     experiment_id: int,
     chunk_sizes: list[int] = [512, 1024],
@@ -179,7 +206,7 @@ def configure_grid_search(
         }).json()
 
 
-@mcp.tool()
+@_register
 def run_experiment(experiment_id: int) -> dict:
     """Start running an experiment (executes all combinations).
 
@@ -190,7 +217,7 @@ def run_experiment(experiment_id: int) -> dict:
         return c.post(f"/experiments/{experiment_id}/run").json()
 
 
-@mcp.tool()
+@_register
 def stop_experiment(experiment_id: int) -> dict:
     """Stop a running experiment.
 
@@ -201,7 +228,7 @@ def stop_experiment(experiment_id: int) -> dict:
         return c.post(f"/experiments/{experiment_id}/stop").json()
 
 
-@mcp.tool()
+@_register
 def resume_experiment(experiment_id: int, retry_failed: bool = False) -> dict:
     """Resume a stopped or failed experiment.
 
@@ -213,7 +240,7 @@ def resume_experiment(experiment_id: int, retry_failed: bool = False) -> dict:
         return c.post(f"/experiments/{experiment_id}/resume?retry_failed={retry_failed}").json()
 
 
-@mcp.tool()
+@_register
 def get_experiment(experiment_id: int) -> dict:
     """Get experiment details including all combination statuses and scores.
 
@@ -224,7 +251,7 @@ def get_experiment(experiment_id: int) -> dict:
         return c.get(f"/experiments/{experiment_id}").json()
 
 
-@mcp.tool()
+@_register
 def get_experiment_report(experiment_id: int) -> dict:
     """Get the full report for an experiment including best configuration and summary.
 
@@ -235,7 +262,7 @@ def get_experiment_report(experiment_id: int) -> dict:
         return c.get(f"/experiments/{experiment_id}/report").json()
 
 
-@mcp.tool()
+@_register
 def delete_experiment(experiment_id: int) -> dict:
     """Delete an experiment and all its combinations.
 
@@ -248,14 +275,14 @@ def delete_experiment(experiment_id: int) -> dict:
 
 # ─── Collections ─────────────────────────────────────────
 
-@mcp.tool()
+@_register
 def list_collections() -> list[dict]:
     """List all saved vectorstore collections from winning experiments."""
     with _client() as c:
         return c.get("/collections/").json()
 
 
-@mcp.tool()
+@_register
 def query_collection(collection_id: int, question: str, top_k: int = 0) -> dict:
     """Query a saved collection — retrieve contexts and generate an answer.
 
@@ -271,7 +298,7 @@ def query_collection(collection_id: int, question: str, top_k: int = 0) -> dict:
         return c.post(f"/collections/{collection_id}/query", json=data).json()
 
 
-@mcp.tool()
+@_register
 def delete_collection(collection_id: int) -> dict:
     """Delete a saved collection (does not affect experiment history).
 
@@ -284,14 +311,14 @@ def delete_collection(collection_id: int) -> dict:
 
 # ─── Providers ───────────────────────────────────────────
 
-@mcp.tool()
+@_register
 def list_providers() -> list[dict]:
     """List all configured LLM/embedding providers."""
     with _client() as c:
         return c.get("/providers/").json()
 
 
-@mcp.tool()
+@_register
 def get_available_models() -> dict:
     """Get all available LLM and embedding models from active providers."""
     with _client() as c:
@@ -300,7 +327,7 @@ def get_available_models() -> dict:
 
 # ─── Token Usage ─────────────────────────────────────────
 
-@mcp.tool()
+@_register
 def get_token_usage_summary(days: int = 30) -> dict:
     """Get token usage summary with breakdowns by day, model, and operation.
 

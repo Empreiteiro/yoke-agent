@@ -163,4 +163,21 @@ export const api = {
     const qs = searchParams.toString();
     return request<any>(`/token-usage/summary${qs ? `?${qs}` : ""}`);
   },
+
+  // Auth
+  getAuthStatus: () => request<any>("/auth/status"),
+  listApiKeys: () => request<any[]>("/auth/keys"),
+  createApiKey: (name: string) =>
+    request<any>("/auth/keys", { method: "POST", body: JSON.stringify({ name }) }),
+  deleteApiKey: (id: number) =>
+    request<any>(`/auth/keys/${id}`, { method: "DELETE" }),
+
+  // MCP
+  listMcpTools: () => request<any>("/mcp/tools"),
+  updateMcpTools: (disabledTools: string[]) =>
+    request<any>("/mcp/tools", {
+      method: "PUT",
+      body: JSON.stringify({ disabled_tools: disabledTools }),
+    }),
+  getMcpConnectionInfo: () => request<any>("/mcp/connection-info"),
 };

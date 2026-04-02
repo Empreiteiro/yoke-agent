@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Sun,
   Moon,
+  Cable,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme, Theme } from "@/contexts/ThemeContext";
@@ -57,6 +58,7 @@ const UTILITY_ITEMS = [
   { id: "glossary", label: "Concepts", icon: BookOpen },
   { id: "vectorstores", label: "Vector Stores", icon: Database },
   { id: "settings", label: "Providers", icon: Settings },
+  { id: "mcp", label: "MCP Server", icon: Cable },
 ];
 
 export default function Sidebar({
