@@ -40,6 +40,9 @@ uploads/
 # ChromaDB
 backend/chroma_data/
 
+# User-specific MCP config
+backend/data/mcp_config.json
+
 # OS
 .DS_Store
 Thumbs.db
