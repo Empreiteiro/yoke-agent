@@ -57,8 +57,8 @@ const UTILITY_ITEMS = [
   { id: "logs", label: "Logs", icon: FileText },
   { id: "glossary", label: "Concepts", icon: BookOpen },
   { id: "vectorstores", label: "Vector Stores", icon: Database },
-  { id: "settings", label: "Providers", icon: Settings },
   { id: "mcp", label: "MCP Server", icon: Cable },
+  { id: "settings", label: "Providers", icon: Settings },
 ];
 
 export default function Sidebar({
