@@ -16,7 +16,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, setStoredApiKey, getStoredApiKey } from "@/lib/api";
 
 interface ApiKeyItem {
   id: number;
@@ -143,6 +143,10 @@ export default function McpSettings() {
       setError(null);
       const res = await api.createApiKey(newKeyName || "Default");
       setJustCreatedKey(res.key);
+      // Auto-store as the active key for frontend requests
+      if (!getStoredApiKey()) {
+        setStoredApiKey(res.key);
+      }
       setShowKey(true);
       setNewKeyName("");
       setShowCreateForm(false);

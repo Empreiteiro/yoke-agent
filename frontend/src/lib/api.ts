@@ -1,4 +1,24 @@
 const API_BASE = "/api";
+const API_KEY_STORAGE_KEY = "rag-api-key";
+
+export function getStoredApiKey(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(API_KEY_STORAGE_KEY) || "";
+}
+
+export function setStoredApiKey(key: string) {
+  if (typeof window === "undefined") return;
+  if (key) {
+    localStorage.setItem(API_KEY_STORAGE_KEY, key);
+  } else {
+    localStorage.removeItem(API_KEY_STORAGE_KEY);
+  }
+}
+
+function authHeaders(): Record<string, string> {
+  const key = getStoredApiKey();
+  return key ? { "X-API-Key": key } : {};
+}
 
 async function request<T>(
   path: string,
@@ -7,6 +27,7 @@ async function request<T>(
   const res = await fetch(`${API_BASE}${path}`, {
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders(),
       ...options?.headers,
     },
     ...options,
@@ -27,6 +48,7 @@ export const api = {
     files.forEach((f) => formData.append("files", f));
     const res = await fetch(`${API_BASE}/documents/upload`, {
       method: "POST",
+      headers: authHeaders(),
       body: formData,
     });
     if (!res.ok) throw new Error("Upload failed");
@@ -62,6 +84,7 @@ export const api = {
     formData.append("file", file);
     const res = await fetch(`${API_BASE}/datasets/${datasetId}/import`, {
       method: "POST",
+      headers: authHeaders(),
       body: formData,
     });
     if (!res.ok) throw new Error("Import failed");
