@@ -220,114 +220,37 @@ export default function McpSettings() {
         </div>
       )}
 
-      {/* ─── Section 1: Connect to Platform (first fold) ─── */}
+      {/* ─── Section 1: API Keys ─── */}
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Cable className="w-4 h-4 text-accent" />
-          <h3 className="text-sm font-semibold text-primary">Connect to Platform</h3>
-        </div>
-
-        {/* Platform selector — equal width grid */}
-        <div className="grid grid-cols-5 gap-1.5 mb-4">
-          {PLATFORMS.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => setPlatform(p.key)}
-              className={`px-2 py-2 text-xs font-medium rounded-lg transition-colors text-center ${
-                platform === p.key
-                  ? "bg-accent/15 text-accent border border-accent/20"
-                  : "bg-surface-50 text-t-secondary border border-surface-200/50 hover:border-surface-300"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Instructions */}
-        <p className="text-xs text-t-secondary mb-3">
-          Add to <code className="text-accent">{PLATFORMS.find((p) => p.key === platform)?.file}</code>:
-        </p>
-
-        {/* Payload */}
-        <div className="relative">
-          <pre className="p-4 pr-24 bg-surface-50 rounded-xl border border-surface-200/50 text-xs font-mono text-primary overflow-x-auto whitespace-pre">
-            {buildPayload(platform, serverPath, justCreatedKey || "")}
-          </pre>
-          {/* Action buttons — top right of code block */}
-          <div className="absolute top-2 right-2 flex items-center gap-1.5">
-            {!justCreatedKey && (
-              <button
-                onClick={() => setShowCreateForm(true)}
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-accent text-white text-[10px] font-medium rounded-lg hover:opacity-90 transition-opacity"
-                title="Generate an API key to fill the payload"
-              >
-                <Key className="w-3 h-3" />
-                New Key
-              </button>
-            )}
-            <button
-              onClick={() =>
-                copyToClipboard(
-                  buildPayload(platform, serverPath, justCreatedKey || ""),
-                  "payload"
-                )
-              }
-              className="p-1.5 bg-surface-200/80 hover:bg-surface-300 rounded-lg transition-colors"
-              title="Copy JSON"
-            >
-              {copied === "payload" ? (
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-              ) : (
-                <Copy className="w-3.5 h-3.5 text-muted" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Just created key — show inline below payload */}
-        {justCreatedKey && (
-          <div className="mt-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-emerald-400">
-                Key created! Copy it now — it won't be shown again.
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 text-accent" />
+            <h3 className="text-sm font-semibold text-primary">API Keys</h3>
+            {bootstrapMode && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">
+                No auth — create a key to protect your API
               </span>
-              <button
-                onClick={() => setShowKey(!showKey)}
-                className="p-1 hover:bg-surface-200 rounded"
-              >
-                {showKey ? <EyeOff className="w-3 h-3 text-muted" /> : <Eye className="w-3 h-3 text-muted" />}
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 px-2.5 py-1.5 bg-surface-100 rounded-lg text-xs font-mono text-primary break-all">
-                {showKey ? justCreatedKey : "••••••••••••••••••••••••"}
-              </code>
-              <button
-                onClick={() => copyToClipboard(justCreatedKey, "key")}
-                className="flex-shrink-0 p-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500/20"
-              >
-                {copied === "key" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-            <button
-              onClick={() => setJustCreatedKey(null)}
-              className="mt-1.5 text-[10px] text-muted hover:text-t-secondary"
-            >
-              Dismiss
-            </button>
+            )}
           </div>
-        )}
+          {!showCreateForm && (
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg hover:opacity-90"
+            >
+              <Plus className="w-3.5 h-3.5" /> New Key
+            </button>
+          )}
+        </div>
 
-        {/* Inline create form — appears inside the connection section */}
-        {showCreateForm && !justCreatedKey && (
-          <div className="mt-3 p-3 bg-surface-50 rounded-xl border border-surface-200/50">
+        {/* Create form */}
+        {showCreateForm && (
+          <div className="mb-4 p-4 bg-surface-50 rounded-xl border border-surface-200/50">
             <label className="block text-xs text-t-secondary mb-1.5">Key Name</label>
             <div className="flex gap-2">
               <input
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
-                placeholder="e.g., Development, Claude Code"
+                placeholder="e.g., Development, CI/CD, Claude Code"
                 className="flex-1 px-3 py-2 bg-surface border border-surface-200/50 rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50"
                 onKeyDown={(e) => e.key === "Enter" && handleCreateKey()}
               />
@@ -347,32 +270,39 @@ export default function McpSettings() {
           </div>
         )}
 
-        {!justCreatedKey && !showCreateForm && (
-          <p className="mt-2 text-xs text-muted">
-            Click "New Key" to generate an API key and auto-fill the payload.
-          </p>
-        )}
-      </div>
-
-      {/* ─── Section 2: API Keys ─── */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-accent" />
-            <h3 className="text-sm font-semibold text-primary">API Keys</h3>
-            {bootstrapMode && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">
-                No auth — create a key to protect your API
+        {/* Just created key display */}
+        {justCreatedKey && (
+          <div className="mb-4 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-emerald-400">
+                Key created! Copy it now — it won't be shown again.
               </span>
-            )}
+              <button
+                onClick={() => setShowKey(!showKey)}
+                className="p-1 hover:bg-surface-200 rounded"
+              >
+                {showKey ? <EyeOff className="w-3.5 h-3.5 text-muted" /> : <Eye className="w-3.5 h-3.5 text-muted" />}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 px-3 py-2 bg-surface-100 rounded-lg text-sm font-mono text-primary break-all">
+                {showKey ? justCreatedKey : "••••••••••••••••••••••••"}
+              </code>
+              <button
+                onClick={() => copyToClipboard(justCreatedKey, "key")}
+                className="flex-shrink-0 p-2 bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500/20"
+              >
+                {copied === "key" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+            <button
+              onClick={() => setJustCreatedKey(null)}
+              className="mt-2 text-xs text-muted hover:text-t-secondary"
+            >
+              Dismiss
+            </button>
           </div>
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg hover:opacity-90"
-          >
-            <Plus className="w-3.5 h-3.5" /> New Key
-          </button>
-        </div>
+        )}
 
         {/* Key list */}
         {loadingKeys ? (
@@ -413,6 +343,65 @@ export default function McpSettings() {
         )}
       </div>
 
+      {/* ─── Section 2: Connect to Platform ─── */}
+      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Cable className="w-4 h-4 text-accent" />
+          <h3 className="text-sm font-semibold text-primary">Connect to Platform</h3>
+        </div>
+
+        {/* Platform selector — equal width grid */}
+        <div className="grid grid-cols-5 gap-1.5 mb-4">
+          {PLATFORMS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setPlatform(p.key)}
+              className={`px-2 py-2 text-xs font-medium rounded-lg transition-colors text-center ${
+                platform === p.key
+                  ? "bg-accent/15 text-accent border border-accent"
+                  : "bg-surface-50 text-t-secondary border border-surface-200/50 hover:border-surface-300"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Instructions */}
+        <p className="text-xs text-t-secondary mb-3">
+          Add to <code className="text-accent">{PLATFORMS.find((p) => p.key === platform)?.file}</code>:
+        </p>
+
+        {/* Payload */}
+        <div className="relative">
+          <pre className="p-4 bg-surface-50 rounded-xl border border-surface-200/50 text-xs font-mono text-primary overflow-x-auto whitespace-pre">
+            {buildPayload(platform, serverPath, justCreatedKey || "")}
+          </pre>
+          <button
+            onClick={() =>
+              copyToClipboard(
+                buildPayload(platform, serverPath, justCreatedKey || ""),
+                "payload"
+              )
+            }
+            className="absolute top-2 right-2 p-1.5 bg-surface-200/80 hover:bg-surface-300 rounded-lg transition-colors"
+            title="Copy JSON"
+          >
+            {copied === "payload" ? (
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+            ) : (
+              <Copy className="w-3.5 h-3.5 text-muted" />
+            )}
+          </button>
+        </div>
+
+        {!justCreatedKey && (
+          <p className="mt-2 text-xs text-muted">
+            Create an API key above to auto-fill it in the payload.
+          </p>
+        )}
+      </div>
+
       {/* ─── Section 3: MCP Tool Toggles ─── */}
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
         <div className="flex items-center justify-between mb-4">
@@ -442,15 +431,15 @@ export default function McpSettings() {
         ) : (
           <div className="space-y-4">
             {Object.entries(toolGroups).map(([group, groupTools]) => (
-              <div key={group}>
-                <h4 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">
+              <div key={group} className="rounded-xl bg-surface-50 border border-surface-200/30 overflow-hidden">
+                <h4 className="text-xs font-medium text-muted uppercase tracking-wider px-4 pt-3 pb-1">
                   {group}
                 </h4>
-                <div className="space-y-1">
+                <div className="divide-y divide-surface-200/30">
                   {groupTools.map((tool) => (
                     <div
                       key={tool.name}
-                      className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-surface-50 border border-surface-200/30 transition-colors"
+                      className="flex items-center justify-between px-4 py-2.5"
                     >
                       <div className="min-w-0 flex-1 mr-3">
                         <span className="text-sm text-primary">
