@@ -16,6 +16,7 @@ import History from "@/components/History";
 import Logs from "@/components/Logs";
 import Glossary from "@/components/Glossary";
 import Collections from "@/components/Collections";
+import McpSettings from "@/components/McpSettings";
 import WalkthroughOverlay from "@/components/Walkthrough";
 import { useWalkthrough } from "@/contexts/WalkthroughContext";
 
@@ -30,7 +31,7 @@ const STEPS = [
 
 type StepId = (typeof STEPS)[number]["id"];
 
-const VALID_VIEWS = ["history", "logs", "settings", "glossary", "collections", "vectorstores"];
+const VALID_VIEWS = ["history", "logs", "settings", "glossary", "collections", "vectorstores", "mcp"];
 const VALID_STEPS = STEPS.map((s) => s.id);
 
 function HomeContent() {
@@ -166,6 +167,7 @@ function HomeContent() {
     logs: <Logs />,
     glossary: <Glossary />,
     collections: <Collections />,
+    mcp: <McpSettings />,
   };
 
   return (

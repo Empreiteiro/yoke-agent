@@ -6,9 +6,11 @@ from sqlalchemy import inspect, text
 
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api import documents, datasets, experiments, vectorstores, providers, token_usage, collections
+from app.api import documents, datasets, experiments, vectorstores, providers, token_usage, collections, auth, mcp_config
 from app.models import saved_collection  # noqa: F401 — ensure table creation
 from app.models import vectorstore_config  # noqa: F401 — ensure table creation
+from app.models import api_key  # noqa: F401 — ensure table creation
+from app.core.auth import ApiKeyAuthMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +65,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(ApiKeyAuthMiddleware)
+
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(mcp_config.router, prefix="/api/mcp", tags=["mcp"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(datasets.router, prefix="/api/datasets", tags=["datasets"])
 app.include_router(experiments.router, prefix="/api/experiments", tags=["experiments"])
