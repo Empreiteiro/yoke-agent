@@ -395,11 +395,6 @@ export default function McpSettings() {
           </button>
         </div>
 
-        {!justCreatedKey && (
-          <p className="mt-2 text-xs text-muted">
-            Create an API key above to auto-fill it in the payload.
-          </p>
-        )}
       </div>
 
       {/* ─── Section 3: MCP Tool Toggles ─── */}
@@ -431,11 +426,11 @@ export default function McpSettings() {
         ) : (
           <div className="space-y-4">
             {Object.entries(toolGroups).map(([group, groupTools]) => (
-              <div key={group} className="rounded-xl bg-surface-50 border border-surface-200/30 overflow-hidden">
-                <h4 className="text-xs font-medium text-muted uppercase tracking-wider px-4 pt-3 pb-1">
+              <div key={group}>
+                <h4 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">
                   {group}
                 </h4>
-                <div className="divide-y divide-surface-200/30">
+                <div className="rounded-xl bg-surface-50 border border-surface-200/30 overflow-hidden">
                   {groupTools.map((tool) => (
                     <div
                       key={tool.name}
