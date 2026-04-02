@@ -1,4 +1,9 @@
-"""API Key authentication middleware."""
+"""API Key authentication middleware.
+
+Frontend (trusted) requests are exempt — identified by Origin/Referer
+matching configured CORS origins. API keys are for external access
+(MCP server, third-party integrations).
+"""
 
 import hashlib
 import logging
@@ -7,6 +12,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.api_key import ApiKey
 
@@ -60,6 +66,13 @@ class ApiKeyAuthMiddleware(BaseHTTPMiddleware):
         # Exempt paths
         if any(path.startswith(p) for p in EXEMPT_PREFIXES):
             return await call_next(request)
+
+        # Trust requests from the frontend (Origin/Referer matches CORS origins)
+        origin = request.headers.get("origin", "")
+        referer = request.headers.get("referer", "")
+        for allowed in settings.cors_origins:
+            if origin == allowed or referer.startswith(allowed):
+                return await call_next(request)
 
         # Bootstrap mode: no keys exist → allow all
         if not _has_active_keys():
