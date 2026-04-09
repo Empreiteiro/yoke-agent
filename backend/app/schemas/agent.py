@@ -87,8 +87,10 @@ class ScenarioCreate(BaseModel):
     scenario_type: str  # tool_use, decision_path, response_quality, guardrail
     name: str
     description: Optional[str] = None
-    input_message: str
+    objective: str                           # WHAT the user wants to accomplish
+    input_hint: Optional[str] = None         # optional example phrasing
     expected_output: dict
+    context: Optional[str] = None            # background info for the scenario
     conversation_history: Optional[list] = None
     tags: list[str] = []
     is_manual: bool = False
@@ -98,8 +100,10 @@ class ScenarioUpdate(BaseModel):
     scenario_type: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    input_message: Optional[str] = None
+    objective: Optional[str] = None
+    input_hint: Optional[str] = None
     expected_output: Optional[dict] = None
+    context: Optional[str] = None
     conversation_history: Optional[list] = None
     tags: Optional[list[str]] = None
 
@@ -110,8 +114,10 @@ class ScenarioResponse(BaseModel):
     scenario_type: str
     name: str
     description: Optional[str]
-    input_message: str
+    objective: str
+    input_hint: Optional[str]
     expected_output: dict
+    context: Optional[str]
     conversation_history: Optional[list]
     tags: list
     is_manual: bool
@@ -215,7 +221,8 @@ class InteractionDatasetItemCreate(BaseModel):
     scenario_id: Optional[int] = None
     persona_id: Optional[int] = None
     interaction_mode: str = "single_turn"
-    input_message: str
+    objective: str
+    generated_input: Optional[str] = None
     expected_output: Optional[dict] = None
     conversation_history: Optional[list] = None
     metadata: dict = {}
@@ -228,7 +235,8 @@ class InteractionDatasetItemResponse(BaseModel):
     scenario_id: Optional[int]
     persona_id: Optional[int]
     interaction_mode: str
-    input_message: str
+    objective: str
+    generated_input: Optional[str]
     expected_output: Optional[dict]
     conversation_history: Optional[list]
     metadata: dict

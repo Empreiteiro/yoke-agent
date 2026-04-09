@@ -60,7 +60,8 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
 
   // Form state
   const [formName, setFormName] = useState("");
-  const [formInput, setFormInput] = useState("");
+  const [formObjective, setFormObjective] = useState("");
+  const [formInputHint, setFormInputHint] = useState("");
   const [formExpected, setFormExpected] = useState("{}");
   const [formDescription, setFormDescription] = useState("");
 
@@ -108,7 +109,8 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
         name: formName.trim(),
         description: formDescription.trim(),
         scenario_type: activeTab,
-        input_message: formInput.trim(),
+        objective: formObjective.trim(),
+        input_hint: formInputHint.trim() || undefined,
         expected_output: parsed,
         is_manual: true,
       });
@@ -128,7 +130,8 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
       const updated = await api.updateScenario(agentConfigId, id, {
         name: formName.trim(),
         description: formDescription.trim(),
-        input_message: formInput.trim(),
+        objective: formObjective.trim(),
+        input_hint: formInputHint.trim() || undefined,
         expected_output: parsed,
       });
       setScenarios((prev) => ({ ...prev, [activeTab]: prev[activeTab].map((s) => (s.id === id ? updated : s)) }));
@@ -152,7 +155,8 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
     setEditingId(s.id);
     setFormName(s.name || "");
     setFormDescription(s.description || "");
-    setFormInput(s.input_message || "");
+    setFormObjective(s.objective || "");
+    setFormInputHint(s.input_hint || "");
     setFormExpected(typeof s.expected_output === "string" ? s.expected_output : JSON.stringify(s.expected_output || {}, null, 2));
     setShowAdd(false);
   };
@@ -162,7 +166,8 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
     setShowAdd(false);
     setFormName("");
     setFormDescription("");
-    setFormInput("");
+    setFormObjective("");
+    setFormInputHint("");
     setFormExpected("{}");
   };
 
@@ -261,10 +266,15 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
             />
           </div>
           <textarea
-            value={formInput} onChange={(e) => setFormInput(e.target.value)}
-            placeholder="User input message"
+            value={formObjective} onChange={(e) => setFormObjective(e.target.value)}
+            placeholder="What the user wants to accomplish (e.g., 'Get the current weather in Paris')"
             rows={2}
             className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/40 resize-y"
+          />
+          <input
+            type="text" value={formInputHint} onChange={(e) => setFormInputHint(e.target.value)}
+            placeholder="Example phrasing (optional, e.g., 'What's the weather like in Paris?')"
+            className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
           <div>
             <label className="block text-xs text-t-secondary mb-1">{typeInfo.expected_label} (JSON)</label>
@@ -310,7 +320,7 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
                 <tr className="border-b border-surface-200/50 text-left">
                   <th className="px-4 py-3 text-xs font-semibold text-t-secondary uppercase tracking-wider w-8">#</th>
                   <th className="px-4 py-3 text-xs font-semibold text-t-secondary uppercase tracking-wider">Name</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-t-secondary uppercase tracking-wider">User Input</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-t-secondary uppercase tracking-wider">Objective</th>
                   <th className="px-4 py-3 text-xs font-semibold text-t-secondary uppercase tracking-wider">{typeInfo.expected_label}</th>
                   <th className="px-4 py-3 text-xs font-semibold text-t-secondary uppercase tracking-wider w-20">Actions</th>
                 </tr>
@@ -347,8 +357,13 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
                       </td>
                       <td className="px-4 py-3">
                         <p className={`text-t-secondary ${isExpanded ? "" : "line-clamp-2"}`}>
-                          {s.input_message}
+                          {s.objective}
                         </p>
+                        {isExpanded && s.input_hint && (
+                          <p className="text-xs text-t-secondary/60 mt-1 italic">
+                            Hint: &ldquo;{s.input_hint}&rdquo;
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <pre className={`text-xs text-t-secondary/80 font-mono whitespace-pre-wrap ${isExpanded ? "" : "line-clamp-2"}`}>

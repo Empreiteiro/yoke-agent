@@ -81,7 +81,17 @@ CONSTRAINTS: {json.dumps(config.constraints or [])}
 
 {type_instructions.get(scenario_type, '')}
 
-Return a JSON array of objects with: "name", "description", "input_message" (the user's message), "expected_output" (as specified above), "tags" (list of strings).
+IMPORTANT: Each scenario should define an OBJECTIVE (what the user wants to accomplish), NOT the exact user message. The actual message will be generated later by a persona simulator based on the persona's traits.
+
+Return a JSON array of objects with:
+- "name": short scenario name
+- "description": brief description of what is being tested
+- "objective": what the user wants to accomplish (e.g., "Get the current weather in Paris" NOT "What's the weather in Paris?")
+- "input_hint": an example of how a user might phrase this (optional, used as fallback)
+- "expected_output": (as specified above)
+- "context": optional background info relevant to the scenario
+- "tags": list of strings
+
 Return ONLY valid JSON, no markdown fences."""
 
     response = await llm.ainvoke(prompt)
@@ -100,8 +110,10 @@ Return ONLY valid JSON, no markdown fences."""
             scenario_type=scenario_type,
             name=s.get("name", f"Scenario {len(created)+1}"),
             description=s.get("description", ""),
-            input_message=s.get("input_message", ""),
+            objective=s.get("objective", ""),
+            input_hint=s.get("input_hint", ""),
             expected_output=s.get("expected_output", {}),
+            context=s.get("context"),
             tags=s.get("tags", []),
         )
         db.add(scenario)

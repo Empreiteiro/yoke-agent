@@ -26,16 +26,32 @@ You are simulating a user with this profile:
 - Traits: {traits}
 - Goals: {goals}
 
-Current scenario: {scenario_description}
-Your opening message: {input_message}
+Your OBJECTIVE in this conversation: {objective}
+{context_line}
 
 Instructions:
+- Write your opening message to the agent as this persona would naturally phrase it
 - Stay in character throughout the conversation
 - Respond naturally based on the agent's replies
 - If the agent asks clarifying questions, answer based on your persona
 - Signal completion by including [TASK_COMPLETE] if the agent successfully helped you
 - Signal failure by including [TASK_FAILED] if the agent cannot help after reasonable attempts
 - Keep responses concise and realistic for your persona
+
+Write ONLY your message to the agent, nothing else.
+"""
+
+GENERATE_INPUT_PROMPT = """\
+You are simulating a user with this profile:
+- Role: {role}
+- Expertise: {expertise_level}
+- Communication style: {communication_style}
+- Traits: {traits}
+
+Write a single message to an AI agent to accomplish this objective: {objective}
+{context_line}
+
+Write ONLY the user's message, nothing else. Stay in character.
 """
 
 
@@ -77,8 +93,10 @@ async def run_simulation(
                     "scenario_id": scenario.id,
                     "persona_id": persona.id,
                     "interaction_mode": "multi_turn" if params.get("max_turns", 1) > 1 else "single_turn",
-                    "input_message": scenario.input_message,
+                    "objective": scenario.objective,
+                    "input_hint": scenario.input_hint,
                     "expected_output": scenario.expected_output,
+                    "context": scenario.context,
                 })())
 
     max_turns = params.get("max_turns", 1)
@@ -159,8 +177,20 @@ async def _run_single_conversation(
     recorded_messages = []
     tool_invocations = []
 
-    # Get initial user message
-    user_message = item.input_message
+    # Generate the initial user message from objective + persona
+    objective = getattr(item, "objective", None) or (scenario.objective if scenario else "")
+    input_hint = getattr(item, "input_hint", None) or (scenario.input_hint if scenario else None)
+    context = getattr(item, "context", None) or (scenario.context if scenario else None)
+
+    if persona and objective:
+        # Use LLM to generate the opening message as this persona would say it
+        user_message = await _generate_persona_message(db, persona, objective, context)
+    elif input_hint:
+        # Fallback to the hint if no persona
+        user_message = input_hint
+    else:
+        # Last resort: use objective as-is
+        user_message = objective
 
     terminated_by = "max_turns"
     turns = 0
@@ -260,6 +290,31 @@ async def _run_single_conversation(
     return transcript
 
 
+async def _generate_persona_message(
+    db: Session,
+    persona: Persona,
+    objective: str,
+    context: str | None = None,
+) -> str:
+    """Use LLM to generate the opening user message as this persona would phrase it."""
+    from langchain_core.messages import HumanMessage as HM
+
+    simulator_llm = get_llm(db, temperature=0.6)
+    context_line = f"Background context: {context}" if context else ""
+
+    prompt = GENERATE_INPUT_PROMPT.format(
+        role=persona.role or "User",
+        expertise_level=persona.expertise_level,
+        communication_style=persona.communication_style or "casual",
+        traits=", ".join(persona.behavioral_traits or []),
+        objective=objective,
+        context_line=context_line,
+    )
+
+    response = await simulator_llm.ainvoke([HM(content=prompt)])
+    return response.content.strip() if hasattr(response, "content") else str(response).strip()
+
+
 async def _simulate_user_followup(
     db: Session,
     persona: Persona,
@@ -267,10 +322,12 @@ async def _simulate_user_followup(
     agent_response: str,
     conversation_history: list[dict],
 ) -> str:
-    """Use a capable LLM to simulate the user's next message."""
+    """Use a capable LLM to simulate the user's next message in a multi-turn conversation."""
     from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
     simulator_llm = get_llm(db, temperature=0.6)
+    objective = scenario.objective if scenario else "General interaction"
+    context_line = f"Background context: {scenario.context}" if scenario and scenario.context else ""
 
     system_prompt = USER_SIMULATOR_PROMPT.format(
         name=persona.name,
@@ -279,8 +336,8 @@ async def _simulate_user_followup(
         communication_style=persona.communication_style or "casual",
         traits=", ".join(persona.behavioral_traits or []),
         goals=", ".join(persona.goals or []),
-        scenario_description=scenario.description if scenario else "General interaction",
-        input_message=scenario.input_message if scenario else "",
+        objective=objective,
+        context_line=context_line,
     )
 
     messages = [SystemMessage(content=system_prompt)]
