@@ -4,8 +4,8 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { WalkthroughProvider } from "@/contexts/WalkthroughContext";
 
 export const metadata: Metadata = {
-  title: "RAG Optimization Pipeline",
-  description: "End-to-end platform for optimizing Retrieval-Augmented Generation pipelines",
+  title: "Yoke Agent — AI Quality Studio",
+  description: "Mistake-proof your AI — optimize RAG pipelines and evaluate AI agents",
   icons: {
     icon: "/favicon.svg",
   },

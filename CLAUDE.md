@@ -1,7 +1,7 @@
-# RAG Optimization Pipeline
+# Yoke Agent — AI Quality Studio
 
 ## Project Overview
-End-to-end platform for optimizing Retrieval-Augmented Generation (RAG) pipelines through systematic hyperparameter grid search and RAGAS evaluation.
+AI Quality Studio for optimizing RAG pipelines and evaluating AI agents through systematic hyperparameter grid search, simulation testing, and RAGAS evaluation.
 
 ## Architecture
 - **Backend**: Python/FastAPI with SQLAlchemy (SQLite default)

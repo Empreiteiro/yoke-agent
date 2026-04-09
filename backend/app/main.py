@@ -77,8 +77,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="RAG Optimization Pipeline",
-    description="End-to-end platform for optimizing Retrieval-Augmented Generation pipelines",
+    title="Yoke Agent",
+    description="AI Quality Studio — mistake-proof your RAG pipelines and AI agents",
     version="0.1.0",
     lifespan=lifespan,
 )

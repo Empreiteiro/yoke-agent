@@ -249,8 +249,8 @@ export default function Sidebar({
         <div className="flex items-center gap-2.5" data-walkthrough="sidebar-welcome">
           <Logo size={32} />
           <div>
-            <h1 className="text-sm font-bold text-primary leading-tight">RAG Pipeline</h1>
-            <p className="text-[10px] text-t-secondary">Optimization Studio</p>
+            <h1 className="text-sm font-bold text-primary leading-tight">Yoke Agent</h1>
+            <p className="text-[10px] text-t-secondary">AI Quality Studio</p>
           </div>
         </div>
       </div>

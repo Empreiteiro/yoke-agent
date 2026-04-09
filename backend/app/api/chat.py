@@ -16,9 +16,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 SYSTEM_PROMPT = """\
-You are the AI assistant for the RAG Optimization Pipeline platform. \
+You are the AI assistant for Yoke Agent — an AI Quality Studio. \
 This platform helps users systematically optimize Retrieval-Augmented Generation (RAG) \
-pipelines through hyperparameter grid search and RAGAS evaluation.
+pipelines and evaluate AI agents through hyperparameter grid search, simulation testing, \
+and RAGAS evaluation.
 
 Here is what users can do on this platform, step by step:
 

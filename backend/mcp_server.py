@@ -1,4 +1,4 @@
-"""MCP Server for RAG Optimization Pipeline.
+"""MCP Server for Yoke Agent — AI Quality Studio.
 
 Exposes all platform functionality as MCP tools for AI agent control.
 Connects to the FastAPI backend via HTTP.
@@ -18,8 +18,8 @@ import httpx
 from fastmcp import FastMCP
 
 mcp = FastMCP(
-    "RAG Optimization Pipeline",
-    description="Control the RAG optimization pipeline: upload documents, generate datasets, configure and run experiments, view results.",
+    "Yoke Agent",
+    description="AI Quality Studio: optimize RAG pipelines and evaluate AI agents through grid search, simulation testing, and metrics.",
 )
 
 API_KEY = os.environ.get("RAG_API_KEY", "")
