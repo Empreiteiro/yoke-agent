@@ -2,6 +2,7 @@
 Simulation engine: runs conversations between a user-simulator LLM and the agent-under-test.
 Supports single-turn and multi-turn interactions.
 """
+import asyncio
 import json
 import logging
 import time
@@ -120,31 +121,67 @@ async def run_simulation(
     temperature = params.get("temperature", 0.0)
     interaction_count = params.get("interaction_count_override") or 1
 
-    total = 0
-    completed = 0
-
+    # Pre-fetch scenarios and personas to avoid repeated queries
+    scenario_map = {}
+    persona_map = {}
     for item in items:
-        scenario = db.query(Scenario).filter(Scenario.id == item.scenario_id).first() if item.scenario_id else None
-        persona = db.query(Persona).filter(Persona.id == item.persona_id).first() if item.persona_id else None
+        if item.scenario_id and item.scenario_id not in scenario_map:
+            scenario_map[item.scenario_id] = db.query(Scenario).filter(Scenario.id == item.scenario_id).first()
+        if item.persona_id and item.persona_id not in persona_map:
+            persona_map[item.persona_id] = db.query(Persona).filter(Persona.id == item.persona_id).first()
+
+    total = len(items) * interaction_count
+    completed = 0
+    failed = 0
+
+    # Update combination with total count immediately so the UI can show progress
+    combination.total_simulations = total
+    combination.completed_simulations = 0
+    combination.failed_simulations = 0
+    db.commit()
+
+    logger.info(f"Combo {combination.id}: starting {total} simulations ({len(items)} items × {interaction_count} repetitions, max_turns={max_turns})")
+
+    for idx, item in enumerate(items):
+        scenario = scenario_map.get(item.scenario_id)
+        persona = persona_map.get(item.persona_id)
 
         for interaction_idx in range(interaction_count):
             try:
-                transcript = await _run_single_conversation(
-                    db=db,
-                    combination=combination,
-                    variant=variant,
-                    scenario=scenario,
-                    persona=persona,
-                    item=item,
-                    interaction_idx=interaction_idx,
-                    max_turns=max_turns,
-                    model=model,
-                    temperature=temperature,
+                transcript = await asyncio.wait_for(
+                    _run_single_conversation(
+                        db=db,
+                        combination=combination,
+                        variant=variant,
+                        scenario=scenario,
+                        persona=persona,
+                        item=item,
+                        interaction_idx=interaction_idx,
+                        max_turns=max_turns,
+                        model=model,
+                        temperature=temperature,
+                    ),
+                    timeout=120,  # 2 minutes max per simulation
                 )
                 completed += 1
+            except asyncio.TimeoutError:
+                logger.warning(f"Simulation timed out: combo={combination.id} scenario={getattr(item, 'scenario_id', '?')} persona={getattr(item, 'persona_id', '?')}")
+                transcript = SimulationTranscript(
+                    combination_id=combination.id,
+                    dataset_item_id=getattr(item, "id", None),
+                    scenario_id=getattr(item, "scenario_id", None),
+                    persona_id=getattr(item, "persona_id", None),
+                    interaction_index=interaction_idx,
+                    interaction_mode="single_turn" if max_turns <= 1 else "multi_turn",
+                    messages=[{"role": "system", "content": "Simulation timed out after 120 seconds"}],
+                    terminated_by="timeout",
+                    turns=0,
+                    duration_ms=120000,
+                )
+                db.add(transcript)
+                failed += 1
             except Exception as e:
                 logger.warning(f"Simulation failed: {e}")
-                # Record failed transcript
                 transcript = SimulationTranscript(
                     combination_id=combination.id,
                     dataset_item_id=getattr(item, "id", None),
@@ -158,12 +195,18 @@ async def run_simulation(
                     duration_ms=0,
                 )
                 db.add(transcript)
-            total += 1
+                failed += 1
 
-    combination.total_simulations = total
+            # Update progress after each simulation so the UI reflects real-time status
+            combination.completed_simulations = completed
+            combination.failed_simulations = failed
+            db.commit()
+
+    combination.total_simulations = completed + failed
     combination.completed_simulations = completed
-    combination.failed_simulations = total - completed
+    combination.failed_simulations = failed
     db.commit()
+    logger.info(f"Combo {combination.id}: finished — {completed} completed, {failed} failed")
 
 
 async def _run_single_conversation(
