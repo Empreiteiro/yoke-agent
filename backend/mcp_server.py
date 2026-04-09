@@ -9,7 +9,7 @@ Usage:
 
 Environment variables:
     RAG_API_KEY  - API key for authenticating with the backend
-    RAG_BASE_URL - Backend base URL (default: http://localhost:7070/api)
+    RAG_BASE_URL - Backend base URL (default: http://localhost:4040/api)
 """
 
 import os
@@ -23,7 +23,7 @@ mcp = FastMCP(
 )
 
 API_KEY = os.environ.get("RAG_API_KEY", "")
-BASE_URL = os.environ.get("RAG_BASE_URL", "http://localhost:7070/api")
+BASE_URL = os.environ.get("RAG_BASE_URL", "http://localhost:4040/api")
 
 # Load disabled tools from config
 _config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "mcp_config.json")

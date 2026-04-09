@@ -7,7 +7,7 @@ BACKEND_DIR   = backend
 FRONTEND_DIR  = frontend
 PYTHON        = python3
 NPM           = npm
-UVICORN_PORT  = 7070
+UVICORN_PORT  = 4040
 FRONTEND_PORT = 4000
 VENV_DIR      = $(BACKEND_DIR)/.venv
 VENV_PIP      = $(VENV_DIR)/bin/pip
@@ -157,7 +157,7 @@ docker-up: ## Start services with Docker Compose
 	docker compose up --build -d
 	@echo ""
 	@echo "$(GREEN)Services running:$(RESET)"
-	@echo "  Backend  -> http://localhost:7070"
+	@echo "  Backend  -> http://localhost:4040"
 	@echo "  Frontend -> http://localhost:4000"
 
 docker-down: ## Stop Docker Compose services

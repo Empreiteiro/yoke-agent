@@ -8,7 +8,7 @@ RUN npm ci
 COPY . .
 
 # Build with API pointing to backend service
-ENV NEXT_PUBLIC_API_URL=http://localhost:7070
+ENV NEXT_PUBLIC_API_URL=http://localhost:4040
 RUN npm run build
 
 # Production image

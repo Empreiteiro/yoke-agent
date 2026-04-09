@@ -18,6 +18,6 @@ COPY . .
 # Create directories for data persistence
 RUN mkdir -p uploads chroma_data saved_collections
 
-EXPOSE 7070
+EXPOSE 4040
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7070", "--loop", "asyncio"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4040", "--loop", "asyncio"]

@@ -71,5 +71,5 @@ def update_mcp_tools(data: dict):
 def get_connection_info():
     return {
         "server_path": str(SERVER_PATH.resolve()),
-        "base_url": "http://localhost:7070",
+        "base_url": "http://localhost:4040",
     }
