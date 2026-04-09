@@ -20,6 +20,9 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 
 logger = logging.getLogger(__name__)
 
+# Module-level token storage (outside the Pydantic model to avoid ModelPrivateAttr issues)
+_claude_runtime_token: str | None = None
+
 
 class ChatClaudeCode(BaseChatModel):
     """Chat model that invokes the Claude CLI binary as a subprocess."""
@@ -64,13 +67,12 @@ class ChatClaudeCode(BaseChatModel):
 
     # ── Token management & auth ─────────────────────────────────────────
 
-    _runtime_token: str | None = None  # Token saved at runtime via the UI
-
     @classmethod
     def save_token(cls, token: str) -> None:
         """Save an OAuth token at runtime (persists for the process lifetime)
         and also write it to ~/.claude/.credentials.json for persistence across restarts."""
-        cls._runtime_token = token
+        global _claude_runtime_token
+        _claude_runtime_token = token
         creds_path = Path.home() / ".claude" / ".credentials.json"
         creds_path.parent.mkdir(parents=True, exist_ok=True)
         # Merge with existing credentials if present
@@ -98,7 +100,7 @@ class ChatClaudeCode(BaseChatModel):
 
         # Check if we have a token from any source
         has_token = bool(
-            cls._runtime_token
+            _claude_runtime_token
             or os.environ.get("RAG_CLAUDE_CODE_TOKEN")
             or os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
         )
@@ -122,8 +124,8 @@ class ChatClaudeCode(BaseChatModel):
         env = {**os.environ}
 
         # 1. Runtime token saved via the UI (highest priority)
-        if ChatClaudeCode._runtime_token:
-            env["CLAUDE_CODE_OAUTH_TOKEN"] = ChatClaudeCode._runtime_token
+        if _claude_runtime_token:
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = _claude_runtime_token
             return env
 
         # 2. Explicit env var set by the user
