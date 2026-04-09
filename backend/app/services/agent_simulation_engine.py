@@ -86,6 +86,22 @@ async def run_simulation(
             pq = pq.filter(Persona.group_name.in_(params["persona_group_names"]))
         personas = pq.all()
 
+        logger.info(
+            f"Combo {combination.id}: found {len(scenarios)} scenarios, {len(personas)} personas "
+            f"for config {config.id} (filters: types={params.get('scenario_types')}, groups={params.get('persona_group_names')})"
+        )
+
+        if not scenarios:
+            raise ValueError(
+                f"No scenarios found for agent config '{config.name}' (id={config.id}). "
+                "Please create scenarios in the 'Create Scenarios' step before running."
+            )
+        if not personas:
+            raise ValueError(
+                f"No personas found for agent config '{config.name}' (id={config.id}). "
+                "Please create personas in the 'Create Personas' step before running."
+            )
+
         for scenario in scenarios:
             for persona in personas:
                 items.append(type("Item", (), {

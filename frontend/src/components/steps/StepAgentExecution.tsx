@@ -257,13 +257,23 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
                     {statusIcon(c.status)}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-primary truncate">
-                        {c.model || c.label || `Combo #${c.id}`}
+                        {c.params?.model || `Combo #${c.id}`}
                       </p>
                       <p className="text-xs text-t-secondary truncate">
-                        T={c.temperature ?? "?"} | Turns={c.max_turns ?? "?"}
+                        T={c.params?.temperature ?? "?"} | Turns={c.params?.max_turns ?? "?"}
                       </p>
+                      {c.error_message && (
+                        <p className="text-[10px] text-red-400 mt-0.5 truncate" title={c.error_message}>
+                          {c.error_message.slice(0, 80)}
+                        </p>
+                      )}
                     </div>
-                    <span className="text-xs text-t-secondary capitalize">{c.status || "pending"}</span>
+                    <div className="text-right">
+                      <span className="text-xs text-t-secondary capitalize">{c.status || "pending"}</span>
+                      {c.completed_simulations > 0 && (
+                        <p className="text-[10px] text-t-secondary">{c.completed_simulations}/{c.total_simulations}</p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
