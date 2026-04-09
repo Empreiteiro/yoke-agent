@@ -34,15 +34,28 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
   const [scenarioTypes, setScenarioTypes] = useState<string[]>([]);
   const [interactionCount, setInteractionCount] = useState<number | "">("");
   const [experimentName, setExperimentName] = useState("");
+  const [scenarioCount, setScenarioCount] = useState(0);
+  const [personaCount, setPersonaCount] = useState(0);
+  const [scenarioCounts, setScenarioCounts] = useState<Record<string, number>>({});
 
   const loadData = useCallback(async () => {
     if (!agentConfigId) return;
     setLoading(true);
     try {
-      const [variants, models] = await Promise.all([
+      const [variants, models, scenarios, personas] = await Promise.all([
         api.listPromptVariants(agentConfigId),
         api.getAvailableModels(),
+        api.listScenarios(agentConfigId),
+        api.listPersonas(agentConfigId),
       ]);
+      setScenarioCount(scenarios.length);
+      setPersonaCount(personas.length);
+      // Count by type
+      const byType: Record<string, number> = {};
+      for (const s of scenarios) {
+        byType[s.scenario_type] = (byType[s.scenario_type] || 0) + 1;
+      }
+      setScenarioCounts(byType);
       setPromptVariants(variants);
       const llmModels = models.llm_models || [];
       setAvailableModels(llmModels);
@@ -329,21 +342,99 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
         </div>
       </div>
 
-      {/* Combination preview */}
-      <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-xl border border-surface-200/50 p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-sm text-t-secondary">Total Combinations</span>
-            <p className="text-3xl font-bold text-accent">{combinationCount}</p>
+      {/* Simulation preview */}
+      {(() => {
+        const filteredScenarios = scenarioTypes.length > 0
+          ? scenarioTypes.reduce((sum, t) => sum + (scenarioCounts[t] || 0), 0)
+          : scenarioCount;
+        const interactions = filteredScenarios * personaCount;
+        const repetitions = interactionCount ? Number(interactionCount) : 1;
+        const simulationsPerCombo = interactions * repetitions;
+        const totalSimulations = simulationsPerCombo * combinationCount;
+        const avgTurns = selectedMaxTurns.length > 0
+          ? selectedMaxTurns.reduce((a, b) => a + b, 0) / selectedMaxTurns.length
+          : 1;
+        // Token estimation: ~800 tokens per LLM call (prompt+completion), 2 calls per turn (persona gen + agent response) + 1 for initial message gen
+        const tokensPerSimulation = Math.round((avgTurns * 2 + 1) * 800);
+        const totalTokens = totalSimulations * tokensPerSimulation;
+
+        return (
+          <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-xl border border-surface-200/50 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm text-t-secondary">Total Simulations</span>
+                <p className="text-3xl font-bold text-accent">{totalSimulations.toLocaleString()}</p>
+              </div>
+              <div>
+                <span className="text-sm text-t-secondary">Combinations</span>
+                <p className="text-3xl font-bold text-primary">{combinationCount}</p>
+              </div>
+            </div>
+
+            {/* Breakdown table */}
+            <div className="border-t border-surface-200/30 pt-3">
+              <table className="w-full text-xs">
+                <tbody className="divide-y divide-surface-200/20">
+                  <tr>
+                    <td className="py-1.5 text-t-secondary">Scenarios</td>
+                    <td className="py-1.5 text-right text-primary font-medium">{filteredScenarios}</td>
+                    <td className="py-1.5 text-right text-t-secondary/60 pl-2 w-24">
+                      {scenarioTypes.length > 0 ? `(filtered from ${scenarioCount})` : ""}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 text-t-secondary">Personas</td>
+                    <td className="py-1.5 text-right text-primary font-medium">{personaCount}</td>
+                    <td className="py-1.5 text-right text-t-secondary/60 pl-2"></td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 text-t-secondary">Scenarios × Personas</td>
+                    <td className="py-1.5 text-right text-primary font-medium">{interactions}</td>
+                    <td className="py-1.5 text-right text-t-secondary/60 pl-2">per combo</td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 text-t-secondary">Repetitions</td>
+                    <td className="py-1.5 text-right text-primary font-medium">×{repetitions}</td>
+                    <td className="py-1.5 text-right text-t-secondary/60 pl-2">per interaction</td>
+                  </tr>
+                  <tr className="border-t border-surface-200/40">
+                    <td className="py-1.5 text-t-secondary">Simulations per combo</td>
+                    <td className="py-1.5 text-right text-primary font-bold">{simulationsPerCombo.toLocaleString()}</td>
+                    <td className="py-1.5 text-right text-t-secondary/60 pl-2"></td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 text-t-secondary">Grid combinations</td>
+                    <td className="py-1.5 text-right text-primary font-medium">{combinationCount}</td>
+                    <td className="py-1.5 text-right text-t-secondary/60 pl-2">
+                      {selectedVariants.length}v × {selectedModels.length}m × {selectedTemps.length}t × {selectedMaxTurns.length}turns
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Token estimation */}
+            <div className="border-t border-surface-200/30 pt-3 space-y-1">
+              <h4 className="text-xs font-semibold text-t-secondary uppercase tracking-wider">Estimated Token Usage</h4>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-t-secondary">~{tokensPerSimulation.toLocaleString()} tokens/simulation (avg {avgTurns.toFixed(1)} turns)</span>
+                <span className="text-sm font-bold text-primary">{totalTokens >= 1_000_000 ? `~${(totalTokens / 1_000_000).toFixed(1)}M` : `~${(totalTokens / 1_000).toFixed(0)}K`} tokens total</span>
+              </div>
+              {totalSimulations > 100 && (
+                <p className="text-[10px] text-amber-400">
+                  ⚠ Large run — {totalSimulations} simulations may take significant time with CLI-based providers.
+                  Consider reducing scenarios, personas, or repetitions for a faster test.
+                </p>
+              )}
+              {(filteredScenarios === 0 || personaCount === 0) && (
+                <p className="text-[10px] text-red-400">
+                  ⚠ {filteredScenarios === 0 ? "No scenarios found" : "No personas found"} — create them in the previous steps before running.
+                </p>
+              )}
+            </div>
           </div>
-          <div className="text-right text-xs text-t-secondary space-y-1">
-            <p>{selectedVariants.length} variant(s)</p>
-            <p>{selectedModels.length} model(s)</p>
-            <p>{selectedTemps.length} temperature(s)</p>
-            <p>{selectedMaxTurns.length} max turn(s)</p>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Error */}
       {error && (
