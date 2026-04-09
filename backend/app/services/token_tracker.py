@@ -24,6 +24,8 @@ MODEL_PRICING = {
     # Google
     "gemini-1.5-pro": {"prompt": 1.25, "completion": 5.00},
     "gemini-1.5-flash": {"prompt": 0.075, "completion": 0.30},
+    # Claude Code CLI (local — no direct API cost)
+    "claude-code": {"prompt": 0.0, "completion": 0.0},
 }
 
 

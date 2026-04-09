@@ -83,6 +83,10 @@ def get_llm(
         )
         return ChatHuggingFace(llm=llm)
 
+    elif ptype == "claude_code":
+        from app.services.claude_code_llm import ChatClaudeCode
+        return ChatClaudeCode(model_name=model_name, temperature=temperature)
+
     elif ptype == "custom":
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(

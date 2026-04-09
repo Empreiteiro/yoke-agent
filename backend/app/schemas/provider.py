@@ -108,6 +108,15 @@ PROVIDER_CATALOG = {
         "requires_api_key": True,
         "supports_base_url": False,
     },
+    "claude_code": {
+        "label": "Claude Code (CLI)",
+        "supports_llm": True,
+        "supports_embedding": False,
+        "llm_models": ["claude-code"],
+        "embedding_models": [],
+        "requires_api_key": False,
+        "supports_base_url": False,
+    },
     "custom": {
         "label": "Custom (OpenAI-compatible)",
         "supports_llm": True,
