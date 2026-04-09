@@ -62,35 +62,81 @@ class ChatClaudeCode(BaseChatModel):
             "Claude CLI binary not found. Install Claude Code CLI or ensure 'claude' is in your PATH."
         )
 
-    # ── Auth environment ──────────────────────────────────────────────
+    # ── Token management & auth ─────────────────────────────────────────
+
+    _runtime_token: str | None = None  # Token saved at runtime via the UI
+
+    @classmethod
+    def save_token(cls, token: str) -> None:
+        """Save an OAuth token at runtime (persists for the process lifetime)
+        and also write it to ~/.claude/.credentials.json for persistence across restarts."""
+        cls._runtime_token = token
+        creds_path = Path.home() / ".claude" / ".credentials.json"
+        creds_path.parent.mkdir(parents=True, exist_ok=True)
+        # Merge with existing credentials if present
+        existing = {}
+        if creds_path.exists():
+            try:
+                existing = json.loads(creds_path.read_text())
+            except (json.JSONDecodeError, OSError):
+                pass
+        existing["oauthToken"] = token
+        creds_path.write_text(json.dumps(existing, indent=2))
+        logger.info("Claude Code OAuth token saved to %s", creds_path)
+
+    @classmethod
+    def get_status(cls) -> dict:
+        """Check whether the Claude CLI is installed and authenticated."""
+        result = {"installed": False, "binary_path": None, "authenticated": False, "error": None}
+        try:
+            binary = cls._find_claude_binary()
+            result["installed"] = True
+            result["binary_path"] = binary
+        except FileNotFoundError as e:
+            result["error"] = str(e)
+            return result
+
+        # Check if we have a token from any source
+        has_token = bool(
+            cls._runtime_token
+            or os.environ.get("RAG_CLAUDE_CODE_TOKEN")
+            or os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
+        )
+        if not has_token:
+            creds_path = Path.home() / ".claude" / ".credentials.json"
+            if creds_path.exists():
+                try:
+                    creds = json.loads(creds_path.read_text())
+                    has_token = bool(creds.get("oauthToken"))
+                except (json.JSONDecodeError, OSError):
+                    pass
+
+        result["authenticated"] = has_token
+        if not has_token:
+            result["error"] = "No OAuth token found. Please authenticate via the UI or run 'claude login' in a terminal."
+        return result
 
     @staticmethod
     def _get_cli_env() -> dict:
-        """Build environment variables for the CLI subprocess.
-
-        The Claude CLI authenticates via an OAuth token. It looks for the token
-        in this order:
-        1. CLAUDE_CODE_OAUTH_TOKEN env var (inherited from parent or set explicitly)
-        2. Its own stored credentials from `claude login`
-
-        When launched from Claude Desktop, the parent process sets
-        CLAUDE_CODE_OAUTH_TOKEN — we inherit it. When launched from a standalone
-        terminal, the user must run `claude login` first.
-        """
+        """Build environment variables for the CLI subprocess."""
         env = {**os.environ}
 
-        # If an explicit token is set via RAG_CLAUDE_CODE_TOKEN, use that
+        # 1. Runtime token saved via the UI (highest priority)
+        if ChatClaudeCode._runtime_token:
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = ChatClaudeCode._runtime_token
+            return env
+
+        # 2. Explicit env var set by the user
         explicit_token = os.environ.get("RAG_CLAUDE_CODE_TOKEN")
         if explicit_token:
             env["CLAUDE_CODE_OAUTH_TOKEN"] = explicit_token
             return env
 
-        # Otherwise inherit CLAUDE_CODE_OAUTH_TOKEN from parent if available
-        # (e.g. when backend is launched from Claude Desktop or a session that has it)
+        # 3. Inherited from parent (e.g. Claude Desktop)
         if os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
             return env
 
-        # Try to read from the credentials file created by `claude login`
+        # 4. Credentials file
         creds_path = Path.home() / ".claude" / ".credentials.json"
         if creds_path.exists():
             try:

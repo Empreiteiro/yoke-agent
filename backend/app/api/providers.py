@@ -201,3 +201,26 @@ def get_available_models(db: Session = Depends(get_db)):
 def get_embedding_dimensions():
     """Return dimension capabilities for all known embedding models."""
     return EMBEDDING_DIMENSIONS
+
+
+# ── Claude Code CLI status & auth ─────────────────────────────────────
+
+
+@router.get("/claude-code/status")
+def get_claude_code_status():
+    """Check if Claude Code CLI is installed and authenticated."""
+    from app.services.claude_code_llm import ChatClaudeCode
+    return ChatClaudeCode.get_status()
+
+
+@router.post("/claude-code/auth")
+def save_claude_code_token(data: dict):
+    """Save a Claude Code OAuth token for authentication."""
+    token = data.get("token", "").strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Token is required")
+    from app.services.claude_code_llm import ChatClaudeCode
+    ChatClaudeCode.save_token(token)
+    # Verify it works
+    status = ChatClaudeCode.get_status()
+    return {"success": True, "status": status}

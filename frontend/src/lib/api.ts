@@ -149,6 +149,9 @@ export const api = {
     request<any>(`/providers/ollama/discover?base_url=${encodeURIComponent(baseUrl)}`),
   getAvailableModels: () => request<any>("/providers/models/available"),
   getEmbeddingDimensions: () => request<any>("/providers/models/embedding-dimensions"),
+  getClaudeCodeStatus: () => request<any>("/providers/claude-code/status"),
+  saveClaudeCodeToken: (token: string) =>
+    request<any>("/providers/claude-code/auth", { method: "POST", body: JSON.stringify({ token }) }),
 
   // Collections
   listCollections: () => request<any[]>("/collections/"),

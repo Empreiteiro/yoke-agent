@@ -56,6 +56,7 @@ const PROVIDER_ICONS: Record<string, string> = {
   ollama: "🦙",
   azure_openai: "☁️",
   huggingface: "🤗",
+  claude_code: "🟠",
   custom: "⚙️",
 };
 
@@ -333,6 +334,32 @@ function AddProviderForm({
   const [discoveredEmb, setDiscoveredEmb] = useState<string[]>([]);
 
   const isOllama = providerType === "ollama";
+  const isClaudeCode = providerType === "claude_code";
+  const [claudeStatus, setClaudeStatus] = useState<any>(null);
+  const [claudeToken, setClaudeToken] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
+  const [tokenSaved, setTokenSaved] = useState(false);
+
+  useEffect(() => {
+    if (isClaudeCode) {
+      api.getClaudeCodeStatus().then(setClaudeStatus).catch(() => {});
+    }
+  }, [isClaudeCode]);
+
+  const handleSaveClaudeToken = async () => {
+    if (!claudeToken.trim()) return;
+    setSavingToken(true);
+    try {
+      const res = await api.saveClaudeCodeToken(claudeToken.trim());
+      setClaudeStatus(res.status);
+      setTokenSaved(true);
+      setTimeout(() => setTokenSaved(false), 3000);
+    } catch (e: any) {
+      setError(e.message || "Failed to save token");
+    } finally {
+      setSavingToken(false);
+    }
+  };
 
   const handleDiscover = async () => {
     if (!baseUrl) return;
@@ -494,6 +521,77 @@ function AddProviderForm({
                 )}
               </div>
               {isOllama && <p className="text-xs text-muted mt-1.5">Enter the Ollama server URL and click Discover to fetch available models.</p>}
+            </div>
+          )}
+
+          {/* Claude Code CLI — status & auth */}
+          {isClaudeCode && (
+            <div className="bg-surface-50 rounded-xl border border-surface-200/50 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-primary">Claude Code CLI Status</span>
+              </div>
+
+              {claudeStatus ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className={claudeStatus.installed ? "text-emerald-400" : "text-red-400"}>
+                      {claudeStatus.installed ? "✓" : "✗"}
+                    </span>
+                    <span className="text-t-secondary">
+                      {claudeStatus.installed ? `CLI found: ${claudeStatus.binary_path?.split("/").pop()}` : "CLI not found"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className={claudeStatus.authenticated ? "text-emerald-400" : "text-amber-400"}>
+                      {claudeStatus.authenticated ? "✓" : "⚠"}
+                    </span>
+                    <span className="text-t-secondary">
+                      {claudeStatus.authenticated ? "Authenticated" : "Not authenticated"}
+                    </span>
+                  </div>
+                  {!claudeStatus.authenticated && claudeStatus.error && (
+                    <p className="text-xs text-amber-400/80">{claudeStatus.error}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-t-secondary">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Checking status...
+                </div>
+              )}
+
+              {claudeStatus && !claudeStatus.authenticated && (
+                <div className="space-y-2 pt-2 border-t border-surface-200/50">
+                  <p className="text-xs text-t-secondary">
+                    Paste your Claude OAuth token below. You can get it by running{" "}
+                    <code className="px-1.5 py-0.5 bg-surface-200/50 rounded text-accent text-[11px]">claude auth print-token</code>{" "}
+                    in a terminal where Claude CLI is authenticated, or copy the{" "}
+                    <code className="px-1.5 py-0.5 bg-surface-200/50 rounded text-accent text-[11px]">CLAUDE_CODE_OAUTH_TOKEN</code>{" "}
+                    environment variable from a Claude Desktop session.
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={claudeToken}
+                      onChange={(e) => setClaudeToken(e.target.value)}
+                      placeholder="Paste OAuth token..."
+                      className="flex-1 px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/40 font-mono"
+                    />
+                    <button
+                      onClick={handleSaveClaudeToken}
+                      disabled={savingToken || !claudeToken.trim()}
+                      className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                    >
+                      {savingToken ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : tokenSaved ? <Check className="w-3.5 h-3.5" /> : null}
+                      {tokenSaved ? "Saved!" : "Save Token"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {claudeStatus?.authenticated && (
+                <p className="text-xs text-emerald-400/80">✓ Ready to use. Save the provider to start using Claude Code.</p>
+              )}
             </div>
           )}
 
