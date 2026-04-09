@@ -203,4 +203,113 @@ export const api = {
       body: JSON.stringify({ disabled_tools: disabledTools }),
     }),
   getMcpConnectionInfo: () => request<any>("/mcp/connection-info"),
+
+  // ── Agent Evaluation Pipeline ────────────────────────────────────
+
+  // Agent Configs
+  listAgentConfigs: () => request<any[]>("/agent/configs/"),
+  createAgentConfig: (data: any) =>
+    request<any>("/agent/configs/", { method: "POST", body: JSON.stringify(data) }),
+  getAgentConfig: (id: number) => request<any>(`/agent/configs/${id}`),
+  updateAgentConfig: (id: number, data: any) =>
+    request<any>(`/agent/configs/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteAgentConfig: (id: number) =>
+    request<any>(`/agent/configs/${id}`, { method: "DELETE" }),
+
+  // AI Enhance
+  enhancePrompt: (data: { text: string; context?: string }) =>
+    request<{ result: string }>("/agent/configs/enhance/prompt", { method: "POST", body: JSON.stringify(data) }),
+  enhanceDescription: (data: { text: string; context?: string }) =>
+    request<{ result: string }>("/agent/configs/enhance/description", { method: "POST", body: JSON.stringify(data) }),
+  suggestTools: (data: { agent_name: string; description: string; system_prompt: string; existing_tools?: any[] }) =>
+    request<{ tools: any[] }>("/agent/configs/enhance/suggest-tools", { method: "POST", body: JSON.stringify(data) }),
+
+  // Prompt Variants
+  listPromptVariants: (configId: number) =>
+    request<any[]>(`/agent/configs/${configId}/variants`),
+  createPromptVariant: (configId: number, data: any) =>
+    request<any>(`/agent/configs/${configId}/variants`, { method: "POST", body: JSON.stringify(data) }),
+  deletePromptVariant: (configId: number, variantId: number) =>
+    request<any>(`/agent/configs/${configId}/variants/${variantId}`, { method: "DELETE" }),
+  generatePromptVariants: (configId: number, data: { count?: number; focus?: string }) =>
+    request<any[]>(`/agent/configs/${configId}/variants/generate`, { method: "POST", body: JSON.stringify(data) }),
+
+  // Scenarios
+  listScenarios: (configId: number, scenarioType?: string) =>
+    request<any[]>(`/agent/configs/${configId}/scenarios${scenarioType ? `?scenario_type=${scenarioType}` : ""}`),
+  createScenario: (configId: number, data: any) =>
+    request<any>(`/agent/configs/${configId}/scenarios`, { method: "POST", body: JSON.stringify(data) }),
+  createScenariosBulk: (configId: number, data: any[]) =>
+    request<any[]>(`/agent/configs/${configId}/scenarios/bulk`, { method: "POST", body: JSON.stringify(data) }),
+  updateScenario: (configId: number, scenarioId: number, data: any) =>
+    request<any>(`/agent/configs/${configId}/scenarios/${scenarioId}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteScenario: (configId: number, scenarioId: number) =>
+    request<any>(`/agent/configs/${configId}/scenarios/${scenarioId}`, { method: "DELETE" }),
+  generateScenarios: (configId: number, data: { scenario_type: string; count?: number }) =>
+    request<any[]>(`/agent/configs/${configId}/scenarios/generate`, { method: "POST", body: JSON.stringify(data) }),
+
+  // Personas
+  listPersonas: (configId: number, groupName?: string) =>
+    request<any[]>(`/agent/configs/${configId}/personas${groupName ? `?group_name=${groupName}` : ""}`),
+  createPersona: (configId: number, data: any) =>
+    request<any>(`/agent/configs/${configId}/personas`, { method: "POST", body: JSON.stringify(data) }),
+  createPersonasBulk: (configId: number, data: any[]) =>
+    request<any[]>(`/agent/configs/${configId}/personas/bulk`, { method: "POST", body: JSON.stringify(data) }),
+  updatePersona: (configId: number, personaId: number, data: any) =>
+    request<any>(`/agent/configs/${configId}/personas/${personaId}`, { method: "PUT", body: JSON.stringify(data) }),
+  deletePersona: (configId: number, personaId: number) =>
+    request<any>(`/agent/configs/${configId}/personas/${personaId}`, { method: "DELETE" }),
+  generatePersonas: (configId: number, data: { audience_description: string; count?: number; interaction_count?: number }) =>
+    request<any[]>(`/agent/configs/${configId}/personas/generate`, { method: "POST", body: JSON.stringify(data) }),
+  getPersonaTemplates: (configId: number) =>
+    request<any[]>(`/agent/configs/${configId}/personas/templates`),
+
+  // Interaction Datasets
+  listInteractionDatasets: () => request<any[]>("/agent/datasets"),
+  createInteractionDataset: (data: any) =>
+    request<any>("/agent/datasets", { method: "POST", body: JSON.stringify(data) }),
+  getInteractionDataset: (id: number) => request<any>(`/agent/datasets/${id}`),
+  deleteInteractionDataset: (id: number) =>
+    request<any>(`/agent/datasets/${id}`, { method: "DELETE" }),
+  duplicateInteractionDataset: (id: number) =>
+    request<any>(`/agent/datasets/${id}/duplicate`, { method: "POST" }),
+  listInteractionDatasetItems: (id: number) =>
+    request<any[]>(`/agent/datasets/${id}/items`),
+  addInteractionDatasetItem: (id: number, data: any) =>
+    request<any>(`/agent/datasets/${id}/items`, { method: "POST", body: JSON.stringify(data) }),
+  deleteInteractionDatasetItem: (datasetId: number, itemId: number) =>
+    request<any>(`/agent/datasets/${datasetId}/items/${itemId}`, { method: "DELETE" }),
+  generateInteractionDataset: (data: any) =>
+    request<any>("/agent/datasets/generate", { method: "POST", body: JSON.stringify(data) }),
+  exportInteractionDataset: (id: number) => request<any>(`/agent/datasets/${id}/export`),
+  importInteractionDatasetItems: (id: number, items: any[]) =>
+    request<any>(`/agent/datasets/${id}/import`, { method: "POST", body: JSON.stringify(items) }),
+
+  // Agent Experiments
+  listAgentExperiments: () => request<any[]>("/agent/experiments"),
+  createAgentExperiment: (data: any) =>
+    request<any>("/agent/experiments", { method: "POST", body: JSON.stringify(data) }),
+  getAgentExperiment: (id: number) => request<any>(`/agent/experiments/${id}`),
+  deleteAgentExperiment: (id: number) =>
+    request<any>(`/agent/experiments/${id}`, { method: "DELETE" }),
+  getAgentExperimentCombinations: (id: number) =>
+    request<any[]>(`/agent/experiments/${id}/combinations`),
+  runAgentExperiment: (id: number) =>
+    request<any>(`/agent/experiments/${id}/run`, { method: "POST" }),
+  stopAgentExperiment: (id: number) =>
+    request<any>(`/agent/experiments/${id}/stop`, { method: "POST" }),
+  getAgentExperimentStatus: (id: number) =>
+    request<any>(`/agent/experiments/${id}/status`),
+  getAgentExperimentResults: (id: number) =>
+    request<any>(`/agent/experiments/${id}/results`),
+  evaluateAgentExperiment: (id: number) =>
+    request<any>(`/agent/experiments/${id}/evaluate`, { method: "POST" }),
+  generateAgentReport: (id: number) =>
+    request<any>(`/agent/experiments/${id}/report/generate`, { method: "POST" }),
+
+  // Transcripts
+  listTranscripts: (expId: number, combinationId?: number) =>
+    request<any[]>(`/agent/experiments/${expId}/transcripts${combinationId ? `?combination_id=${combinationId}` : ""}`),
+  getTranscript: (id: number) => request<any>(`/agent/transcripts/${id}`),
+  getTranscriptMetrics: (id: number) => request<any>(`/agent/transcripts/${id}/metrics`),
 };
