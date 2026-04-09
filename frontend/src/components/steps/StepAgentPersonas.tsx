@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 
 interface StepAgentPersonasProps {
   agentConfigId: number | null;
+  onComplete?: () => void;
 }
 
 const EXPERTISE_COLORS: Record<string, string> = {
@@ -15,7 +16,7 @@ const EXPERTISE_COLORS: Record<string, string> = {
   expert: "bg-amber-500/20 text-amber-400",
 };
 
-export default function StepAgentPersonas({ agentConfigId }: StepAgentPersonasProps) {
+export default function StepAgentPersonas({ agentConfigId, onComplete }: StepAgentPersonasProps) {
   const [personas, setPersonas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -412,6 +413,15 @@ export default function StepAgentPersonas({ agentConfigId }: StepAgentPersonasPr
             </div>
           ))}
         </div>
+      )}
+      {/* CTA — Continue to next step */}
+      {personas.length > 0 && (
+        <button
+          onClick={() => onComplete?.()}
+          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          Continue to Grid Search Config ({personas.length} personas ready)
+        </button>
       )}
     </div>
   );

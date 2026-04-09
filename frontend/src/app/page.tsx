@@ -210,9 +210,19 @@ function HomeContent() {
           />
         );
       case "agent-scenarios":
-        return <StepAgentScenarios agentConfigId={pipelineData.agentConfigId} />;
+        return (
+          <StepAgentScenarios
+            agentConfigId={pipelineData.agentConfigId}
+            onComplete={() => handleStepComplete("agent-scenarios" as StepId)}
+          />
+        );
       case "agent-personas":
-        return <StepAgentPersonas agentConfigId={pipelineData.agentConfigId} />;
+        return (
+          <StepAgentPersonas
+            agentConfigId={pipelineData.agentConfigId}
+            onComplete={() => handleStepComplete("agent-personas" as StepId)}
+          />
+        );
       case "agent-grid":
         return (
           <StepAgentGridSearch

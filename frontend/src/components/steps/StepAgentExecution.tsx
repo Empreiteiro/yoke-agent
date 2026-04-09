@@ -202,15 +202,6 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
 
           {/* Controls */}
           <div className="flex items-center gap-3">
-            {(!running && status?.status !== "completed") && (
-              <button
-                onClick={handleRun}
-                className="flex items-center gap-2 px-6 py-2.5 bg-accent text-primary font-medium rounded-xl hover:bg-accent/90 transition-colors"
-              >
-                <Play className="w-4 h-4" />
-                {status?.status === "stopped" || status?.status === "failed" ? "Resume" : "Start"}
-              </button>
-            )}
             {running && !stopping && (
               <button
                 onClick={handleStop}
@@ -277,6 +268,24 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
                 ))}
               </div>
             </div>
+          )}
+          {/* CTA — Start or View Results */}
+          {!running && status?.status !== "completed" && (
+            <button
+              onClick={handleRun}
+              className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              {status?.status === "stopped" || status?.status === "failed" ? "Resume Execution" : "Start Execution"}
+            </button>
+          )}
+          {(status?.status === "completed" || (status?.status === "stopped" && completedCount > 0)) && (
+            <button
+              onClick={() => onComplete?.()}
+              className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              View Results Report
+            </button>
           )}
         </>
       )}

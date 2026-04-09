@@ -345,6 +345,28 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
         </div>
       )}
 
+      {/* CTA — Evaluate & Generate Report */}
+      {sorted.length > 0 && !report && (
+        <div className="flex gap-3">
+          <button
+            onClick={handleEvaluate}
+            disabled={evaluating}
+            className="flex-1 py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {evaluating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {evaluating ? "Evaluating..." : "Evaluate All Combinations"}
+          </button>
+          <button
+            onClick={handleGenerateReport}
+            disabled={generatingReport}
+            className="flex-1 py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {generatingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            {generatingReport ? "Generating..." : "Generate Improvement Report"}
+          </button>
+        </div>
+      )}
+
       {/* Transcript browser */}
       {transcripts.length > 0 && (
         <div className="bg-surface-100 rounded-xl border border-surface-200/50 p-6 space-y-3">

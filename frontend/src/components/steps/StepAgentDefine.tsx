@@ -576,6 +576,15 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
               ))}
             </div>
           )}
+          {/* CTA — Continue to next step */}
+          {selectedConfigId && (
+            <button
+              onClick={() => onComplete?.(selectedConfigId)}
+              className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              Continue to Create Scenarios
+            </button>
+          )}
         </>
       )}
     </div>

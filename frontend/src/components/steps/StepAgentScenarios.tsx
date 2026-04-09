@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 
 interface StepAgentScenariosProps {
   agentConfigId: number | null;
+  onComplete?: () => void;
 }
 
 const SCENARIO_TYPES = [
@@ -15,7 +16,7 @@ const SCENARIO_TYPES = [
   { id: "guardrails", label: "Guardrails" },
 ];
 
-export default function StepAgentScenarios({ agentConfigId }: StepAgentScenariosProps) {
+export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAgentScenariosProps) {
   const [activeTab, setActiveTab] = useState("tool_use");
   const [scenarios, setScenarios] = useState<Record<string, any[]>>({
     tool_use: [],
@@ -333,6 +334,15 @@ export default function StepAgentScenarios({ agentConfigId }: StepAgentScenarios
             </div>
           ))}
         </div>
+      )}
+      {/* CTA — Continue to next step */}
+      {scenarios.length > 0 && (
+        <button
+          onClick={() => onComplete?.()}
+          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          Continue to Create Personas ({scenarios.length} scenarios ready)
+        </button>
       )}
     </div>
   );

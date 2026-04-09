@@ -351,14 +351,20 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
         </div>
       )}
 
-      {/* Create button */}
+      {/* CTA — Create experiment and continue */}
       <button
         onClick={handleCreate}
-        disabled={creating}
-        className="flex items-center gap-2 px-6 py-2.5 bg-accent text-primary font-medium rounded-xl hover:bg-accent/90 transition-colors disabled:opacity-50"
+        disabled={creating || selectedVariants.length === 0 || selectedModels.length === 0}
+        className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
       >
-        {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-        Create Experiment
+        {creating ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Creating Experiment...
+          </>
+        ) : (
+          <>Create Experiment &amp; Continue ({combinationCount} combinations)</>
+        )}
       </button>
     </div>
   );
