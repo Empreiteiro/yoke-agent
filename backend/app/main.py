@@ -6,10 +6,12 @@ from sqlalchemy import inspect, text
 
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api import documents, datasets, experiments, vectorstores, providers, token_usage, collections, auth, mcp_config
+from app.api import documents, datasets, experiments, vectorstores, providers, token_usage, collections, auth, mcp_config, chat
+from app.api import agent_configs, agent_experiments
 from app.models import saved_collection  # noqa: F401 — ensure table creation
 from app.models import vectorstore_config  # noqa: F401 — ensure table creation
 from app.models import api_key  # noqa: F401 — ensure table creation
+from app.models import agent  # noqa: F401 — ensure agent pipeline tables
 from app.core.auth import ApiKeyAuthMiddleware
 
 logger = logging.getLogger(__name__)
@@ -76,6 +78,9 @@ app.include_router(vectorstores.router, prefix="/api/vectorstores", tags=["vecto
 app.include_router(providers.router, prefix="/api/providers", tags=["providers"])
 app.include_router(token_usage.router, prefix="/api/token-usage", tags=["token-usage"])
 app.include_router(collections.router, prefix="/api/collections", tags=["collections"])
+app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
+app.include_router(agent_configs.router, prefix="/api/agent/configs", tags=["agent-configs"])
+app.include_router(agent_experiments.router, prefix="/api/agent", tags=["agent-experiments"])
 
 
 @app.get("/api/health")
