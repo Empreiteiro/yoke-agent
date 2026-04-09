@@ -38,6 +38,9 @@ async function request<T>(
     throw new Error(error.detail || "Request failed");
   }
 
+  // 204 No Content — nothing to parse
+  if (res.status === 204) return undefined as T;
+
   return res.json();
 }
 
