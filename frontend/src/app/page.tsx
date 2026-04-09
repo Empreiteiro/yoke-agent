@@ -264,6 +264,9 @@ function HomeContent() {
     <div className="flex h-screen bg-surface-50">
       <Sidebar
         steps={ACTIVE_STEPS}
+        ragSteps={RAG_STEPS}
+        agentSteps={AGENT_STEPS}
+        chatStep={STEP_CHAT}
         currentStep={currentStep}
         currentView={currentView}
         completedSteps={completedSteps}
