@@ -117,17 +117,19 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
     setCreating(true);
     setError(null);
     try {
-      const payload: any = {
+      const payload = {
         name: experimentName.trim() || `Agent Experiment ${new Date().toISOString().slice(0, 10)}`,
         agent_config_id: agentConfigId,
-        prompt_variant_ids: selectedVariants,
-        models: selectedModels,
-        temperatures: selectedTemps,
-        max_turns: selectedMaxTurns,
+        grid_config: {
+          prompt_variant_ids: selectedVariants,
+          llm_models: selectedModels,
+          temperatures: selectedTemps,
+          max_turns: selectedMaxTurns,
+          persona_group_names: personaGroup ? [personaGroup] : [],
+          scenario_types: scenarioTypes,
+          interaction_count_override: interactionCount ? Number(interactionCount) : null,
+        },
       };
-      if (personaGroup) payload.persona_group = personaGroup;
-      if (scenarioTypes.length > 0) payload.scenario_types = scenarioTypes;
-      if (interactionCount && Number(interactionCount) > 0) payload.interaction_count = Number(interactionCount);
 
       const experiment = await api.createAgentExperiment(payload);
       onComplete?.(experiment.id);
