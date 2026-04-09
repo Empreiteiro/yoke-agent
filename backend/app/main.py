@@ -26,6 +26,13 @@ def _run_migrations(engine):
         ("experiment_combinations", "total_tokens", "INTEGER DEFAULT 0"),
         ("experiment_combinations", "total_cost", "REAL DEFAULT 0.0"),
         ("datasets", "is_benchmark", "INTEGER DEFAULT 0"),
+        # Agent pipeline: scenarios refactor (input_message → objective)
+        ("scenarios", "objective", "TEXT"),
+        ("scenarios", "input_hint", "TEXT"),
+        ("scenarios", "context", "TEXT"),
+        # Agent pipeline: interaction dataset items refactor
+        ("interaction_dataset_items", "objective", "TEXT"),
+        ("interaction_dataset_items", "generated_input", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:
@@ -35,6 +42,23 @@ def _run_migrations(engine):
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
                     conn.commit()
                     logger.info(f"Added column {table}.{column}")
+
+        # Data migration: copy input_message → objective for existing scenarios
+        if "scenarios" in inspector.get_table_names():
+            existing = [c["name"] for c in inspector.get_columns("scenarios")]
+            if "objective" in existing and "input_message" in existing:
+                conn.execute(text(
+                    "UPDATE scenarios SET objective = input_message WHERE objective IS NULL AND input_message IS NOT NULL"
+                ))
+                conn.commit()
+        # Data migration: copy input_message → objective for existing interaction_dataset_items
+        if "interaction_dataset_items" in inspector.get_table_names():
+            existing = [c["name"] for c in inspector.get_columns("interaction_dataset_items")]
+            if "objective" in existing and "input_message" in existing:
+                conn.execute(text(
+                    "UPDATE interaction_dataset_items SET objective = input_message WHERE objective IS NULL AND input_message IS NOT NULL"
+                ))
+                conn.commit()
 
 
 @asynccontextmanager
