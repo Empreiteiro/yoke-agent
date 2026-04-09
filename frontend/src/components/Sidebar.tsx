@@ -22,6 +22,7 @@ import {
   Users,
   ChevronDown,
   ChevronRight,
+  Archive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme, Theme } from "@/contexts/ThemeContext";
@@ -61,9 +62,10 @@ const themes: { key: Theme; icon: any; label: string }[] = [
   { key: "neon", icon: Zap, label: "Neon" },
 ];
 
-const UTILITY_ITEMS = [
-  { id: "collections", label: "Collections", icon: MessageSquare },
+const HISTORY_ITEMS = [
   { id: "logs", label: "Logs", icon: FileText },
+  { id: "history", label: "Past Results", icon: Clock },
+  { id: "collections", label: "Collections", icon: MessageSquare },
 ];
 
 const SETTINGS_ITEMS = [
@@ -85,14 +87,9 @@ export default function Sidebar({
   const { theme, setTheme } = useTheme();
   const isAnySpecialView = currentView !== null;
   const isSettingsView = SETTINGS_ITEMS.some((item) => item.id === currentView);
+  const isHistoryView = HISTORY_ITEMS.some((item) => item.id === currentView);
   const [settingsOpen, setSettingsOpen] = useState(isSettingsView);
-
-  // Results step IDs per pipeline
-  const resultsStepId = currentPipeline === "agent" ? "agent-results" : "results";
-  const isResultsActive = currentStep === resultsStepId && !isAnySpecialView;
-  const isHistoryActive = currentView === "history";
-  const isResultsGroupActive = isResultsActive || isHistoryActive;
-  const [resultsOpen, setResultsOpen] = useState(isResultsGroupActive);
+  const [historyOpen, setHistoryOpen] = useState(isHistoryView);
 
   return (
     <aside className="w-60 bg-surface-50 flex flex-col h-screen">
@@ -153,6 +150,7 @@ export default function Sidebar({
       </div>
 
       <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto" data-walkthrough="sidebar-steps">
+        {/* Pipeline steps — rendered normally (including Results & Report) */}
         {steps.map((step) => {
           const Icon = iconMap[step.icon] || Database;
           const isActive = currentStep === step.id && !isAnySpecialView;
@@ -160,102 +158,6 @@ export default function Sidebar({
           const accessible = isStepAccessible ? isStepAccessible(step.id) : true;
           const isLocked = !accessible && !isCompleted;
           const pipelineParam = currentPipeline === "agent" ? `pipeline=agent&` : "";
-          const isResultsStep = step.id === resultsStepId;
-
-          // Results step renders as a collapsible group
-          if (isResultsStep) {
-            return (
-              <div key={step.id} className="space-y-0.5">
-                <button
-                  onClick={() => setResultsOpen(!resultsOpen)}
-                  disabled={isLocked}
-                  className={cn(
-                    "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-                    isLocked
-                      ? "text-muted cursor-not-allowed opacity-50"
-                      : isResultsGroupActive
-                      ? "bg-accent/10 text-accent"
-                      : isCompleted
-                      ? "text-emerald-400 hover:bg-surface-100"
-                      : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-                      isLocked
-                        ? "bg-surface-200/50 text-muted"
-                        : isResultsGroupActive
-                        ? "bg-accent/20 text-accent"
-                        : isCompleted
-                        ? "bg-emerald-500/20 text-emerald-400"
-                        : "bg-surface-200 text-muted"
-                    )}
-                  >
-                    {isCompleted ? (
-                      <CheckCircle className="w-3.5 h-3.5" />
-                    ) : (
-                      <Icon className="w-3.5 h-3.5" />
-                    )}
-                  </div>
-                  <span className="flex-1 text-left truncate">{step.label}</span>
-                  {!isLocked && (
-                    resultsOpen ? (
-                      <ChevronDown className="w-3 h-3 text-muted" />
-                    ) : (
-                      <ChevronRight className="w-3 h-3 text-muted" />
-                    )
-                  )}
-                </button>
-                {resultsOpen && !isLocked && (
-                  <div className="ml-4 space-y-0.5">
-                    <button
-                      onClick={() => onNavigate(`/?${pipelineParam}step=${step.id}`)}
-                      className={cn(
-                        "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
-                        isResultsActive
-                          ? "bg-accent/10 text-accent"
-                          : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-5 h-5 rounded flex items-center justify-center flex-shrink-0",
-                          isResultsActive
-                            ? "bg-accent/20 text-accent"
-                            : "bg-surface-200 text-muted"
-                        )}
-                      >
-                        <BarChart3 className="w-3 h-3" />
-                      </div>
-                      <span>Current Results</span>
-                    </button>
-                    <button
-                      onClick={() => onNavigate("/?view=history")}
-                      className={cn(
-                        "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
-                        isHistoryActive
-                          ? "bg-accent/10 text-accent"
-                          : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-5 h-5 rounded flex items-center justify-center flex-shrink-0",
-                          isHistoryActive
-                            ? "bg-accent/20 text-accent"
-                            : "bg-surface-200 text-muted"
-                        )}
-                      >
-                        <Clock className="w-3 h-3" />
-                      </div>
-                      <span>History</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          }
 
           return (
             <button
@@ -299,39 +201,69 @@ export default function Sidebar({
         {/* Separator */}
         <div className="!my-3 mx-2 border-t border-surface-200/40" />
 
-        {/* Utility pages - always accessible */}
+        {/* History — collapsible group */}
         <div className="space-y-0.5" data-walkthrough="sidebar-history">
-          {UTILITY_ITEMS.map((item) => {
-            const ItemIcon = item.icon;
-            const isActive = currentView === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => onNavigate(`/?view=${item.id}`)}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-                  isActive
-                    ? "bg-accent/10 text-accent"
-                    : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-                )}
-              >
-                <div
-                  className={cn(
-                    "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-                    isActive
-                      ? "bg-accent/20 text-accent"
-                      : "bg-surface-200 text-muted"
-                  )}
-                >
-                  <ItemIcon className="w-3.5 h-3.5" />
-                </div>
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
+          <button
+            onClick={() => setHistoryOpen(!historyOpen)}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+              isHistoryView
+                ? "bg-accent/10 text-accent"
+                : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
+            )}
+          >
+            <div
+              className={cn(
+                "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
+                isHistoryView
+                  ? "bg-accent/20 text-accent"
+                  : "bg-surface-200 text-muted"
+              )}
+            >
+              <Archive className="w-3.5 h-3.5" />
+            </div>
+            <span className="flex-1 text-left">History</span>
+            {historyOpen ? (
+              <ChevronDown className="w-3 h-3 text-muted" />
+            ) : (
+              <ChevronRight className="w-3 h-3 text-muted" />
+            )}
+          </button>
+          {historyOpen && (
+            <div className="ml-4 space-y-0.5">
+              {HISTORY_ITEMS.map((item) => {
+                const ItemIcon = item.icon;
+                const isActive = currentView === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onNavigate(`/?view=${item.id}`)}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
+                      isActive
+                        ? "bg-accent/10 text-accent"
+                        : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "w-5 h-5 rounded flex items-center justify-center flex-shrink-0",
+                        isActive
+                          ? "bg-accent/20 text-accent"
+                          : "bg-surface-200 text-muted"
+                      )}
+                    >
+                      <ItemIcon className="w-3 h-3" />
+                    </div>
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Settings - collapsible group */}
+        {/* Settings — collapsible group */}
         <div className="space-y-0.5" data-walkthrough="sidebar-settings">
           <button
             onClick={() => setSettingsOpen(!settingsOpen)}
