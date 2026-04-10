@@ -119,7 +119,7 @@ async def run_simulation(
     max_turns = params.get("max_turns", 1)
     model = params.get("model", "claude-code")
     temperature = params.get("temperature", 0.0)
-    interaction_count = params.get("interaction_count_override") or 1
+    interaction_count_override = params.get("interaction_count_override")
 
     # Pre-fetch scenarios and personas to avoid repeated queries
     scenario_map = {}
@@ -130,7 +130,14 @@ async def run_simulation(
         if item.persona_id and item.persona_id not in persona_map:
             persona_map[item.persona_id] = db.query(Persona).filter(Persona.id == item.persona_id).first()
 
-    total = len(items) * interaction_count
+    # Calculate total: each persona has its own interaction_count (multiplier),
+    # unless overridden globally by the grid config
+    total = 0
+    for item in items:
+        persona = persona_map.get(item.persona_id)
+        reps = interaction_count_override or (persona.interaction_count if persona else 1) or 1
+        total += reps
+
     completed = 0
     failed = 0
 
@@ -140,11 +147,13 @@ async def run_simulation(
     combination.failed_simulations = 0
     db.commit()
 
-    logger.info(f"Combo {combination.id}: starting {total} simulations ({len(items)} items × {interaction_count} repetitions, max_turns={max_turns})")
+    logger.info(f"Combo {combination.id}: starting {total} simulations ({len(items)} items, max_turns={max_turns})")
 
     for idx, item in enumerate(items):
         scenario = scenario_map.get(item.scenario_id)
         persona = persona_map.get(item.persona_id)
+        # Per-persona multiplier (or global override)
+        interaction_count = interaction_count_override or (persona.interaction_count if persona else 1) or 1
 
         for interaction_idx in range(interaction_count):
             try:

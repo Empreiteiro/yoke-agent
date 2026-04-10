@@ -36,6 +36,7 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
   const [experimentName, setExperimentName] = useState("");
   const [scenarioCount, setScenarioCount] = useState(0);
   const [personaCount, setPersonaCount] = useState(0);
+  const [personaInteractions, setPersonaInteractions] = useState<{ name: string; count: number }[]>([]);
   const [scenarioCounts, setScenarioCounts] = useState<Record<string, number>>({});
 
   const loadData = useCallback(async () => {
@@ -50,6 +51,9 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
       ]);
       setScenarioCount(scenarios.length);
       setPersonaCount(personas.length);
+      setPersonaInteractions(
+        personas.map((p: any) => ({ name: p.name, count: p.interaction_count || 1 }))
+      );
       // Count by type
       const byType: Record<string, number> = {};
       for (const s of scenarios) {
@@ -347,14 +351,19 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
         const filteredScenarios = scenarioTypes.length > 0
           ? scenarioTypes.reduce((sum, t) => sum + (scenarioCounts[t] || 0), 0)
           : scenarioCount;
-        const interactions = filteredScenarios * personaCount;
-        const repetitions = interactionCount ? Number(interactionCount) : 1;
-        const simulationsPerCombo = interactions * repetitions;
-        const totalSimulations = simulationsPerCombo * combinationCount;
+        const hasOverride = interactionCount !== "" && Number(interactionCount) > 0;
+        const overrideVal = hasOverride ? Number(interactionCount) : 0;
+
+        // Per-persona: each persona has its own multiplier
+        // Total interactions = sum over personas of (scenarios × persona.interaction_count)
+        const totalInteractionsPerCombo = hasOverride
+          ? filteredScenarios * personaCount * overrideVal
+          : personaInteractions.reduce((sum, p) => sum + filteredScenarios * p.count, 0);
+
+        const totalSimulations = totalInteractionsPerCombo * combinationCount;
         const avgTurns = selectedMaxTurns.length > 0
           ? selectedMaxTurns.reduce((a, b) => a + b, 0) / selectedMaxTurns.length
           : 1;
-        // Token estimation: ~800 tokens per LLM call (prompt+completion), 2 calls per turn (persona gen + agent response) + 1 for initial message gen
         const tokensPerSimulation = Math.round((avgTurns * 2 + 1) * 800);
         const totalTokens = totalSimulations * tokensPerSimulation;
 
@@ -378,7 +387,7 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
                   <tr>
                     <td className="py-1.5 text-t-secondary">Scenarios</td>
                     <td className="py-1.5 text-right text-primary font-medium">{filteredScenarios}</td>
-                    <td className="py-1.5 text-right text-t-secondary/60 pl-2 w-24">
+                    <td className="py-1.5 text-right text-t-secondary/60 pl-2 w-32">
                       {scenarioTypes.length > 0 ? `(filtered from ${scenarioCount})` : ""}
                     </td>
                   </tr>
@@ -387,20 +396,34 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
                     <td className="py-1.5 text-right text-primary font-medium">{personaCount}</td>
                     <td className="py-1.5 text-right text-t-secondary/60 pl-2"></td>
                   </tr>
-                  <tr>
-                    <td className="py-1.5 text-t-secondary">Scenarios × Personas</td>
-                    <td className="py-1.5 text-right text-primary font-medium">{interactions}</td>
-                    <td className="py-1.5 text-right text-t-secondary/60 pl-2">per combo</td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 text-t-secondary">Repetitions</td>
-                    <td className="py-1.5 text-right text-primary font-medium">×{repetitions}</td>
-                    <td className="py-1.5 text-right text-t-secondary/60 pl-2">per interaction</td>
-                  </tr>
+                  {/* Per-persona multipliers */}
+                  {personaInteractions.length > 0 && !hasOverride && (
+                    <tr>
+                      <td className="py-1.5 text-t-secondary" colSpan={3}>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                          {personaInteractions.map((p, i) => (
+                            <span key={i} className="text-[10px]">
+                              <span className="text-primary">{p.name}</span>
+                              <span className="text-accent font-bold ml-0.5">×{p.count}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {hasOverride && (
+                    <tr>
+                      <td className="py-1.5 text-t-secondary">Override multiplier</td>
+                      <td className="py-1.5 text-right text-accent font-bold">×{overrideVal}</td>
+                      <td className="py-1.5 text-right text-t-secondary/60 pl-2">replaces per-persona</td>
+                    </tr>
+                  )}
                   <tr className="border-t border-surface-200/40">
                     <td className="py-1.5 text-t-secondary">Simulations per combo</td>
-                    <td className="py-1.5 text-right text-primary font-bold">{simulationsPerCombo.toLocaleString()}</td>
-                    <td className="py-1.5 text-right text-t-secondary/60 pl-2"></td>
+                    <td className="py-1.5 text-right text-primary font-bold">{totalInteractionsPerCombo.toLocaleString()}</td>
+                    <td className="py-1.5 text-right text-t-secondary/60 pl-2">
+                      {filteredScenarios} scenarios × {personaCount} personas {hasOverride ? `× ${overrideVal}` : "(per-persona ×)"}
+                    </td>
                   </tr>
                   <tr>
                     <td className="py-1.5 text-t-secondary">Grid combinations</td>
@@ -422,8 +445,8 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
               </div>
               {totalSimulations > 100 && (
                 <p className="text-[10px] text-amber-400">
-                  ⚠ Large run — {totalSimulations} simulations may take significant time with CLI-based providers.
-                  Consider reducing scenarios, personas, or repetitions for a faster test.
+                  ⚠ Large run — {totalSimulations.toLocaleString()} simulations may take significant time with CLI-based providers.
+                  Consider reducing scenarios, personas, or multipliers for a faster test.
                 </p>
               )}
               {(filteredScenarios === 0 || personaCount === 0) && (

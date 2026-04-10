@@ -39,6 +39,7 @@ export default function StepAgentPersonas({ agentConfigId, onComplete }: StepAge
   const [formStyle, setFormStyle] = useState("");
   const [formTraits, setFormTraits] = useState("");
   const [formGroup, setFormGroup] = useState("");
+  const [formInteractionCount, setFormInteractionCount] = useState(1);
 
   const loadPersonas = useCallback(async () => {
     if (!agentConfigId) return;
@@ -103,8 +104,9 @@ export default function StepAgentPersonas({ agentConfigId, onComplete }: StepAge
         role: formRole.trim(),
         expertise_level: formExpertise,
         communication_style: formStyle.trim(),
-        traits: formTraits.split(",").map((t) => t.trim()).filter(Boolean),
-        group: formGroup.trim() || undefined,
+        behavioral_traits: formTraits.split(",").map((t) => t.trim()).filter(Boolean),
+        group_name: formGroup.trim() || undefined,
+        interaction_count: formInteractionCount,
       });
       setPersonas((prev) => [...prev, persona]);
       resetAddForm();
@@ -121,6 +123,19 @@ export default function StepAgentPersonas({ agentConfigId, onComplete }: StepAge
       setPersonas((prev) => [...prev, persona]);
     } catch (err: any) {
       setError(err.message || "Failed to add template persona");
+    }
+  };
+
+  const handleUpdateInteractionCount = async (personaId: number, count: number) => {
+    if (!agentConfigId) return;
+    const newCount = Math.max(1, count);
+    // Optimistic update
+    setPersonas((prev) => prev.map((p) => p.id === personaId ? { ...p, interaction_count: newCount } : p));
+    try {
+      await api.updatePersona(agentConfigId, personaId, { interaction_count: newCount });
+    } catch (err: any) {
+      setError(err.message || "Failed to update");
+      loadPersonas(); // revert
     }
   };
 
@@ -142,6 +157,7 @@ export default function StepAgentPersonas({ agentConfigId, onComplete }: StepAge
     setFormStyle("");
     setFormTraits("");
     setFormGroup("");
+    setFormInteractionCount(1);
   };
 
   const uniqueGroups = Array.from(new Set(personas.map((p) => p.group).filter(Boolean)));
@@ -317,13 +333,28 @@ export default function StepAgentPersonas({ agentConfigId, onComplete }: StepAge
             placeholder="Traits (comma-separated)"
             className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
-          <input
-            type="text"
-            value={formGroup}
-            onChange={(e) => setFormGroup(e.target.value)}
-            placeholder="Group (optional)"
-            className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/40"
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="text"
+              value={formGroup}
+              onChange={(e) => setFormGroup(e.target.value)}
+              placeholder="Group (optional)"
+              className="px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/40"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={formInteractionCount}
+                  onChange={(e) => setFormInteractionCount(Math.max(1, parseInt(e.target.value) || 1))}
+                  min={1}
+                  max={100}
+                  className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+                />
+                <span className="text-xs text-t-secondary whitespace-nowrap">× interactions</span>
+              </div>
+            </div>
+          </div>
           <div className="flex gap-2">
             <button
               onClick={handleAdd}
@@ -401,15 +432,38 @@ export default function StepAgentPersonas({ agentConfigId, onComplete }: StepAge
                 </p>
               )}
 
-              {p.traits && p.traits.length > 0 && (
+              {((Array.isArray(p.behavioral_traits) ? p.behavioral_traits : Array.isArray(p.traits) ? p.traits : []) as string[]).length > 0 && (
                 <div className="flex flex-wrap gap-1">
-                  {(Array.isArray(p.traits) ? p.traits : []).map((trait: string, i: number) => (
+                  {((Array.isArray(p.behavioral_traits) ? p.behavioral_traits : Array.isArray(p.traits) ? p.traits : []) as string[]).map((trait: string, i: number) => (
                     <span key={i} className="px-1.5 py-0.5 rounded text-xs bg-accent/10 text-accent/80">
                       {trait}
                     </span>
                   ))}
                 </div>
               )}
+
+              {/* Interaction multiplier */}
+              <div className="flex items-center justify-between pt-2 border-t border-surface-200/30">
+                <span className="text-[10px] text-t-secondary uppercase tracking-wider">Interactions</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleUpdateInteractionCount(p.id, (p.interaction_count || 1) - 1)}
+                    disabled={(p.interaction_count || 1) <= 1}
+                    className="w-5 h-5 rounded text-xs bg-surface-200/50 text-t-secondary hover:text-primary disabled:opacity-30 flex items-center justify-center"
+                  >
+                    −
+                  </button>
+                  <span className="text-sm font-bold text-accent w-8 text-center">
+                    {p.interaction_count || 1}×
+                  </span>
+                  <button
+                    onClick={() => handleUpdateInteractionCount(p.id, (p.interaction_count || 1) + 1)}
+                    className="w-5 h-5 rounded text-xs bg-surface-200/50 text-t-secondary hover:text-primary flex items-center justify-center"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
