@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { BarChart3, Loader2, AlertCircle, ArrowUpDown, ChevronDown, ChevronRight, ChevronUp, FileText, MessageSquare, Sparkles, Trophy, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -216,20 +216,20 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
   // Collect the union of metric keys across all combos so the All Results
   // table has a dynamic set of per-scenario metric columns (overall_score
   // is rendered separately as the last highlighted column).
-  const metricColumns = useMemo(() => {
-    const keys = new Set<string>();
-    for (const c of sorted) {
-      const metrics = c.aggregated_metrics || c.metrics || {};
-      for (const [k, v] of Object.entries(metrics)) {
-        if (k === "overall_score") continue;
-        if (typeof v !== "number") continue;
-        if (METRIC_KEYS.has(k) || k.includes("score") || k.includes("accuracy")) {
-          keys.add(k);
-        }
+  // NOTE: computed inline (not useMemo) because this runs AFTER the early
+  // returns above — a conditional hook would violate the rules of hooks.
+  const metricColumnsSet = new Set<string>();
+  for (const c of sorted) {
+    const metrics = c.aggregated_metrics || c.metrics || {};
+    for (const [k, v] of Object.entries(metrics)) {
+      if (k === "overall_score") continue;
+      if (typeof v !== "number") continue;
+      if (METRIC_KEYS.has(k) || k.includes("score") || k.includes("accuracy")) {
+        metricColumnsSet.add(k);
       }
     }
-    return Array.from(keys);
-  }, [sorted]);
+  }
+  const metricColumns = Array.from(metricColumnsSet);
 
   const shortLabel = (key: string) => {
     const words = key.replace(/_/g, " ").split(" ");
