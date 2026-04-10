@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { BarChart3, Loader2, AlertCircle, ArrowUpDown, ChevronDown, ChevronRight, ChevronUp, FileText, MessageSquare, Sparkles, Trophy, X } from "lucide-react";
+import { BarChart3, Loader2, AlertCircle, ArrowUpDown, ChevronDown, ChevronRight, FileText, MessageSquare, Sparkles, Trophy, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api } from "@/lib/api";
@@ -256,21 +256,6 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
         </div>
       </div>
 
-      {/* Actions — evaluation runs automatically after the experiment finishes,
-          and transcripts are now shown inline inside each expanded combo. The
-          optional "Generate Improvement Report" CTA sits at the bottom. */}
-      {report && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={() => reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            className="flex items-center gap-2 px-5 py-2.5 bg-secondary/10 text-secondary font-medium rounded-xl hover:bg-secondary/20 transition-colors"
-          >
-            <FileText className="w-4 h-4" />
-            Jump to Report
-          </button>
-        </div>
-      )}
-
       {/* Error */}
       {error && (
         <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
@@ -442,12 +427,27 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
             </div>
           ) : (
             <div className="bg-surface-100 rounded-2xl border border-visible overflow-hidden">
-              {/* Title row — title on the left, regenerate (with AI icon) on the right */}
-              <div className="flex items-center justify-between gap-3 px-6 pt-6">
-                <h3 className="text-lg font-semibold text-primary flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-secondary" />
-                  Improvement Report
-                </h3>
+              {/* Title row — collapse chevron on the left of the title, regenerate on the right */}
+              <div className="flex items-center justify-between gap-3 px-6 py-6">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setReportCollapsed((v) => !v)}
+                    className="w-6 h-6 flex items-center justify-center rounded text-t-secondary hover:text-accent hover:bg-surface-200/40 transition-colors"
+                    aria-expanded={!reportCollapsed}
+                    title={reportCollapsed ? "Expand report" : "Collapse report"}
+                  >
+                    {reportCollapsed ? (
+                      <ChevronRight className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+                  <h3 className="text-lg font-semibold text-primary flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-secondary" />
+                    Improvement Report
+                  </h3>
+                </div>
                 <button
                   type="button"
                   onClick={handleGenerateReport}
@@ -463,27 +463,6 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                   {generatingReport ? "Regenerating…" : "Regenerate"}
                 </button>
               </div>
-
-              {/* Expand/collapse toggle row — chevron sits below the title */}
-              <button
-                type="button"
-                onClick={() => setReportCollapsed((v) => !v)}
-                className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 text-t-secondary hover:text-accent hover:bg-surface-200/30 transition-colors text-xs"
-                aria-expanded={!reportCollapsed}
-                title={reportCollapsed ? "Expand report" : "Collapse report"}
-              >
-                {reportCollapsed ? (
-                  <>
-                    <ChevronDown className="w-4 h-4" />
-                    <span>Show report</span>
-                  </>
-                ) : (
-                  <>
-                    <ChevronUp className="w-4 h-4" />
-                    <span>Hide report</span>
-                  </>
-                )}
-              </button>
 
               {!reportCollapsed && (
                 <div className="px-6 pb-6">
