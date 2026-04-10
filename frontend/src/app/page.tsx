@@ -124,13 +124,13 @@ function HomeContent() {
     "grid-search": "review",
     execution: "grid-search",
     results: "execution",
-    // Agent steps (all independent for now)
+    // Agent steps (linear chain)
     "agent-define": null,
-    "agent-scenarios": null,
-    "agent-personas": null,
-    "agent-grid": null,
-    "agent-execution": null,
-    "agent-results": null,
+    "agent-scenarios": "agent-define",
+    "agent-personas": "agent-scenarios",
+    "agent-grid": "agent-personas",
+    "agent-execution": "agent-grid",
+    "agent-results": "agent-execution",
   };
 
   const isStepAccessible = (stepId: string): boolean => {
