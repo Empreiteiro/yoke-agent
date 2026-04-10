@@ -314,6 +314,8 @@ export const api = {
     request<any>(`/agent/experiments/${id}/evaluate`, { method: "POST" }),
   generateAgentReport: (id: number) =>
     request<any>(`/agent/experiments/${id}/report/generate`, { method: "POST" }),
+  getAgentReport: (id: number) =>
+    request<any>(`/agent/experiments/${id}/report`),
 
   // Transcripts
   listTranscripts: (expId: number, combinationId?: number) =>
