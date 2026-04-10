@@ -18,6 +18,7 @@ import {
   Download,
   Database,
   Eye,
+  FileText,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import {
@@ -310,6 +311,18 @@ export default function History({
                         title="View results"
                       >
                         <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    {/* View Improvement Report — only visible once one
+                        has been generated for this experiment. */}
+                    {isCompleted && exp.grid_config?.report_generated && (
+                      <button
+                        onClick={() => onViewAgentResults?.(exp, { focusReport: true })}
+                        className="p-1.5 rounded-lg text-secondary hover:bg-secondary/10 transition-colors"
+                        title="View improvement report"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
                       </button>
                     )}
 
