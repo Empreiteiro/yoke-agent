@@ -220,6 +220,18 @@ def get_embeddings(
         raise ValueError(f"Unsupported embedding provider type: {ptype}")
 
 
+# Public alias for consumers that need the resolved provider (e.g. token
+# usage logging needs the provider name + model to write to TokenUsageLog).
+def resolve_provider(
+    db: Session,
+    provider_id: Optional[int] = None,
+    capability: str = "llm",
+    model: Optional[str] = None,
+) -> Provider:
+    """Public wrapper around :func:`_resolve_provider`."""
+    return _resolve_provider(db, provider_id, capability=capability, model=model)
+
+
 def _resolve_provider(
     db: Session,
     provider_id: Optional[int],

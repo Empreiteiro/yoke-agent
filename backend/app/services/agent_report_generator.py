@@ -10,7 +10,8 @@ from app.models.agent import (
     AgentConfig, AgentExperiment, AgentExperimentCombination,
     PromptVariant, SimulationTranscript, SimulationMetrics,
 )
-from app.services.llm_factory import get_llm
+from app.services.llm_factory import get_llm, resolve_provider
+from app.services.token_tracker import log_llm_response
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +123,24 @@ Please provide a comprehensive report with:
 Format the report in Markdown."""
 
     response = await llm.ainvoke(prompt)
+
+    # Log token usage for the report-generation call — these prompts are
+    # big (full transcript summaries) and worth tracking per experiment.
+    try:
+        report_provider = resolve_provider(db, capability="llm")
+        log_llm_response(
+            db=db,
+            response=response,
+            operation="agent_report",
+            provider_name=report_provider.name,
+            model_name=report_provider.default_llm_model or "unknown",
+            experiment_id=experiment_id,
+            metadata={"sub_operation": "improvement_report"},
+            prompt_text=prompt,
+        )
+    except Exception as log_err:
+        logger.debug(f"Failed to log report token usage: {log_err}")
+
     report_text = response.content if hasattr(response, "content") else str(response)
 
     # Store the report in the experiment's grid_config
