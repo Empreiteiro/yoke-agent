@@ -134,7 +134,7 @@ async def _evaluate_transcript(
     scenario: Scenario | None,
 ) -> dict:
     """Score a single transcript using LLM-as-judge."""
-    llm = get_llm(db, temperature=0.0)
+    llm = get_llm(db, temperature=0.0, isolated=True)
 
     scenario_type = scenario.scenario_type if scenario else "response_quality"
     rubrics = {**RUBRICS.get(scenario_type, {}), **CROSS_CUTTING}
@@ -149,11 +149,37 @@ async def _evaluate_transcript(
 
     rubric_text = "\n".join(f"- {name}: {desc}" for name, desc in rubrics.items())
 
+    # For tool_use scenarios, surface the structured TOOL_CALL invocations
+    # the agent emitted (parsed from its responses) so the judge scores the
+    # DECISION rather than guessing from prose.
+    tool_section = ""
+    deterministic_overrides: dict = {}
+    if scenario_type == "tool_use":
+        invocations = transcript.tool_invocations or []
+        expected_obj = (scenario.expected_output or {}) if scenario else {}
+        expected_tool = expected_obj.get("tool_name")
+        expected_args = expected_obj.get("arguments") or expected_obj.get("args") or {}
+
+        called_tools = [inv.get("tool_name") for inv in invocations if inv.get("tool_name")]
+        tool_section = (
+            "\nTOOL INVOCATIONS CAPTURED FROM AGENT RESPONSES:\n"
+            f"{json.dumps(invocations, indent=2, ensure_ascii=False)}\n"
+            f"\nEXPECTED TOOL: {expected_tool or '(none specified)'}\n"
+            f"EXPECTED ARGUMENTS: {json.dumps(expected_args, ensure_ascii=False)}\n"
+        )
+
+        # Deterministic sanity score for tool selection — the judge can still
+        # refine `argument_correctness` and the cross-cutting metrics.
+        if expected_tool:
+            deterministic_overrides["tool_call_accuracy"] = (
+                1.0 if expected_tool in called_tools else 0.0
+            )
+
     prompt = f"""You are an expert AI evaluator. Score the following agent conversation on each metric.
 
 SCENARIO TYPE: {scenario_type}
 EXPECTED OUTPUT: {expected}
-
+{tool_section}
 CONVERSATION:
 ---
 {conversation[:3000]}
@@ -176,10 +202,15 @@ Return ONLY valid JSON, no markdown fences or explanations."""
     try:
         scores = json.loads(text)
         # Ensure all values are floats 0-1
-        return {k: max(0.0, min(1.0, float(v))) for k, v in scores.items() if isinstance(v, (int, float))}
+        clean = {k: max(0.0, min(1.0, float(v))) for k, v in scores.items() if isinstance(v, (int, float))}
     except (json.JSONDecodeError, ValueError):
         logger.warning(f"Failed to parse evaluation scores: {text[:200]}")
-        return {name: 0.0 for name in rubrics}
+        clean = {name: 0.0 for name in rubrics}
+
+    # Deterministic overrides (e.g. tool_call_accuracy from TOOL_CALL parsing)
+    # win over the judge's guess — they come from structured data.
+    clean.update(deterministic_overrides)
+    return clean
 
 
 def _aggregate_metrics(metrics_list: list[dict]) -> dict:

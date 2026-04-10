@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any, AsyncIterator, Iterator, List, Optional
 
@@ -20,8 +21,9 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 
 logger = logging.getLogger(__name__)
 
-# Module-level token storage (outside the Pydantic model to avoid ModelPrivateAttr issues)
+# Module-level state (outside the Pydantic model to avoid ModelPrivateAttr issues)
 _claude_runtime_token: str | None = None
+_claude_isolated_cwd: str | None = None
 
 
 class ChatClaudeCode(BaseChatModel):
@@ -29,6 +31,12 @@ class ChatClaudeCode(BaseChatModel):
 
     model_name: str = "claude-code"
     temperature: float = 0.0  # kept for interface compatibility
+    # When True, the subprocess runs in a hermetic sandbox: no MCP servers,
+    # no built-in tools, no project CLAUDE.md discovery, no plugins/skills.
+    # This is used by the agent-evaluation pipeline to avoid leaking the
+    # user's personal Claude Code setup (MCP servers like ClickUp, custom
+    # agents, etc.) into the simulations.
+    isolated: bool = False
 
     @property
     def _llm_type(self) -> str:
@@ -150,6 +158,56 @@ class ChatClaudeCode(BaseChatModel):
 
         return env
 
+    # ── Isolation (sandboxed subprocess) ──────────────────────────────
+
+    @staticmethod
+    def _get_isolated_cwd() -> str:
+        """Return a persistent empty temp dir to use as cwd for isolated runs.
+
+        The directory is intentionally empty so that Claude Code's CLAUDE.md
+        auto-discovery never finds the project's own CLAUDE.md file.
+        """
+        global _claude_isolated_cwd
+        if _claude_isolated_cwd and Path(_claude_isolated_cwd).exists():
+            return _claude_isolated_cwd
+        _claude_isolated_cwd = tempfile.mkdtemp(prefix="yoke-agent-isolated-")
+        return _claude_isolated_cwd
+
+    @staticmethod
+    def _isolation_flags() -> list[str]:
+        """CLI flags that lock the subprocess down to a hermetic environment.
+
+        - `--strict-mcp-config --mcp-config '{"mcpServers":{}}'`: ignore every
+          MCP server from user/project/local settings (blocks ClickUp, Slack,
+          Gmail, Calendar, etc. that the developer may have configured).
+        - `--tools ""`: disable all built-in tools (Bash, Read, Write, Edit,
+          WebSearch, etc.). The agent under test must not touch the real FS
+          or network — it should describe its intended tool calls as text.
+        - `--disable-slash-commands`: skip skill/slash-command auto-loading.
+        - `--setting-sources user`: skip project/local settings; only read
+          user-level settings (needed for OAuth credentials from keychain).
+        """
+        return [
+            "--strict-mcp-config",
+            "--mcp-config", '{"mcpServers":{}}',
+            "--tools", "",
+            "--disable-slash-commands",
+            "--setting-sources", "user",
+        ]
+
+    def _build_cli_args(self, prompt: str, output_format: str, verbose: bool = False) -> list[str]:
+        """Build the full argv for a subprocess call, applying isolation when set."""
+        args: list[str] = ["-p", prompt, "--output-format", output_format]
+        if verbose:
+            args.append("--verbose")
+        if self.isolated:
+            args.extend(self._isolation_flags())
+        return args
+
+    def _get_cwd(self) -> Optional[str]:
+        """Return cwd for the subprocess (an empty temp dir when isolated)."""
+        return self._get_isolated_cwd() if self.isolated else None
+
     # ── Message conversion ────────────────────────────────────────────
 
     @staticmethod
@@ -207,12 +265,14 @@ class ChatClaudeCode(BaseChatModel):
         binary = self._find_claude_binary()
         prompt = self._messages_to_prompt(messages)
         env = self._get_cli_env()
+        args = self._build_cli_args(prompt, output_format="text")
 
         proc = await asyncio.create_subprocess_exec(
-            binary, "-p", prompt, "--output-format", "text",
+            binary, *args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
+            cwd=self._get_cwd(),
         )
         stdout, stderr = await proc.communicate()
 
@@ -245,12 +305,14 @@ class ChatClaudeCode(BaseChatModel):
         binary = self._find_claude_binary()
         prompt = self._messages_to_prompt(messages)
         env = self._get_cli_env()
+        args = self._build_cli_args(prompt, output_format="stream-json", verbose=True)
 
         proc = await asyncio.create_subprocess_exec(
-            binary, "-p", prompt, "--output-format", "stream-json", "--verbose",
+            binary, *args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
+            cwd=self._get_cwd(),
         )
 
         buffer = ""

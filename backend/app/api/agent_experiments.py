@@ -454,8 +454,24 @@ async def _run_experiment_async(experiment_id: int, run_id: int):
         run.completed_simulations = completed
         run.failed_simulations = failed
         run.status = "completed"
-        exp.status = "completed"
+        exp.status = "evaluating"
         db.commit()
+
+        # Auto-evaluate as soon as simulations finish — the user no longer
+        # has to click "Evaluate All Combinations". Any failure here is
+        # logged but doesn't mark the experiment as failed (the simulation
+        # transcripts are still valid and can be re-scored manually later).
+        try:
+            from app.services.agent_evaluator import evaluate_experiment
+            await evaluate_experiment(db, experiment_id)
+            logger.info(f"Auto-evaluation finished for experiment {experiment_id}")
+        except Exception:
+            logger.exception(f"Auto-evaluation failed for experiment {experiment_id}")
+
+        exp = db.query(AgentExperiment).filter(AgentExperiment.id == experiment_id).first()
+        if exp:
+            exp.status = "completed"
+            db.commit()
     except Exception as e:
         logger.exception("Experiment run failed")
         exp = db.query(AgentExperiment).filter(AgentExperiment.id == experiment_id).first()
@@ -682,9 +698,9 @@ async def generate_report(exp_id: int, db: Session = Depends(get_db)):
     if not exp:
         raise HTTPException(404, "Experiment not found")
 
-    import asyncio, concurrent.futures
+    import asyncio, concurrent.futures, traceback
 
-    result_container = {}
+    result_container: dict = {}
     def run():
         from app.services.agent_report_generator import generate_report as gen
         from app.core.database import SessionLocal
@@ -692,11 +708,21 @@ async def generate_report(exp_id: int, db: Session = Depends(get_db)):
         try:
             result = asyncio.run(gen(db2, exp_id))
             result_container["result"] = result
+        except Exception as e:
+            logger.exception(f"Report generation failed for experiment {exp_id}")
+            result_container["error"] = str(e) or e.__class__.__name__
+            result_container["traceback"] = traceback.format_exc()
         finally:
             db2.close()
 
     with concurrent.futures.ThreadPoolExecutor() as pool:
         await asyncio.get_event_loop().run_in_executor(pool, run)
+
+    if "error" in result_container:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Report generation failed: {result_container['error']}",
+        )
 
     return result_container.get("result", {"report": "", "experiment_id": exp_id})
 

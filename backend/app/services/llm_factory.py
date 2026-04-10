@@ -13,6 +13,7 @@ def get_llm(
     model: Optional[str] = None,
     temperature: float = 0.0,
     format: Optional[str] = None,
+    isolated: bool = False,
 ):
     """Create a LangChain LLM instance from a provider configuration."""
     provider = _resolve_provider(db, provider_id, capability="llm", model=model)
@@ -85,7 +86,11 @@ def get_llm(
 
     elif ptype == "claude_code":
         from app.services.claude_code_llm import ChatClaudeCode
-        return ChatClaudeCode(model_name=model_name, temperature=temperature)
+        return ChatClaudeCode(
+            model_name=model_name,
+            temperature=temperature,
+            isolated=isolated,
+        )
 
     elif ptype == "custom":
         from langchain_openai import ChatOpenAI

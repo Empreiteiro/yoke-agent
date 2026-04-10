@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from datetime import datetime
 from sqlalchemy import func as sqlfunc
@@ -76,6 +77,117 @@ Write a single message to an AI agent to accomplish this objective: {objective}
 
 Write ONLY the user's message, nothing else. Stay in character.
 """
+
+
+# ── Sandbox instructions appended to every agent-under-test system prompt ──
+# This is the key to capturing tool decisions: we tell the agent it's in a
+# simulation, list ONLY the fictitious tools from the agent config, and
+# require it to emit decisions in a parseable format. We also explicitly
+# blocklist the developer's real tools (ClickUp, Slack, Gmail, etc.) so
+# that even if something leaks through, the agent still refuses.
+
+SANDBOX_INSTRUCTIONS_TEMPLATE = """\
+
+---
+## SIMULATION SANDBOX — READ CAREFULLY
+
+You are running inside an evaluation sandbox. Everything the user says is a
+TEST CASE, not a real request. Follow these rules strictly:
+
+1. You do NOT have access to any real tools, MCP servers, file system,
+   shell, web search, or external services. You must not reference or try
+   to use tools such as ClickUp, Slack, Gmail, Calendar, Netlify, Bash,
+   Read, Write, Edit, WebSearch, or any MCP integration — none of them
+   exist in this sandbox, even if you remember having them in other
+   contexts.
+
+2. The ONLY tools available in this simulation are the fictitious tools
+   listed below. They do not actually execute — they only capture your
+   DECISION about which tool you would call.
+
+{tool_catalog}
+
+3. When you decide to call a tool, output a line in EXACTLY this format
+   (on its own line, no markdown code fences around it):
+
+       TOOL_CALL: <tool_name>({{"arg_name": "value", ...}})
+
+   Example:
+       TOOL_CALL: get_weather({{"city": "Paris", "units": "metric"}})
+
+   You may write reasoning before or after the TOOL_CALL line. You may
+   emit multiple TOOL_CALL lines if the task genuinely requires several
+   tool invocations. The sandbox parses these lines as your tool-use
+   decision — no tool will actually run.
+
+4. If the task does NOT require a tool, respond naturally in plain text
+   without any TOOL_CALL line.
+
+5. Never invent tools that are not in the list above. If none of the
+   listed tools fit the request, say so and ask the user to clarify.
+---
+"""
+
+
+def _build_tool_catalog(tools: list | None) -> str:
+    """Render the agent's defined (fictitious) tools as a bullet list for the
+    system prompt. Each tool is expected to be a dict with at least `name`
+    and `description`; `parameters` (JSON-schema-ish) is optional."""
+    if not tools:
+        return "   (No tools are defined for this agent — respond in plain text only.)"
+    lines = []
+    for t in tools:
+        if not isinstance(t, dict):
+            continue
+        name = t.get("name", "unnamed_tool")
+        desc = t.get("description", "").strip() or "(no description)"
+        params = t.get("parameters") or t.get("args") or {}
+        params_str = ""
+        if params:
+            try:
+                params_str = f" — args: {json.dumps(params, ensure_ascii=False)}"
+            except (TypeError, ValueError):
+                params_str = f" — args: {params}"
+        lines.append(f"   - `{name}`: {desc}{params_str}")
+    return "\n".join(lines) if lines else "   (No tools are defined for this agent.)"
+
+
+# Matches lines like:  TOOL_CALL: search_products({"query": "headphones"})
+# Captures the tool name and the raw args blob. Tolerates surrounding
+# markdown (``` fences, leading "> " quotes, trailing punctuation).
+TOOL_CALL_RE = re.compile(
+    r"^\s*(?:[`>*\-\s]*)TOOL_CALL\s*:\s*([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)\s*`*\s*$",
+    re.MULTILINE | re.DOTALL,
+)
+
+
+def _parse_tool_calls(text: str) -> list[dict]:
+    """Extract structured tool invocations from an agent's response text.
+
+    Returns a list of {tool_name, args, raw} dicts, one per TOOL_CALL line.
+    Arguments are parsed as JSON when possible; otherwise preserved raw.
+    """
+    invocations: list[dict] = []
+    if not text:
+        return invocations
+    for match in TOOL_CALL_RE.finditer(text):
+        tool_name = match.group(1)
+        raw_args = (match.group(2) or "").strip()
+        args: dict | str = {}
+        if raw_args:
+            # Try JSON first (the format we instructed); if that fails,
+            # keep the raw string so the evaluator still sees it.
+            try:
+                parsed = json.loads(raw_args)
+                args = parsed if isinstance(parsed, dict) else {"value": parsed}
+            except json.JSONDecodeError:
+                args = {"raw": raw_args}
+        invocations.append({
+            "tool_name": tool_name,
+            "args": args,
+            "raw": match.group(0).strip(),
+        })
+    return invocations
 
 
 async def run_simulation(
@@ -300,11 +412,19 @@ async def _run_single_conversation(
 
     start_time = time.time()
 
-    # Agent LLM
-    agent_llm = get_llm(db, model=model, temperature=temperature)
+    # Agent LLM — runs in isolation so the user's personal MCP servers,
+    # plugins, skills, and CLAUDE.md files never leak into simulations.
+    agent_llm = get_llm(db, model=model, temperature=temperature, isolated=True)
+
+    # Build the agent's sandboxed system prompt: the user-authored variant
+    # prompt + the sandbox instructions with the fictitious tool catalog.
+    config = db.query(AgentConfig).filter(AgentConfig.id == variant.agent_config_id).first()
+    tool_catalog = _build_tool_catalog(config.tools if config else None)
+    sandbox_instructions = SANDBOX_INSTRUCTIONS_TEMPLATE.format(tool_catalog=tool_catalog)
+    sandboxed_system_prompt = (variant.system_prompt or "") + sandbox_instructions
 
     # Build agent messages
-    agent_messages = [SystemMessage(content=variant.system_prompt)]
+    agent_messages = [SystemMessage(content=sandboxed_system_prompt)]
 
     # Messages history for recording
     recorded_messages = []
@@ -361,16 +481,14 @@ async def _run_single_conversation(
         })
         agent_messages.append(AIMessage(content=agent_text))
 
-        # Check for tool calls (simple heuristic — can be enhanced)
-        if scenario and scenario.scenario_type == "tool_use":
-            expected = scenario.expected_output or {}
-            tool_name = expected.get("tool_name")
-            if tool_name and tool_name.lower() in agent_text.lower():
-                tool_invocations.append({
-                    "tool_name": tool_name,
-                    "detected_in_response": True,
-                    "turn": turns,
-                })
+        # Parse TOOL_CALL: lines from the agent's response — this is the
+        # structured signal the agent emits to describe its tool decisions
+        # inside the simulation sandbox (where no real tool ever runs).
+        parsed = _parse_tool_calls(agent_text)
+        for inv in parsed:
+            inv["turn"] = turns
+            inv["timestamp"] = datetime.utcnow().isoformat()
+            tool_invocations.append(inv)
 
         # Single-turn: stop after one exchange
         if max_turns <= 1:
@@ -455,7 +573,7 @@ async def _generate_persona_message(
     """Use LLM to generate the opening user message as this persona would phrase it."""
     from langchain_core.messages import HumanMessage as HM
 
-    simulator_llm = get_llm(db, temperature=0.6)
+    simulator_llm = get_llm(db, temperature=0.6, isolated=True)
     context_line = f"Background context: {context}" if context else ""
 
     prompt = GENERATE_INPUT_PROMPT.format(
@@ -481,7 +599,7 @@ async def _simulate_user_followup(
     """Use a capable LLM to simulate the user's next message in a multi-turn conversation."""
     from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
-    simulator_llm = get_llm(db, temperature=0.6)
+    simulator_llm = get_llm(db, temperature=0.6, isolated=True)
     objective = scenario.objective if scenario else "General interaction"
     context_line = f"Background context: {scenario.context}" if scenario and scenario.context else ""
 
