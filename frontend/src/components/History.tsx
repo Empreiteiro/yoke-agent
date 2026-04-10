@@ -49,7 +49,13 @@ const statusConfig: Record<string, { icon: any; color: string; label: string }> 
   proposing: { icon: Loader2, color: "text-purple-400", label: "Proposing" },
 };
 
-export default function History({ onViewResults }: { onViewResults?: (experimentId: number) => void } = {}) {
+export default function History({
+  onViewResults,
+  onViewAgentResults,
+}: {
+  onViewResults?: (experimentId: number) => void;
+  onViewAgentResults?: (exp: any, opts?: { focusReport?: boolean }) => void;
+} = {}) {
   const [activeTab, setActiveTab] = useState<"rag" | "agent">("rag");
   const [experiments, setExperiments] = useState<any[]>([]);
   const [agentExperiments, setAgentExperiments] = useState<any[]>([]);
@@ -299,7 +305,7 @@ export default function History({ onViewResults }: { onViewResults?: (experiment
                     {/* View Results */}
                     {isCompleted && (
                       <button
-                        onClick={() => onViewResults?.(exp.id)}
+                        onClick={() => onViewAgentResults?.(exp)}
                         className="p-1.5 rounded-lg text-muted hover:text-accent hover:bg-accent/10 transition-colors"
                         title="View results"
                       >

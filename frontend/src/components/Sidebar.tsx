@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Upload,
   Database,
@@ -238,6 +238,19 @@ export default function Sidebar({
   const [agentOpen, setAgentOpen] = useState(currentPipeline === "agent" || isAgentActive);
   const [historyOpen, setHistoryOpen] = useState(isHistoryView);
   const [settingsOpen, setSettingsOpen] = useState(isSettingsView);
+
+  // Mutually exclusive pipeline groups: when the pipeline switches (e.g. via
+  // "View results" from History), open the active one and collapse the other.
+  useEffect(() => {
+    if (isAnySpecialView) return;
+    if (currentPipeline === "agent") {
+      setAgentOpen(true);
+      setRagOpen(false);
+    } else {
+      setRagOpen(true);
+      setAgentOpen(false);
+    }
+  }, [currentPipeline, isAnySpecialView]);
 
   const chatIsActive = currentStep === chatStep.id && !isAnySpecialView;
   const ChatIcon = iconMap[chatStep.icon] || Bot;
