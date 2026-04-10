@@ -1,8 +1,29 @@
 "use client";
 
-import { BookOpen, Layers, Search, Ruler, BarChart3, Target, Brain, Sparkles } from "lucide-react";
+import { BookOpen, Layers, Search, Ruler, BarChart3, Target, Brain, Sparkles, ShieldCheck } from "lucide-react";
 
 const sections = [
+  {
+    title: "About Yoke — Poka-Yoke for AI",
+    icon: ShieldCheck,
+    items: [
+      {
+        term: "Poka-Yoke (ポカヨケ)",
+        description:
+          "Japanese term coined by Shigeo Shingo at Toyota, literally meaning \"mistake-proofing\" (poka = inadvertent error, yokeru = to avoid). It describes any mechanism in a manufacturing process that prevents a human operator from making mistakes — the classic example being a socket shaped so the plug only fits one way. A Poka-Yoke doesn't detect errors after they happen; it stops them from being possible in the first place.",
+      },
+      {
+        term: "Why \"Yoke Agent\"",
+        description:
+          "Yoke Agent applies the Poka-Yoke philosophy to AI systems. Shipping a RAG pipeline or agent means choosing dozens of hyperparameters — chunk size, embedding model, Top-K, temperature, prompts, tool schemas, scenarios — and every bad choice silently degrades quality in production. Instead of hoping you picked well, Yoke Agent lets you grid-search every combination, evaluate them with reproducible metrics (RAGAS for RAG, G-Eval rubrics for agents), and promote only the configuration that objectively wins. The platform is the mistake-proofing jig for your AI: it makes it hard to ship a worse configuration than the one you measured.",
+      },
+      {
+        term: "AI Quality Studio",
+        description:
+          "The product positioning: Yoke Agent is an AI Quality Studio with two complementary workbenches. The RAG workbench optimizes retrieval pipelines through dataset generation, hyperparameter grid search, and RAGAS evaluation. The Agent workbench stress-tests LLM agents against scenario libraries (tool use, decision paths, response quality, guardrails) and scores their behavior with an LLM-as-judge. Both flows end the same way — with a ranked leaderboard and an LLM-generated improvement report — so you always know which configuration to ship and why.",
+      },
+    ],
+  },
   {
     title: "RAG Hyperparameters",
     icon: Layers,
