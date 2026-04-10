@@ -598,41 +598,10 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
               </button>
             </div>
 
-            {/* Modal body — execution stats, quality metrics, then transcripts */}
+            {/* Modal body — quality metrics, then transcripts. Execution
+                stats are intentionally omitted because they are already
+                visible in the All Results table row. */}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-              {/* Execution stats */}
-              <div>
-                <h4 className="text-[10px] font-semibold text-t-secondary uppercase tracking-wider mb-2">Execution Stats</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div className="text-sm">
-                    <span className="text-t-secondary">Total Simulations</span>
-                    <p className="text-primary font-medium font-mono">{renderRawValue(modalCombo.total_simulations, "int")}</p>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-t-secondary">Completed</span>
-                    <p className="text-primary font-medium font-mono">{renderRawValue(modalCombo.completed_simulations, "int")}</p>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-t-secondary">Failed</span>
-                    <p className={`font-medium font-mono ${(modalCombo.failed_simulations ?? 0) > 0 ? "text-red-400" : "text-primary"}`}>
-                      {renderRawValue(modalCombo.failed_simulations, "int")}
-                    </p>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-t-secondary">Duration</span>
-                    <p className="text-primary font-medium font-mono">{renderRawValue(modalCombo.duration_seconds, "duration")}</p>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-t-secondary">Tokens Used</span>
-                    <p className="text-primary font-medium font-mono">{renderRawValue(modalCombo.total_tokens, "tokens")}</p>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-t-secondary">Estimated Cost</span>
-                    <p className="text-primary font-medium font-mono">{renderRawValue(modalCombo.total_cost, "currency")}</p>
-                  </div>
-                </div>
-              </div>
-
               {/* Quality metrics */}
               {(() => {
                 const metrics = modalCombo.aggregated_metrics || modalCombo.metrics || {};
