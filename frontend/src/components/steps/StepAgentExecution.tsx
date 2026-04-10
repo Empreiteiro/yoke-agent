@@ -293,7 +293,7 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
             </div>
           )}
           {/* CTA — Start / Resume / Retry / Results */}
-          {!running && !status?.status && (
+          {!running && (!status?.status || status?.status === "configured" || status?.status === "pending") && (
             <button
               onClick={handleRun}
               className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
