@@ -402,12 +402,23 @@ async def run_experiment(exp_id: int, bg: BackgroundTasks, db: Session = Depends
     db.commit()
     db.refresh(run)
 
-    bg.add_task(_run_experiment_bg, exp.id, run.id)
+    bg.add_task(_run_experiment_sync, exp.id, run.id)
     return {"status": "started", "experiment_id": exp.id, "run_id": run.id}
 
 
-async def _run_experiment_bg(experiment_id: int, run_id: int):
-    """Background task: execute all combinations."""
+def _run_experiment_sync(experiment_id: int, run_id: int):
+    """Synchronous wrapper — runs in a background thread with its own event loop.
+
+    FastAPI BackgroundTasks runs sync functions in a thread pool, which avoids
+    conflicts with the uvicorn event loop. The async simulation engine gets its
+    own clean event loop via asyncio.run().
+    """
+    import asyncio
+    asyncio.run(_run_experiment_async(experiment_id, run_id))
+
+
+async def _run_experiment_async(experiment_id: int, run_id: int):
+    """Actual async execution logic."""
     from app.core.database import SessionLocal
     from app.services.agent_simulation_engine import run_simulation
 
@@ -442,7 +453,7 @@ async def _run_experiment_bg(experiment_id: int, run_id: int):
         run.total_simulations = total
         run.completed_simulations = completed
         run.failed_simulations = failed
-        run.status = "completed" if failed == 0 else "completed"
+        run.status = "completed"
         exp.status = "completed"
         db.commit()
     except Exception as e:
@@ -520,7 +531,7 @@ async def resume_experiment(
     db.commit()
     db.refresh(run)
 
-    bg.add_task(_run_experiment_bg, exp.id, run.id)
+    bg.add_task(_run_experiment_sync, exp.id, run.id)
     return {
         "status": "resumed",
         "experiment_id": exp.id,
@@ -625,12 +636,17 @@ async def evaluate_experiment(exp_id: int, bg: BackgroundTasks, db: Session = De
     exp = db.query(AgentExperiment).filter(AgentExperiment.id == exp_id).first()
     if not exp:
         raise HTTPException(404, "Experiment not found")
-    bg.add_task(_evaluate_experiment_bg, exp_id)
+    bg.add_task(_evaluate_experiment_sync, exp_id)
     return {"status": "evaluating", "experiment_id": exp_id}
 
 
-async def _evaluate_experiment_bg(experiment_id: int):
-    """Background: run metrics on all transcripts."""
+def _evaluate_experiment_sync(experiment_id: int):
+    """Sync wrapper for evaluation (runs in thread with own event loop)."""
+    import asyncio
+    asyncio.run(_evaluate_experiment_async(experiment_id))
+
+
+async def _evaluate_experiment_async(experiment_id: int):
     from app.core.database import SessionLocal
     from app.services.agent_evaluator import evaluate_experiment
     db = SessionLocal()
@@ -648,12 +664,17 @@ async def generate_report(exp_id: int, bg: BackgroundTasks, db: Session = Depend
     exp = db.query(AgentExperiment).filter(AgentExperiment.id == exp_id).first()
     if not exp:
         raise HTTPException(404, "Experiment not found")
-    bg.add_task(_generate_report_bg, exp_id)
+    bg.add_task(_generate_report_sync, exp_id)
     return {"status": "generating", "experiment_id": exp_id}
 
 
-async def _generate_report_bg(experiment_id: int):
-    """Background: generate prompt improvement report."""
+def _generate_report_sync(experiment_id: int):
+    """Sync wrapper for report generation (runs in thread with own event loop)."""
+    import asyncio
+    asyncio.run(_generate_report_async(experiment_id))
+
+
+async def _generate_report_async(experiment_id: int):
     from app.core.database import SessionLocal
     from app.services.agent_report_generator import generate_report
     db = SessionLocal()
