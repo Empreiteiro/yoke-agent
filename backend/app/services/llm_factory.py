@@ -26,11 +26,20 @@ def get_llm(
 
     if ptype == "openai":
         from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
-            model=model_name,
-            api_key=provider.api_key,
-            temperature=temperature,
-        )
+        kwargs: dict = {
+            "model": model_name,
+            "api_key": provider.api_key,
+            "temperature": temperature,
+        }
+        # Opt-in "flex" service tier: ~50% cheaper, best-effort latency.
+        # Stored on the provider via extra_config.flex_tier=True. We pass
+        # it through model_kwargs so it ends up as `service_tier=flex`
+        # on every ChatCompletion request, and works across langchain-
+        # openai versions that don't expose a dedicated kwarg.
+        extra = provider.extra_config or {}
+        if extra.get("flex_tier"):
+            kwargs["model_kwargs"] = {"service_tier": "flex"}
+        return ChatOpenAI(**kwargs)
 
     elif ptype == "anthropic":
         from langchain_anthropic import ChatAnthropic
