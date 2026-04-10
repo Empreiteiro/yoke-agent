@@ -86,19 +86,35 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* Remove surface borders in dark/neon themes for cleaner look */
+/* Remove surface borders in dark/neon themes for cleaner look.
+   The light theme keeps its native Tailwind opacity-modified borders so cards
+   and sections remain visible against the bright surface. */
 [data-theme="dark"] .border-surface-200\/50,
 [data-theme="dark"] .border-surface-200\/30,
 [data-theme="neon"] .border-surface-200\/50,
-[data-theme="neon"] .border-surface-200\/30,
-:root .border-surface-200\/50,
-:root .border-surface-200\/30 {
+[data-theme="neon"] .border-surface-200\/30 {
   border-color: transparent;
 }
 
 /* Theme-aware visible border — works on all themes */
 .border-visible {
   border-color: var(--input-border);
+}
+
+/* Active theme-card state (used in SettingsUser theme picker).
+   Uses explicit per-theme rgba so the accent tint is visible on every theme,
+   including light where `border-accent/60` produced nothing. */
+[data-theme="neon"] .theme-card-active {
+  background-color: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.6);
+}
+[data-theme="dark"] .theme-card-active {
+  background-color: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.6);
+}
+[data-theme="light"] .theme-card-active {
+  background-color: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.6);
 }
 
 /* Theme-aware chip styles for search type sub-parameters */

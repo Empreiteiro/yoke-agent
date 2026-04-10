@@ -42,13 +42,6 @@ export const WALKTHROUGHS: ScreenWalkthrough[] = [
           "Configure your LLM providers (OpenAI, Anthropic, Ollama, etc.) and external vector stores before running experiments.",
         position: "right",
       },
-      {
-        target: "sidebar-theme",
-        title: "Theme Toggle",
-        description:
-          "Switch between Light, Dark, and Neon themes to match your preference.",
-        position: "right",
-      },
     ],
   },
   {
