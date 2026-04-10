@@ -4,6 +4,7 @@ Generates LLM-powered prompt improvement reports based on experiment results.
 import json
 import logging
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.models.agent import (
     AgentConfig, AgentExperiment, AgentExperimentCombination,
@@ -73,7 +74,7 @@ async def generate_report(db: Session, experiment_id: int) -> dict:
             "aggregated_metrics": c.aggregated_metrics,
         })
 
-    llm = get_llm(db, temperature=0.3)
+    llm = get_llm(db, temperature=0.3, isolated=True)
 
     prompt = f"""You are an expert AI agent evaluation consultant. Analyze these experiment results and provide actionable recommendations for improving the agent's prompt and configuration.
 
@@ -124,10 +125,11 @@ Format the report in Markdown."""
     report_text = response.content if hasattr(response, "content") else str(response)
 
     # Store the report in the experiment's grid_config
-    exp_config = exp.grid_config or {}
+    exp_config = dict(exp.grid_config or {})
     exp_config["report"] = report_text
     exp_config["report_generated"] = True
     exp.grid_config = exp_config
+    flag_modified(exp, "grid_config")
     db.commit()
 
     return {"report": report_text, "experiment_id": experiment_id}
