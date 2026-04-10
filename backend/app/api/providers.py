@@ -134,8 +134,26 @@ def test_provider(provider_id: int, db: Session = Depends(get_db)):
 
     if provider.supports_llm and provider.llm_models:
         try:
-            from app.services.llm_factory import get_llm
-            llm = get_llm(db, provider_id=provider.id)
+            from app.services.llm_factory import (
+                get_llm, flex_supported_for, pick_flex_model,
+            )
+            # When flex is opted-in, prefer a flex-compatible model for
+            # the smoke test. The default model may not support flex —
+            # OpenAI/Google then return 400 and the user sees the test
+            # fail even though the provider is configured correctly.
+            flex_on = (provider.extra_config or {}).get("flex_tier")
+            test_model = None
+            if flex_on:
+                if not flex_supported_for(provider.provider_type, provider.default_llm_model or ""):
+                    test_model = pick_flex_model(provider)
+                    if not test_model:
+                        raise ValueError(
+                            "Flex tier is enabled but no configured model "
+                            "supports it. Add a flex-eligible model "
+                            "(OpenAI: o3, o4-mini, gpt-4.1*, gpt-5*; "
+                            "Google: gemini-2.5-*) or disable Flex."
+                        )
+            llm = get_llm(db, provider_id=provider.id, model=test_model)
             llm.invoke("Say 'ok'")
             llm_ok = True
         except Exception as e:

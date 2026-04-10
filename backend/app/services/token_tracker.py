@@ -55,10 +55,11 @@ MODEL_PRICING = {
 }
 
 
-# OpenAI "flex" service tier discount multiplier applied to prompt and
-# completion prices. OpenAI publishes flex as roughly 50% of standard
-# on-demand pricing for the models that support it (currently the
-# reasoning family o3/o4-mini and gpt-4.1 lineage).
+# Flex service-tier discount multiplier applied to prompt and
+# completion prices. Both OpenAI and Google publish flex as roughly
+# 50% of standard on-demand pricing for the models that support it
+# (OpenAI: o3*, o4-mini, gpt-4.1*, gpt-5*; Google: gemini-2.5-* and
+# gemini-3.x preview).
 FLEX_DISCOUNT = 0.5
 
 
@@ -70,8 +71,10 @@ def estimate_cost(
 ) -> Optional[float]:
     """Estimate cost based on known model pricing.
 
-    Set ``flex=True`` to apply OpenAI's flex service tier discount
-    (~50% off standard pricing). Ignored for non-OpenAI models.
+    Set ``flex=True`` to apply the flex service-tier discount
+    (~50% off standard pricing). Applies to both OpenAI and Google
+    flex-eligible models — callers should only set the flag when the
+    model actually supports it (see ``llm_factory.flex_supported_for``).
     """
     # Try exact match first, then partial match
     pricing = MODEL_PRICING.get(model_name)
@@ -197,6 +200,7 @@ def log_llm_response(
     combination_id: Optional[int] = None,
     metadata: Optional[Dict[str, Any]] = None,
     prompt_text: Optional[str] = None,
+    flex_hint: bool = False,
 ) -> TokenUsageLog:
     """Extract token usage from an LLM response and log it.
 
@@ -204,9 +208,33 @@ def log_llm_response(
     which returns a plain subprocess stdout string), and ``prompt_text``
     is provided, fall back to a rough char/4 estimate so the log entry
     still reflects the call.
+
+    ``flex_hint`` lets the caller force the flex discount on cost
+    estimation when the upstream API doesn't echo ``service_tier`` in
+    the response (Gemini doesn't, OpenAI does). Pass ``True`` when the
+    provider's ``extra_config.flex_tier`` is enabled — the helper will
+    union it with what was actually detected on the response so cost
+    estimates stay accurate either way.
     """
     tokens = extract_llm_token_usage(response)
-    flex = detect_flex_tier(response)
+    flex = detect_flex_tier(response) or flex_hint
+    # If neither the response nor the caller hinted at flex, fall back
+    # to looking up the provider's saved opt-in. Gemini doesn't echo
+    # service_tier on responses, so without this lookup every Gemini
+    # call would be priced at standard rates even when the provider
+    # is configured for flex.
+    if not flex:
+        try:
+            from app.models.provider import Provider
+            prov = (
+                db.query(Provider)
+                .filter(Provider.name == provider_name)
+                .first()
+            )
+            if prov and (prov.extra_config or {}).get("flex_tier"):
+                flex = True
+        except Exception:
+            pass
     if flex:
         metadata = {**(metadata or {}), "service_tier": "flex"}
 
