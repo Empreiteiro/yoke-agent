@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { BarChart3, Loader2, AlertCircle, ArrowUpDown, ChevronDown, ChevronRight, ChevronUp, FileText, MessageSquare, Sparkles, Trophy } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { BarChart3, Loader2, AlertCircle, ArrowUpDown, ChevronDown, ChevronRight, ChevronUp, FileText, MessageSquare, Sparkles, Trophy, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api } from "@/lib/api";
@@ -16,16 +16,17 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState("overall_score");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [expandedCombo, setExpandedCombo] = useState<number | null>(null);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [report, setReport] = useState<string | null>(null);
   const [reportCollapsed, setReportCollapsed] = useState(false);
   const reportRef = useRef<HTMLDivElement | null>(null);
 
-  // Transcript browser (per-combo, inline inside the expanded combo row)
+  // Transcript modal — opens when clicking a configuration row.
+  // Holds the full combo object so we can render its config/stats/metrics
+  // in the modal header without re-querying the table.
+  const [modalCombo, setModalCombo] = useState<any | null>(null);
   const [transcripts, setTranscripts] = useState<any[]>([]);
   const [transcriptsForCombo, setTranscriptsForCombo] = useState<number | null>(null);
-  const [transcriptsCollapsed, setTranscriptsCollapsed] = useState(false);
   const [loadingTranscripts, setLoadingTranscripts] = useState(false);
   const [expandedTranscript, setExpandedTranscript] = useState<number | null>(null);
   const [transcriptDetail, setTranscriptDetail] = useState<any>(null);
@@ -108,17 +109,25 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
     }
   };
 
-  // Auto-load transcripts whenever a combo is expanded so they appear
-  // inline right below the configuration (collapsible).
+  // Auto-load transcripts whenever the modal opens for a new combo.
   useEffect(() => {
-    if (expandedCombo == null) return;
-    if (transcriptsForCombo === expandedCombo) return;
-    loadTranscripts(expandedCombo);
+    if (modalCombo == null) return;
+    if (transcriptsForCombo === modalCombo.id) return;
+    loadTranscripts(modalCombo.id);
     setExpandedTranscript(null);
     setTranscriptDetail(null);
-    setTranscriptsCollapsed(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expandedCombo]);
+  }, [modalCombo]);
+
+  // Close modal on Escape key.
+  useEffect(() => {
+    if (!modalCombo) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setModalCombo(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [modalCombo]);
 
   const loadTranscriptDetail = async (transcriptId: number) => {
     if (expandedTranscript === transcriptId) {
@@ -204,6 +213,36 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
     "tool_accuracy", "goal_completion", "instruction_following", "coherence", "relevance",
   ]);
 
+  // Collect the union of metric keys across all combos so the All Results
+  // table has a dynamic set of per-scenario metric columns (overall_score
+  // is rendered separately as the last highlighted column).
+  const metricColumns = useMemo(() => {
+    const keys = new Set<string>();
+    for (const c of sorted) {
+      const metrics = c.aggregated_metrics || c.metrics || {};
+      for (const [k, v] of Object.entries(metrics)) {
+        if (k === "overall_score") continue;
+        if (typeof v !== "number") continue;
+        if (METRIC_KEYS.has(k) || k.includes("score") || k.includes("accuracy")) {
+          keys.add(k);
+        }
+      }
+    }
+    return Array.from(keys);
+  }, [sorted]);
+
+  const shortLabel = (key: string) => {
+    const words = key.replace(/_/g, " ").split(" ");
+    return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1, 6)).join(" ");
+  };
+
+  const scoreColor = (val: number | null | undefined) => {
+    if (val == null) return "text-t-secondary";
+    if (val >= 0.8) return "text-emerald-400";
+    if (val >= 0.6) return "text-amber-400";
+    return "text-red-400";
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -280,223 +319,92 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
         </div>
       )}
 
-      {/* Ranking table */}
+      {/* ── Block 1: All Results ─────────────────────────────────────────── */}
       {sorted.length > 0 && (
-        <div className="bg-surface-100 rounded-xl border border-surface-200/50 overflow-hidden">
+        <div className="bg-surface-100 rounded-2xl border border-visible p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-lg font-semibold text-primary">All Results</h3>
+            <span className="text-xs text-t-secondary">
+              {sorted.length} configuration{sorted.length !== 1 ? "s" : ""} · click a row to open transcripts
+            </span>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-surface-200/50">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-t-secondary uppercase tracking-wider">#</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-t-secondary uppercase tracking-wider">Config</th>
+                <tr className="border-b border-visible">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Rank</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Model</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Temp</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Turns</th>
+                  {metricColumns.map((key) => (
+                    <th
+                      key={key}
+                      className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider"
+                      title={key.replace(/_/g, " ")}
+                    >
+                      {shortLabel(key)}
+                    </th>
+                  ))}
                   <th
-                    className="px-4 py-3 text-left text-xs font-semibold text-t-secondary uppercase tracking-wider cursor-pointer hover:text-accent"
+                    className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider cursor-pointer hover:text-accent"
                     onClick={() => toggleSort("overall_score")}
                   >
                     <span className="flex items-center gap-1">
-                      Overall Score <ArrowUpDown className="w-3 h-3" />
+                      Overall <ArrowUpDown className="w-3 h-3" />
                     </span>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-t-secondary uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-t-secondary uppercase tracking-wider">Details</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Sims</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Tokens</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Cost</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-surface-200/30">
                 {sorted.map((c: any, idx: number) => {
-                  const score = c.overall_score ?? c.metrics?.overall_score;
-                  const isExpanded = expandedCombo === c.id;
                   const p = c.params || {};
+                  const metrics = c.aggregated_metrics || c.metrics || {};
+                  const overall = c.overall_score ?? metrics.overall_score;
+                  const sims = `${c.completed_simulations ?? "—"}/${c.total_simulations ?? "—"}`;
                   return (
-                    <React.Fragment key={c.id}>
-                      <tr className="border-b border-surface-200/50 hover:bg-surface-200/20 transition-colors">
-                        <td className="px-4 py-3 text-t-secondary">{idx + 1}</td>
-                        <td className="px-4 py-3 text-primary">
-                          <div>
-                            <p className="font-medium">{p.model || `Combo #${c.id}`}</p>
-                            <p className="text-xs text-t-secondary">
-                              T={p.temperature ?? "?"} | Turns={p.max_turns ?? "?"}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="font-mono font-medium text-accent">{renderMetricValue(score)}</span>
-                        </td>
-                        <td className="px-4 py-3 capitalize text-t-secondary">{c.status || "---"}</td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => setExpandedCombo(isExpanded ? null : c.id)}
-                            className="text-t-secondary hover:text-accent transition-colors"
-                          >
-                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                          </button>
-                        </td>
-                      </tr>
-                      {isExpanded && (
-                        <tr className="border-b border-surface-200/50">
-                          <td colSpan={5} className="px-6 py-4 bg-surface-200/10 space-y-4">
-                            {/* Execution stats — raw values */}
-                            <div>
-                              <h4 className="text-[10px] font-semibold text-t-secondary uppercase tracking-wider mb-2">Execution Stats</h4>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="text-sm">
-                                  <span className="text-t-secondary">Total Simulations</span>
-                                  <p className="text-primary font-medium font-mono">{renderRawValue(c.total_simulations, "int")}</p>
-                                </div>
-                                <div className="text-sm">
-                                  <span className="text-t-secondary">Completed</span>
-                                  <p className="text-primary font-medium font-mono">{renderRawValue(c.completed_simulations, "int")}</p>
-                                </div>
-                                <div className="text-sm">
-                                  <span className="text-t-secondary">Failed</span>
-                                  <p className={`font-medium font-mono ${(c.failed_simulations ?? 0) > 0 ? "text-red-400" : "text-primary"}`}>
-                                    {renderRawValue(c.failed_simulations, "int")}
-                                  </p>
-                                </div>
-                                <div className="text-sm">
-                                  <span className="text-t-secondary">Duration</span>
-                                  <p className="text-primary font-medium font-mono">{renderRawValue(c.duration_seconds, "duration")}</p>
-                                </div>
-                                <div className="text-sm">
-                                  <span className="text-t-secondary">Tokens Used</span>
-                                  <p className="text-primary font-medium font-mono">{renderRawValue(c.total_tokens, "tokens")}</p>
-                                </div>
-                                <div className="text-sm">
-                                  <span className="text-t-secondary">Estimated Cost</span>
-                                  <p className="text-primary font-medium font-mono">{renderRawValue(c.total_cost, "currency")}</p>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Quality metrics — percentages */}
-                            {(() => {
-                              const metrics = c.aggregated_metrics || c.metrics || {};
-                              const metricEntries = Object.entries(metrics).filter(([k, v]) =>
-                                typeof v === "number" && (METRIC_KEYS.has(k) || k.includes("score") || k.includes("accuracy"))
-                              );
-                              if (metricEntries.length === 0) {
-                                return (
-                                  <div className="text-xs text-t-secondary italic">
-                                    No quality metrics yet. Click &quot;Evaluate&quot; to score this combination.
-                                  </div>
-                                );
-                              }
-                              return (
-                                <div>
-                                  <h4 className="text-[10px] font-semibold text-t-secondary uppercase tracking-wider mb-2">Quality Metrics</h4>
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {metricEntries.map(([key, val]) => (
-                                      <div key={key} className="text-sm">
-                                        <span className="text-t-secondary capitalize">{key.replace(/_/g, " ")}</span>
-                                        <p className="text-primary font-medium font-mono">{renderMetricValue(val)}</p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              );
-                            })()}
-
-                            {/* Inline transcripts — collapsible, right below the configuration */}
-                            <div className="border border-surface-200/50 rounded-lg overflow-hidden">
-                              <button
-                                type="button"
-                                onClick={() => setTranscriptsCollapsed((v) => !v)}
-                                className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-200/30 transition-colors"
-                                aria-expanded={!transcriptsCollapsed}
-                              >
-                                <h4 className="text-[10px] font-semibold text-t-secondary uppercase tracking-wider flex items-center gap-2">
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                  Transcripts
-                                  {!loadingTranscripts && transcripts.length > 0 && (
-                                    <span className="text-t-secondary/80 normal-case">({transcripts.length})</span>
-                                  )}
-                                </h4>
-                                {transcriptsCollapsed ? (
-                                  <ChevronRight className="w-4 h-4 text-t-secondary" />
-                                ) : (
-                                  <ChevronDown className="w-4 h-4 text-t-secondary" />
-                                )}
-                              </button>
-                              {!transcriptsCollapsed && (
-                                <div className="px-4 pb-4 border-t border-surface-200/50">
-                                  {loadingTranscripts ? (
-                                    <div className="flex items-center justify-center py-6 text-t-secondary text-xs">
-                                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                      Loading transcripts...
-                                    </div>
-                                  ) : transcripts.length === 0 ? (
-                                    <p className="text-xs text-t-secondary py-4">No transcripts for this combination.</p>
-                                  ) : (
-                                    <div className="space-y-2 mt-3">
-                                      {transcripts.map((t) => (
-                                        <div key={t.id} className="border border-surface-200/50 rounded-lg overflow-hidden">
-                                          <button
-                                            onClick={() => loadTranscriptDetail(t.id)}
-                                            className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-200/20 transition-colors text-left"
-                                          >
-                                            <div>
-                                              <span className="text-sm font-medium text-primary">
-                                                {t.persona_name || t.scenario_name || `Transcript #${t.id}`}
-                                              </span>
-                                              {t.scenario_name && (
-                                                <span className="ml-2 text-xs text-t-secondary">{t.scenario_name}</span>
-                                              )}
-                                            </div>
-                                            {expandedTranscript === t.id ? (
-                                              <ChevronDown className="w-4 h-4 text-t-secondary" />
-                                            ) : (
-                                              <ChevronRight className="w-4 h-4 text-t-secondary" />
-                                            )}
-                                          </button>
-                                          {expandedTranscript === t.id && (
-                                            <div className="px-4 pb-4 border-t border-surface-200/50">
-                                              {loadingTranscriptDetail ? (
-                                                <div className="flex items-center justify-center py-6 text-t-secondary text-sm">
-                                                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                                  Loading transcript...
-                                                </div>
-                                              ) : transcriptDetail ? (
-                                                <div className="space-y-2 mt-3">
-                                                  {(transcriptDetail.messages || transcriptDetail.turns || []).map((msg: any, idx: number) => (
-                                                    <div
-                                                      key={idx}
-                                                      className={`p-3 rounded-lg text-sm ${
-                                                        msg.role === "user" || msg.role === "persona"
-                                                          ? "bg-surface-200/30 text-t-secondary"
-                                                          : "bg-accent/10 text-primary"
-                                                      }`}
-                                                    >
-                                                      <span className="text-xs font-semibold uppercase text-t-secondary/70 block mb-1">
-                                                        {msg.role || "unknown"}
-                                                      </span>
-                                                      <p className="whitespace-pre-wrap">{msg.content || msg.text || "---"}</p>
-                                                      {msg.tool_calls && msg.tool_calls.length > 0 && (
-                                                        <div className="mt-2 space-y-1">
-                                                          {msg.tool_calls.map((tc: any, i: number) => (
-                                                            <div key={i} className="text-xs font-mono bg-surface-200/30 rounded p-2 text-t-secondary">
-                                                              Tool: {tc.name || tc.function?.name || "unknown"}
-                                                            </div>
-                                                          ))}
-                                                        </div>
-                                                      )}
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              ) : (
-                                                <p className="text-sm text-t-secondary py-4">No detail available.</p>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                    <tr
+                      key={c.id}
+                      onClick={() => setModalCombo(c)}
+                      className={`hover:bg-surface-50 transition-colors cursor-pointer ${
+                        idx === 0 ? "bg-accent/5" : ""
+                      }`}
+                      title="Click to open transcripts for this configuration"
+                    >
+                      <td className="px-3 py-3 text-t-hover">
+                        <div className="flex items-center gap-1">
+                          {idx === 0 ? (
+                            <Trophy className="w-4 h-4 text-amber-400" />
+                          ) : (
+                            `#${idx + 1}`
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-primary text-xs font-medium">{p.model || `Combo #${c.id}`}</td>
+                      <td className="px-3 py-3 text-primary">{p.temperature ?? "—"}</td>
+                      <td className="px-3 py-3 text-primary">{p.max_turns ?? "—"}</td>
+                      {metricColumns.map((key) => {
+                        const val = metrics[key];
+                        return (
+                          <td key={key} className={`px-3 py-3 font-mono ${scoreColor(typeof val === "number" ? val : null)}`}>
+                            {renderMetricValue(val)}
                           </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
+                        );
+                      })}
+                      <td className="px-3 py-3">
+                        <span className={`font-semibold font-mono ${scoreColor(typeof overall === "number" ? overall : null)}`}>
+                          {renderMetricValue(overall)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-t-secondary text-xs font-mono">{sims}</td>
+                      <td className="px-3 py-3 text-t-secondary text-xs font-mono">{renderRawValue(c.total_tokens, "tokens")}</td>
+                      <td className="px-3 py-3 text-amber-400 text-xs font-mono">{renderRawValue(c.total_cost, "currency")}</td>
+                      <td className="px-3 py-3 capitalize text-t-secondary text-xs">{c.status || "—"}</td>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -511,17 +419,18 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
         </div>
       )}
 
-      {/* ── Improvement Report (optional, always at the bottom) ─────────── */}
+      {/* ── Block 2: Improvement Report (bordered, collapsible) ─────────── */}
       {sorted.length > 0 && (
-        <div ref={reportRef} className="space-y-4 pt-4">
+        <div ref={reportRef}>
           {!report ? (
-            <div className="bg-surface-100 rounded-xl border border-surface-200/50 p-6 space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold text-primary">Improvement Report</h3>
-                <p className="text-xs text-t-secondary mt-1">
-                  Generate an LLM-authored report with prompt improvement suggestions based on this experiment&apos;s metrics and transcripts.
-                </p>
+            <div className="bg-surface-100 rounded-2xl border border-visible p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-secondary" />
+                <h3 className="text-lg font-semibold text-primary">Improvement Report</h3>
               </div>
+              <p className="text-xs text-t-secondary">
+                Generate an LLM-authored report with prompt improvement suggestions based on this experiment&apos;s metrics and transcripts.
+              </p>
               <button
                 onClick={handleGenerateReport}
                 disabled={generatingReport}
@@ -532,10 +441,10 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
               </button>
             </div>
           ) : (
-            <div className="bg-surface-100 rounded-xl border border-surface-200/50 overflow-hidden">
+            <div className="bg-surface-100 rounded-2xl border border-visible overflow-hidden">
               {/* Title row — title on the left, regenerate (with AI icon) on the right */}
               <div className="flex items-center justify-between gap-3 px-6 pt-6">
-                <h3 className="text-sm font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-primary flex items-center gap-2">
                   <FileText className="w-4 h-4 text-secondary" />
                   Improvement Report
                 </h3>
@@ -669,6 +578,188 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Block 3: Transcripts Modal ──────────────────────────────────── */}
+      {modalCombo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setModalCombo(null)}
+        >
+          <div
+            className="relative w-full max-w-5xl max-h-[90vh] flex flex-col bg-surface-100 rounded-2xl border border-visible shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-visible">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center flex-shrink-0">
+                  <MessageSquare className="w-5 h-5 text-accent" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg font-semibold text-primary truncate">
+                    {modalCombo.params?.model || `Combo #${modalCombo.id}`}
+                  </h3>
+                  <p className="text-xs text-t-secondary">
+                    T={modalCombo.params?.temperature ?? "?"} · Turns={modalCombo.params?.max_turns ?? "?"} · Overall{" "}
+                    <span className={`font-mono ${scoreColor(modalCombo.overall_score ?? modalCombo.metrics?.overall_score)}`}>
+                      {renderMetricValue(modalCombo.overall_score ?? modalCombo.metrics?.overall_score)}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalCombo(null)}
+                className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-t-secondary hover:text-primary hover:bg-surface-200/40 transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal body — execution stats, quality metrics, then transcripts */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+              {/* Execution stats */}
+              <div>
+                <h4 className="text-[10px] font-semibold text-t-secondary uppercase tracking-wider mb-2">Execution Stats</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="text-sm">
+                    <span className="text-t-secondary">Total Simulations</span>
+                    <p className="text-primary font-medium font-mono">{renderRawValue(modalCombo.total_simulations, "int")}</p>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-t-secondary">Completed</span>
+                    <p className="text-primary font-medium font-mono">{renderRawValue(modalCombo.completed_simulations, "int")}</p>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-t-secondary">Failed</span>
+                    <p className={`font-medium font-mono ${(modalCombo.failed_simulations ?? 0) > 0 ? "text-red-400" : "text-primary"}`}>
+                      {renderRawValue(modalCombo.failed_simulations, "int")}
+                    </p>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-t-secondary">Duration</span>
+                    <p className="text-primary font-medium font-mono">{renderRawValue(modalCombo.duration_seconds, "duration")}</p>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-t-secondary">Tokens Used</span>
+                    <p className="text-primary font-medium font-mono">{renderRawValue(modalCombo.total_tokens, "tokens")}</p>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-t-secondary">Estimated Cost</span>
+                    <p className="text-primary font-medium font-mono">{renderRawValue(modalCombo.total_cost, "currency")}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quality metrics */}
+              {(() => {
+                const metrics = modalCombo.aggregated_metrics || modalCombo.metrics || {};
+                const metricEntries = Object.entries(metrics).filter(([k, v]) =>
+                  typeof v === "number" && (METRIC_KEYS.has(k) || k.includes("score") || k.includes("accuracy"))
+                );
+                if (metricEntries.length === 0) return null;
+                return (
+                  <div>
+                    <h4 className="text-[10px] font-semibold text-t-secondary uppercase tracking-wider mb-2">Quality Metrics</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {metricEntries.map(([key, val]) => (
+                        <div key={key} className="text-sm">
+                          <span className="text-t-secondary capitalize">{key.replace(/_/g, " ")}</span>
+                          <p className={`font-medium font-mono ${scoreColor(val as number)}`}>{renderMetricValue(val)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Transcripts */}
+              <div>
+                <h4 className="text-[10px] font-semibold text-t-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  Transcripts
+                  {!loadingTranscripts && transcripts.length > 0 && (
+                    <span className="text-t-secondary/80 normal-case">({transcripts.length})</span>
+                  )}
+                </h4>
+                {loadingTranscripts ? (
+                  <div className="flex items-center justify-center py-8 text-t-secondary text-xs">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Loading transcripts...
+                  </div>
+                ) : transcripts.length === 0 ? (
+                  <p className="text-xs text-t-secondary py-4">No transcripts for this configuration.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {transcripts.map((t) => (
+                      <div key={t.id} className="border border-surface-200/50 rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => loadTranscriptDetail(t.id)}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-200/20 transition-colors text-left"
+                        >
+                          <div>
+                            <span className="text-sm font-medium text-primary">
+                              {t.persona_name || t.scenario_name || `Transcript #${t.id}`}
+                            </span>
+                            {t.scenario_name && (
+                              <span className="ml-2 text-xs text-t-secondary">{t.scenario_name}</span>
+                            )}
+                          </div>
+                          {expandedTranscript === t.id ? (
+                            <ChevronDown className="w-4 h-4 text-t-secondary" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-t-secondary" />
+                          )}
+                        </button>
+                        {expandedTranscript === t.id && (
+                          <div className="px-4 pb-4 border-t border-surface-200/50">
+                            {loadingTranscriptDetail ? (
+                              <div className="flex items-center justify-center py-6 text-t-secondary text-sm">
+                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                Loading transcript...
+                              </div>
+                            ) : transcriptDetail ? (
+                              <div className="space-y-2 mt-3">
+                                {(transcriptDetail.messages || transcriptDetail.turns || []).map((msg: any, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    className={`p-3 rounded-lg text-sm ${
+                                      msg.role === "user" || msg.role === "persona"
+                                        ? "bg-surface-200/30 text-t-secondary"
+                                        : "bg-accent/10 text-primary"
+                                    }`}
+                                  >
+                                    <span className="text-xs font-semibold uppercase text-t-secondary/70 block mb-1">
+                                      {msg.role || "unknown"}
+                                    </span>
+                                    <p className="whitespace-pre-wrap">{msg.content || msg.text || "---"}</p>
+                                    {msg.tool_calls && msg.tool_calls.length > 0 && (
+                                      <div className="mt-2 space-y-1">
+                                        {msg.tool_calls.map((tc: any, i: number) => (
+                                          <div key={i} className="text-xs font-mono bg-surface-200/30 rounded p-2 text-t-secondary">
+                                            Tool: {tc.name || tc.function?.name || "unknown"}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-t-secondary py-4">No detail available.</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
