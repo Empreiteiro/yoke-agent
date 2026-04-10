@@ -11,7 +11,8 @@ from app.models.agent import (
     AgentExperiment, AgentExperimentCombination,
     SimulationTranscript, SimulationMetrics, Scenario,
 )
-from app.services.llm_factory import get_llm
+from app.services.llm_factory import get_llm, resolve_provider
+from app.services.token_tracker import log_llm_response
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +65,15 @@ async def evaluate_experiment(db: Session, experiment_id: int):
     # Limit concurrent LLM judge calls
     semaphore = asyncio.Semaphore(4)
 
-    async def evaluate_one(transcript, scenario):
+    async def evaluate_one(transcript, scenario, combination_id):
         async with semaphore:
             try:
                 return await asyncio.wait_for(
-                    _evaluate_transcript(db, transcript, scenario),
+                    _evaluate_transcript(
+                        db, transcript, scenario,
+                        experiment_id=experiment_id,
+                        combination_id=combination_id,
+                    ),
                     timeout=90,
                 )
             except Exception as e:
@@ -91,7 +96,7 @@ async def evaluate_experiment(db: Session, experiment_id: int):
 
         # Run evaluations concurrently
         tasks = [
-            evaluate_one(t, scenario_map.get(t.scenario_id))
+            evaluate_one(t, scenario_map.get(t.scenario_id), combo.id)
             for t in transcripts
         ]
         all_scores = await asyncio.gather(*tasks)
@@ -132,9 +137,20 @@ async def _evaluate_transcript(
     db: Session,
     transcript: SimulationTranscript,
     scenario: Scenario | None,
+    experiment_id: int | None = None,
+    combination_id: int | None = None,
 ) -> dict:
     """Score a single transcript using LLM-as-judge."""
     llm = get_llm(db, temperature=0.0, isolated=True)
+    # Resolve the same provider so we can attribute token usage correctly.
+    try:
+        judge_provider = resolve_provider(db, capability="llm")
+        judge_model = judge_provider.default_llm_model or (
+            judge_provider.llm_models[0] if judge_provider.llm_models else "unknown"
+        )
+    except Exception:
+        judge_provider = None
+        judge_model = "unknown"
 
     scenario_type = scenario.scenario_type if scenario else "response_quality"
     rubrics = {**RUBRICS.get(scenario_type, {}), **CROSS_CUTTING}
@@ -192,6 +208,26 @@ Return a JSON object mapping each metric name to its numeric score (0.0-1.0).
 Return ONLY valid JSON, no markdown fences or explanations."""
 
     response = await llm.ainvoke(prompt)
+
+    # Log token usage for this judge call (works for all providers;
+    # falls back to char/4 estimation when the LLM wrapper — e.g. the
+    # Claude Code CLI — returns no usage metadata).
+    if judge_provider is not None:
+        try:
+            log_llm_response(
+                db=db,
+                response=response,
+                operation="agent_evaluation",
+                provider_name=judge_provider.name,
+                model_name=judge_model,
+                experiment_id=experiment_id,
+                combination_id=combination_id,
+                metadata={"sub_operation": "judge", "scenario_type": scenario_type},
+                prompt_text=prompt,
+            )
+        except Exception as log_err:
+            logger.debug(f"Failed to log evaluator token usage: {log_err}")
+
     text = response.content.strip()
 
     # Parse scores

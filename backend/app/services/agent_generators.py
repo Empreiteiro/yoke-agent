@@ -4,7 +4,31 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.models.agent import AgentConfig, PromptVariant, Scenario, Persona
-from app.services.llm_factory import get_llm
+from app.services.llm_factory import get_llm, resolve_provider
+from app.services.token_tracker import log_llm_response
+
+
+def _safe_log(
+    db,
+    response,
+    operation: str,
+    prompt_text: str,
+    sub_operation: str,
+):
+    """Best-effort token logging — never raises."""
+    try:
+        provider = resolve_provider(db, capability="llm")
+        log_llm_response(
+            db=db,
+            response=response,
+            operation=operation,
+            provider_name=provider.name,
+            model_name=provider.default_llm_model or "unknown",
+            metadata={"sub_operation": sub_operation},
+            prompt_text=prompt_text,
+        )
+    except Exception as log_err:
+        logger.debug(f"Failed to log {operation} token usage: {log_err}")
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +55,7 @@ Return a JSON array of objects with "variant_name" (short descriptive name) and 
 Return ONLY valid JSON, no markdown fences."""
 
     response = await llm.ainvoke(prompt)
+    _safe_log(db, response, "agent_generation", prompt, "prompt_variants")
     text = response.content.strip()
 
     # Parse JSON from response
@@ -95,6 +120,7 @@ Return a JSON array of objects with:
 Return ONLY valid JSON, no markdown fences."""
 
     response = await llm.ainvoke(prompt)
+    _safe_log(db, response, "agent_generation", prompt, "scenarios")
     text = response.content.strip()
 
     if text.startswith("```"):
@@ -146,6 +172,7 @@ Return a JSON array of objects with: "name", "role", "description", "expertise_l
 Return ONLY valid JSON, no markdown fences."""
 
     response = await llm.ainvoke(prompt)
+    _safe_log(db, response, "agent_generation", prompt, "personas")
     text = response.content.strip()
 
     if text.startswith("```"):

@@ -17,7 +17,8 @@ from app.models.agent import (
     AgentExperiment, AgentExperimentCombination,
     InteractionDatasetItem, SimulationTranscript,
 )
-from app.services.llm_factory import get_llm
+from app.services.llm_factory import get_llm, resolve_provider
+from app.services.token_tracker import log_llm_response
 
 import subprocess as _subprocess
 
@@ -415,6 +416,13 @@ async def _run_single_conversation(
     # Agent LLM — runs in isolation so the user's personal MCP servers,
     # plugins, skills, and CLAUDE.md files never leak into simulations.
     agent_llm = get_llm(db, model=model, temperature=temperature, isolated=True)
+    # Resolve the provider powering this combination so every simulation
+    # call can be attributed to it in the token usage logs.
+    try:
+        agent_provider = resolve_provider(db, capability="llm", model=model)
+        agent_provider_name = agent_provider.name
+    except Exception:
+        agent_provider_name = "unknown"
 
     # Build the agent's sandboxed system prompt: the user-authored variant
     # prompt + the sandbox instructions with the fictitious tool catalog.
@@ -440,7 +448,11 @@ async def _run_single_conversation(
     if persona and objective:
         # Use LLM to generate the opening message as this persona would say it
         user_message = await asyncio.wait_for(
-            _generate_persona_message(db, persona, objective, context),
+            _generate_persona_message(
+                db, persona, objective, context,
+                experiment_id=combination.experiment_id,
+                combination_id=combination.id,
+            ),
             timeout=PER_CALL_TIMEOUT,
         )
     elif input_hint:
@@ -473,6 +485,27 @@ async def _run_single_conversation(
         )
         agent_text = agent_response.content if hasattr(agent_response, "content") else str(agent_response)
 
+        # Log token usage for the agent-under-test call. This is the LLM
+        # consuming the real budget during experiments — we want every
+        # turn attributed to the combination.
+        try:
+            log_llm_response(
+                db=db,
+                response=agent_response,
+                operation="agent_simulation",
+                provider_name=agent_provider_name,
+                model_name=model,
+                experiment_id=combination.experiment_id,
+                combination_id=combination.id,
+                metadata={"sub_operation": "agent_under_test", "turn": turns},
+                prompt_text="\n".join(
+                    getattr(m, "content", "") or ""
+                    for m in agent_messages
+                ),
+            )
+        except Exception as log_err:
+            logger.debug(f"Failed to log agent simulation token usage: {log_err}")
+
         recorded_messages.append({
             "role": "assistant",
             "content": agent_text,
@@ -500,6 +533,8 @@ async def _run_single_conversation(
             follow_up = await asyncio.wait_for(
                 _simulate_user_followup(
                     db, persona, scenario, agent_text, recorded_messages,
+                    experiment_id=combination.experiment_id,
+                    combination_id=combination.id,
                 ),
                 timeout=PER_CALL_TIMEOUT,
             )
@@ -569,6 +604,8 @@ async def _generate_persona_message(
     persona: Persona,
     objective: str,
     context: str | None = None,
+    experiment_id: int | None = None,
+    combination_id: int | None = None,
 ) -> str:
     """Use LLM to generate the opening user message as this persona would phrase it."""
     from langchain_core.messages import HumanMessage as HM
@@ -586,6 +623,23 @@ async def _generate_persona_message(
     )
 
     response = await simulator_llm.ainvoke([HM(content=prompt)])
+
+    try:
+        sim_provider = resolve_provider(db, capability="llm")
+        log_llm_response(
+            db=db,
+            response=response,
+            operation="agent_simulation",
+            provider_name=sim_provider.name,
+            model_name=sim_provider.default_llm_model or "unknown",
+            experiment_id=experiment_id,
+            combination_id=combination_id,
+            metadata={"sub_operation": "persona_opener"},
+            prompt_text=prompt,
+        )
+    except Exception as log_err:
+        logger.debug(f"Failed to log persona opener token usage: {log_err}")
+
     return response.content.strip() if hasattr(response, "content") else str(response).strip()
 
 
@@ -595,6 +649,8 @@ async def _simulate_user_followup(
     scenario: Scenario | None,
     agent_response: str,
     conversation_history: list[dict],
+    experiment_id: int | None = None,
+    combination_id: int | None = None,
 ) -> str:
     """Use a capable LLM to simulate the user's next message in a multi-turn conversation."""
     from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
@@ -626,4 +682,23 @@ async def _simulate_user_followup(
     ))
 
     response = await simulator_llm.ainvoke(messages)
+
+    try:
+        sim_provider = resolve_provider(db, capability="llm")
+        log_llm_response(
+            db=db,
+            response=response,
+            operation="agent_simulation",
+            provider_name=sim_provider.name,
+            model_name=sim_provider.default_llm_model or "unknown",
+            experiment_id=experiment_id,
+            combination_id=combination_id,
+            metadata={"sub_operation": "user_simulator"},
+            prompt_text="\n".join(
+                getattr(m, "content", "") or "" for m in messages
+            ),
+        )
+    except Exception as log_err:
+        logger.debug(f"Failed to log user simulator token usage: {log_err}")
+
     return response.content if hasattr(response, "content") else str(response)

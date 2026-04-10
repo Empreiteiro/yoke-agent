@@ -136,6 +136,19 @@ def estimate_embedding_tokens(texts: list[str]) -> int:
     return total_chars // 4
 
 
+def _estimate_chat_tokens(prompt_text: str, completion_text: str) -> Dict[str, int]:
+    """Rough char/4 token estimate, used as a fallback for providers
+    that don't surface usage metadata (Claude Code CLI, some HF
+    endpoints). Not exact but good enough for rough accounting."""
+    prompt_tokens = max(0, len(prompt_text or "") // 4)
+    completion_tokens = max(0, len(completion_text or "") // 4)
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": prompt_tokens + completion_tokens,
+    }
+
+
 def log_token_usage(
     db: Session,
     operation: str,
@@ -183,12 +196,27 @@ def log_llm_response(
     experiment_id: Optional[int] = None,
     combination_id: Optional[int] = None,
     metadata: Optional[Dict[str, Any]] = None,
+    prompt_text: Optional[str] = None,
 ) -> TokenUsageLog:
-    """Extract token usage from an LLM response and log it."""
+    """Extract token usage from an LLM response and log it.
+
+    If the LLM response carries no usage metadata (e.g. Claude Code CLI,
+    which returns a plain subprocess stdout string), and ``prompt_text``
+    is provided, fall back to a rough char/4 estimate so the log entry
+    still reflects the call.
+    """
     tokens = extract_llm_token_usage(response)
     flex = detect_flex_tier(response)
     if flex:
         metadata = {**(metadata or {}), "service_tier": "flex"}
+
+    # Fallback estimation for providers that don't surface usage metadata.
+    if tokens["total_tokens"] == 0 and prompt_text is not None:
+        response_text = getattr(response, "content", "") or str(response)
+        estimated = _estimate_chat_tokens(prompt_text, response_text)
+        tokens = estimated
+        metadata = {**(metadata or {}), "tokens_estimated": True}
+
     return log_token_usage(
         db=db,
         operation=operation,

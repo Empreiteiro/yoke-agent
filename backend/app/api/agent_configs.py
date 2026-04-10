@@ -150,6 +150,25 @@ class SuggestToolsRequest(BaseModel):
     existing_tools: list[dict] = []
 
 
+def _log_enhance_call(db: Session, response, prompt: str, sub_op: str) -> None:
+    """Best-effort token logging for the agent-config enhance endpoints."""
+    try:
+        from app.services.llm_factory import resolve_provider
+        from app.services.token_tracker import log_llm_response
+        provider = resolve_provider(db, capability="llm")
+        log_llm_response(
+            db=db,
+            response=response,
+            operation="agent_generation",
+            provider_name=provider.name,
+            model_name=provider.default_llm_model or "unknown",
+            metadata={"sub_operation": sub_op},
+            prompt_text=prompt,
+        )
+    except Exception:
+        pass
+
+
 @router.post("/enhance/prompt", response_model=EnhanceResponse)
 async def enhance_prompt(body: EnhanceRequest, db: Session = Depends(get_db)):
     """Use LLM to improve a system prompt."""
@@ -166,6 +185,7 @@ ORIGINAL PROMPT:
 
 Return ONLY the improved prompt text, nothing else. No explanations, no markdown fences."""
     response = await llm.ainvoke(prompt)
+    _log_enhance_call(db, response, prompt, "enhance_prompt")
     return EnhanceResponse(result=response.content.strip())
 
 
@@ -185,6 +205,7 @@ DRAFT:
 
 Return ONLY the improved description text, nothing else."""
     response = await llm.ainvoke(prompt)
+    _log_enhance_call(db, response, prompt, "enhance_description")
     return EnhanceResponse(result=response.content.strip())
 
 
@@ -210,6 +231,7 @@ For each tool, provide:
 Do NOT suggest tools that already exist. Return a JSON array of tool objects.
 Return ONLY valid JSON, no markdown fences."""
     response = await llm.ainvoke(prompt)
+    _log_enhance_call(db, response, prompt, "suggest_tools")
     text = response.content.strip()
     if text.startswith("```"):
         text = text.split("```")[1]
