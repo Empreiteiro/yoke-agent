@@ -279,7 +279,7 @@ export default function Sidebar({
 
         <div className="!my-2 mx-2 border-t border-surface-200/40" />
 
-        {/* ── RAG Optimization — collapsible group ──────────────── */}
+        {/* ── Augmented Retrieval — collapsible group ──────────────── */}
         <div className="space-y-0.5">
           <button
             onClick={() => { setRagOpen(!ragOpen); if (!ragOpen) onNavigate("/?pipeline=rag"); }}
@@ -298,7 +298,7 @@ export default function Sidebar({
             >
               <Search className="w-3.5 h-3.5" />
             </div>
-            <span className="flex-1 text-left">RAG Optimization</span>
+            <span className="flex-1 text-left">Augmented Retrieval</span>
             {ragOpen ? <ChevronDown className="w-3 h-3 text-muted" /> : <ChevronRight className="w-3 h-3 text-muted" />}
           </button>
           {ragOpen && (

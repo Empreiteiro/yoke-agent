@@ -231,7 +231,7 @@ export default function History({ onViewResults }: { onViewResults?: (experiment
               : "bg-surface-100 border-surface-200/50 text-t-secondary hover:text-primary"
           }`}
         >
-          RAG Optimization
+          Augmented Retrieval
           {experiments.length > 0 && (
             <span className={`px-1.5 py-0.5 rounded-full text-xs ${activeTab === "rag" ? "bg-accent/30" : "bg-surface-200/50"}`}>
               {experiments.length}
