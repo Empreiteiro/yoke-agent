@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { BarChart3, Loader2, AlertCircle, ArrowUpDown, ChevronDown, ChevronRight, FileText, MessageSquare, Sparkles, Trophy } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { BarChart3, Loader2, AlertCircle, ArrowUpDown, ChevronDown, ChevronRight, ChevronUp, FileText, MessageSquare, Sparkles, Trophy } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { api } from "@/lib/api";
 
 interface StepAgentResultsProps {
@@ -15,12 +17,15 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
   const [sortBy, setSortBy] = useState("overall_score");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [expandedCombo, setExpandedCombo] = useState<number | null>(null);
-  const [evaluating, setEvaluating] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [report, setReport] = useState<string | null>(null);
+  const [reportCollapsed, setReportCollapsed] = useState(false);
+  const reportRef = useRef<HTMLDivElement | null>(null);
 
-  // Transcript browser
+  // Transcript browser (per-combo, inline inside the expanded combo row)
   const [transcripts, setTranscripts] = useState<any[]>([]);
+  const [transcriptsForCombo, setTranscriptsForCombo] = useState<number | null>(null);
+  const [transcriptsCollapsed, setTranscriptsCollapsed] = useState(false);
   const [loadingTranscripts, setLoadingTranscripts] = useState(false);
   const [expandedTranscript, setExpandedTranscript] = useState<number | null>(null);
   const [transcriptDetail, setTranscriptDetail] = useState<any>(null);
@@ -39,23 +44,36 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
     }
   }, [experimentId]);
 
+  const loadExistingReport = useCallback(async () => {
+    if (!experimentId) return;
+    try {
+      const data = await api.getAgentReport(experimentId);
+      if (data?.report) {
+        setReport(data.report);
+      }
+    } catch {
+      // Silent: report may not exist yet
+    }
+  }, [experimentId]);
+
   useEffect(() => {
     loadResults();
-  }, [loadResults]);
+    loadExistingReport();
+  }, [loadResults, loadExistingReport]);
 
-  const handleEvaluate = async () => {
-    if (!experimentId) return;
-    setEvaluating(true);
-    setError(null);
-    try {
-      await api.evaluateAgentExperiment(experimentId);
-      await loadResults();
-    } catch (err: any) {
-      setError(err.message || "Evaluation failed");
-    } finally {
-      setEvaluating(false);
-    }
-  };
+  // When the user arrives via "View Report" from History, URL carries
+  // ?focus=report — scroll the report section into view after it loads.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("focus") !== "report") return;
+    if (!report) return;
+    // Wait a tick for the report block to paint.
+    const t = setTimeout(() => {
+      reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+    return () => clearTimeout(t);
+  }, [report]);
 
   const handleGenerateReport = async () => {
     if (!experimentId) return;
@@ -63,7 +81,12 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
     setError(null);
     try {
       const data = await api.generateAgentReport(experimentId);
-      setReport(data.report || data.content || data.markdown || JSON.stringify(data, null, 2));
+      const reportText = data.report || data.content || data.markdown || JSON.stringify(data, null, 2);
+      setReport(reportText);
+      // Scroll the newly generated report into view.
+      setTimeout(() => {
+        reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
     } catch (err: any) {
       setError(err.message || "Report generation failed");
     } finally {
@@ -77,12 +100,25 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
     try {
       const data = await api.listTranscripts(experimentId, combinationId);
       setTranscripts(data);
+      setTranscriptsForCombo(combinationId ?? null);
     } catch (err: any) {
       setError(err.message || "Failed to load transcripts");
     } finally {
       setLoadingTranscripts(false);
     }
   };
+
+  // Auto-load transcripts whenever a combo is expanded so they appear
+  // inline right below the configuration (collapsible).
+  useEffect(() => {
+    if (expandedCombo == null) return;
+    if (transcriptsForCombo === expandedCombo) return;
+    loadTranscripts(expandedCombo);
+    setExpandedTranscript(null);
+    setTranscriptDetail(null);
+    setTranscriptsCollapsed(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedCombo]);
 
   const loadTranscriptDetail = async (transcriptId: number) => {
     if (expandedTranscript === transcriptId) {
@@ -154,7 +190,7 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
   const renderRawValue = (val: any, kind?: "int" | "float" | "currency" | "tokens" | "duration") => {
     if (val === null || val === undefined) return "---";
     if (typeof val !== "number") return String(val);
-    if (kind === "currency") return `$${val.toFixed(4)}`;
+    if (kind === "currency") return val === 0 ? "---" : `$${val.toFixed(4)}`;
     if (kind === "tokens") return val.toLocaleString();
     if (kind === "duration") return `${val.toFixed(1)}s`;
     if (kind === "int") return Math.round(val).toLocaleString();
@@ -181,33 +217,20 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <button
-          onClick={handleEvaluate}
-          disabled={evaluating}
-          className="flex items-center gap-2 px-5 py-2.5 bg-accent text-primary font-medium rounded-xl hover:bg-accent/90 transition-colors disabled:opacity-50"
-        >
-          {evaluating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          Evaluate
-        </button>
-        <button
-          onClick={handleGenerateReport}
-          disabled={generatingReport}
-          className="flex items-center gap-2 px-5 py-2.5 bg-secondary/20 text-secondary font-medium rounded-xl hover:bg-secondary/30 transition-colors disabled:opacity-50"
-        >
-          {generatingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-          Generate Report
-        </button>
-        <button
-          onClick={() => loadTranscripts()}
-          disabled={loadingTranscripts}
-          className="flex items-center gap-2 px-5 py-2.5 bg-surface-200/50 text-t-secondary font-medium rounded-xl hover:text-primary transition-colors disabled:opacity-50"
-        >
-          {loadingTranscripts ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
-          Browse Transcripts
-        </button>
-      </div>
+      {/* Actions — evaluation runs automatically after the experiment finishes,
+          and transcripts are now shown inline inside each expanded combo. The
+          optional "Generate Improvement Report" CTA sits at the bottom. */}
+      {report && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="flex items-center gap-2 px-5 py-2.5 bg-secondary/10 text-secondary font-medium rounded-xl hover:bg-secondary/20 transition-colors"
+          >
+            <FileText className="w-4 h-4" />
+            Jump to Report
+          </button>
+        </div>
+      )}
 
       {/* Error */}
       {error && (
@@ -372,12 +395,104 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                               );
                             })()}
 
-                            <button
-                              onClick={() => loadTranscripts(c.id)}
-                              className="text-xs text-accent hover:underline"
-                            >
-                              View transcripts for this combination
-                            </button>
+                            {/* Inline transcripts — collapsible, right below the configuration */}
+                            <div className="border border-surface-200/50 rounded-lg overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => setTranscriptsCollapsed((v) => !v)}
+                                className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-200/30 transition-colors"
+                                aria-expanded={!transcriptsCollapsed}
+                              >
+                                <h4 className="text-[10px] font-semibold text-t-secondary uppercase tracking-wider flex items-center gap-2">
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  Transcripts
+                                  {!loadingTranscripts && transcripts.length > 0 && (
+                                    <span className="text-t-secondary/80 normal-case">({transcripts.length})</span>
+                                  )}
+                                </h4>
+                                {transcriptsCollapsed ? (
+                                  <ChevronRight className="w-4 h-4 text-t-secondary" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 text-t-secondary" />
+                                )}
+                              </button>
+                              {!transcriptsCollapsed && (
+                                <div className="px-4 pb-4 border-t border-surface-200/50">
+                                  {loadingTranscripts ? (
+                                    <div className="flex items-center justify-center py-6 text-t-secondary text-xs">
+                                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                      Loading transcripts...
+                                    </div>
+                                  ) : transcripts.length === 0 ? (
+                                    <p className="text-xs text-t-secondary py-4">No transcripts for this combination.</p>
+                                  ) : (
+                                    <div className="space-y-2 mt-3">
+                                      {transcripts.map((t) => (
+                                        <div key={t.id} className="border border-surface-200/50 rounded-lg overflow-hidden">
+                                          <button
+                                            onClick={() => loadTranscriptDetail(t.id)}
+                                            className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-200/20 transition-colors text-left"
+                                          >
+                                            <div>
+                                              <span className="text-sm font-medium text-primary">
+                                                {t.persona_name || t.scenario_name || `Transcript #${t.id}`}
+                                              </span>
+                                              {t.scenario_name && (
+                                                <span className="ml-2 text-xs text-t-secondary">{t.scenario_name}</span>
+                                              )}
+                                            </div>
+                                            {expandedTranscript === t.id ? (
+                                              <ChevronDown className="w-4 h-4 text-t-secondary" />
+                                            ) : (
+                                              <ChevronRight className="w-4 h-4 text-t-secondary" />
+                                            )}
+                                          </button>
+                                          {expandedTranscript === t.id && (
+                                            <div className="px-4 pb-4 border-t border-surface-200/50">
+                                              {loadingTranscriptDetail ? (
+                                                <div className="flex items-center justify-center py-6 text-t-secondary text-sm">
+                                                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                                  Loading transcript...
+                                                </div>
+                                              ) : transcriptDetail ? (
+                                                <div className="space-y-2 mt-3">
+                                                  {(transcriptDetail.messages || transcriptDetail.turns || []).map((msg: any, idx: number) => (
+                                                    <div
+                                                      key={idx}
+                                                      className={`p-3 rounded-lg text-sm ${
+                                                        msg.role === "user" || msg.role === "persona"
+                                                          ? "bg-surface-200/30 text-t-secondary"
+                                                          : "bg-accent/10 text-primary"
+                                                      }`}
+                                                    >
+                                                      <span className="text-xs font-semibold uppercase text-t-secondary/70 block mb-1">
+                                                        {msg.role || "unknown"}
+                                                      </span>
+                                                      <p className="whitespace-pre-wrap">{msg.content || msg.text || "---"}</p>
+                                                      {msg.tool_calls && msg.tool_calls.length > 0 && (
+                                                        <div className="mt-2 space-y-1">
+                                                          {msg.tool_calls.map((tc: any, i: number) => (
+                                                            <div key={i} className="text-xs font-mono bg-surface-200/30 rounded p-2 text-t-secondary">
+                                                              Tool: {tc.name || tc.function?.name || "unknown"}
+                                                            </div>
+                                                          ))}
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              ) : (
+                                                <p className="text-sm text-t-secondary py-4">No detail available.</p>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       )}
@@ -392,119 +507,168 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
 
       {sorted.length === 0 && !loading && (
         <div className="text-center py-12 text-t-secondary text-sm">
-          No results available yet. Run the experiment and evaluate first.
+          No results available yet. Run the experiment first — evaluation will start automatically.
         </div>
       )}
 
-      {/* Report display */}
-      {report && (
-        <div className="bg-surface-100 rounded-xl border border-surface-200/50 p-6 space-y-3">
-          <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">Report</h3>
-          <div
-            className="prose prose-invert prose-sm max-w-none text-t-secondary"
-            dangerouslySetInnerHTML={{
-              __html: report
-                .replace(/^### (.*$)/gm, '<h3 class="text-primary font-semibold mt-4 mb-2">$1</h3>')
-                .replace(/^## (.*$)/gm, '<h2 class="text-primary font-bold mt-6 mb-3 text-lg">$1</h2>')
-                .replace(/^# (.*$)/gm, '<h1 class="text-primary font-bold mt-6 mb-3 text-xl">$1</h1>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-primary">$1</strong>')
-                .replace(/\n/g, "<br />"),
-            }}
-          />
-        </div>
-      )}
-
-      {/* CTA — Evaluate & Generate Report */}
-      {sorted.length > 0 && !report && (
-        <div className="flex gap-3">
-          <button
-            onClick={handleEvaluate}
-            disabled={evaluating}
-            className="flex-1 py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {evaluating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {evaluating ? "Evaluating..." : "Evaluate All Combinations"}
-          </button>
-          <button
-            onClick={handleGenerateReport}
-            disabled={generatingReport}
-            className="flex-1 py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {generatingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-            {generatingReport ? "Generating..." : "Generate Improvement Report"}
-          </button>
-        </div>
-      )}
-
-      {/* Transcript browser */}
-      {transcripts.length > 0 && (
-        <div className="bg-surface-100 rounded-xl border border-surface-200/50 p-6 space-y-3">
-          <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">
-            Transcripts ({transcripts.length})
-          </h3>
-          <div className="space-y-2">
-            {transcripts.map((t) => (
-              <div key={t.id} className="border border-surface-200/50 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => loadTranscriptDetail(t.id)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-200/20 transition-colors text-left"
-                >
-                  <div>
-                    <span className="text-sm font-medium text-primary">
-                      {t.persona_name || t.scenario_name || `Transcript #${t.id}`}
-                    </span>
-                    {t.scenario_name && (
-                      <span className="ml-2 text-xs text-t-secondary">{t.scenario_name}</span>
-                    )}
-                  </div>
-                  {expandedTranscript === t.id ? (
-                    <ChevronDown className="w-4 h-4 text-t-secondary" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-t-secondary" />
-                  )}
-                </button>
-                {expandedTranscript === t.id && (
-                  <div className="px-4 pb-4 border-t border-surface-200/50">
-                    {loadingTranscriptDetail ? (
-                      <div className="flex items-center justify-center py-6 text-t-secondary text-sm">
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        Loading transcript...
-                      </div>
-                    ) : transcriptDetail ? (
-                      <div className="space-y-2 mt-3">
-                        {(transcriptDetail.messages || transcriptDetail.turns || []).map((msg: any, idx: number) => (
-                          <div
-                            key={idx}
-                            className={`p-3 rounded-lg text-sm ${
-                              msg.role === "user" || msg.role === "persona"
-                                ? "bg-surface-200/30 text-t-secondary"
-                                : "bg-accent/10 text-primary"
-                            }`}
-                          >
-                            <span className="text-xs font-semibold uppercase text-t-secondary/70 block mb-1">
-                              {msg.role || "unknown"}
-                            </span>
-                            <p className="whitespace-pre-wrap">{msg.content || msg.text || "---"}</p>
-                            {msg.tool_calls && msg.tool_calls.length > 0 && (
-                              <div className="mt-2 space-y-1">
-                                {msg.tool_calls.map((tc: any, i: number) => (
-                                  <div key={i} className="text-xs font-mono bg-surface-200/30 rounded p-2 text-t-secondary">
-                                    Tool: {tc.name || tc.function?.name || "unknown"}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-t-secondary py-4">No detail available.</p>
-                    )}
-                  </div>
-                )}
+      {/* ── Improvement Report (optional, always at the bottom) ─────────── */}
+      {sorted.length > 0 && (
+        <div ref={reportRef} className="space-y-4 pt-4">
+          {!report ? (
+            <div className="bg-surface-100 rounded-xl border border-surface-200/50 p-6 space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-primary">Improvement Report</h3>
+                <p className="text-xs text-t-secondary mt-1">
+                  Generate an LLM-authored report with prompt improvement suggestions based on this experiment&apos;s metrics and transcripts.
+                </p>
               </div>
-            ))}
-          </div>
+              <button
+                onClick={handleGenerateReport}
+                disabled={generatingReport}
+                className="w-full flex items-center justify-center gap-2 px-6 py-2.5 bg-accent text-white font-medium rounded-xl hover:bg-accent/90 transition-colors disabled:opacity-50"
+              >
+                {generatingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                {generatingReport ? "Generating..." : "Generate Improvement Report"}
+              </button>
+            </div>
+          ) : (
+            <div className="bg-surface-100 rounded-xl border border-surface-200/50 overflow-hidden">
+              {/* Title row — title on the left, regenerate (with AI icon) on the right */}
+              <div className="flex items-center justify-between gap-3 px-6 pt-6">
+                <h3 className="text-sm font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-secondary" />
+                  Improvement Report
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleGenerateReport}
+                  disabled={generatingReport}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 transition-colors text-xs font-medium disabled:opacity-50"
+                  title="Regenerate the report with latest metrics"
+                >
+                  {generatingReport ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  {generatingReport ? "Regenerating…" : "Regenerate"}
+                </button>
+              </div>
+
+              {/* Expand/collapse toggle row — chevron sits below the title */}
+              <button
+                type="button"
+                onClick={() => setReportCollapsed((v) => !v)}
+                className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 text-t-secondary hover:text-accent hover:bg-surface-200/30 transition-colors text-xs"
+                aria-expanded={!reportCollapsed}
+                title={reportCollapsed ? "Expand report" : "Collapse report"}
+              >
+                {reportCollapsed ? (
+                  <>
+                    <ChevronDown className="w-4 h-4" />
+                    <span>Show report</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronUp className="w-4 h-4" />
+                    <span>Hide report</span>
+                  </>
+                )}
+              </button>
+
+              {!reportCollapsed && (
+                <div className="px-6 pb-6">
+                  <div className="markdown-report text-sm text-t-secondary leading-relaxed">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({ node, ...props }) => (
+                          <h1 className="text-primary font-bold text-xl mt-6 mb-3" {...props} />
+                        ),
+                        h2: ({ node, ...props }) => (
+                          <h2 className="text-primary font-bold text-lg mt-6 mb-3" {...props} />
+                        ),
+                        h3: ({ node, ...props }) => (
+                          <h3 className="text-primary font-semibold text-base mt-4 mb-2" {...props} />
+                        ),
+                        h4: ({ node, ...props }) => (
+                          <h4 className="text-primary font-semibold text-sm mt-3 mb-2" {...props} />
+                        ),
+                        p: ({ node, ...props }) => <p className="my-3" {...props} />,
+                        strong: ({ node, ...props }) => (
+                          <strong className="text-primary font-semibold" {...props} />
+                        ),
+                        em: ({ node, ...props }) => <em className="italic" {...props} />,
+                        a: ({ node, ...props }) => (
+                          <a
+                            className="text-accent hover:underline"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            {...props}
+                          />
+                        ),
+                        ul: ({ node, ...props }) => (
+                          <ul className="list-disc pl-6 my-3 space-y-1" {...props} />
+                        ),
+                        ol: ({ node, ...props }) => (
+                          <ol className="list-decimal pl-6 my-3 space-y-1" {...props} />
+                        ),
+                        li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
+                        blockquote: ({ node, ...props }) => (
+                          <blockquote
+                            className="border-l-2 border-accent/50 pl-4 my-3 italic text-t-secondary"
+                            {...props}
+                          />
+                        ),
+                        hr: () => <hr className="border-surface-200/50 my-6" />,
+                        code: ({ node, inline, className, children, ...props }: any) =>
+                          inline ? (
+                            <code
+                              className="px-1.5 py-0.5 rounded bg-surface-200/60 text-primary font-mono text-xs"
+                              {...props}
+                            >
+                              {children}
+                            </code>
+                          ) : (
+                            <code
+                              className="block p-3 rounded-lg bg-surface-200/40 text-primary font-mono text-xs overflow-x-auto whitespace-pre"
+                              {...props}
+                            >
+                              {children}
+                            </code>
+                          ),
+                        pre: ({ node, ...props }) => (
+                          <pre className="my-3 overflow-x-auto" {...props} />
+                        ),
+                        table: ({ node, ...props }) => (
+                          <div className="my-4 overflow-x-auto">
+                            <table
+                              className="w-full text-xs border-collapse border border-surface-200/50"
+                              {...props}
+                            />
+                          </div>
+                        ),
+                        thead: ({ node, ...props }) => (
+                          <thead className="bg-surface-200/40" {...props} />
+                        ),
+                        th: ({ node, ...props }) => (
+                          <th
+                            className="border border-surface-200/50 px-3 py-2 text-left text-primary font-semibold"
+                            {...props}
+                          />
+                        ),
+                        td: ({ node, ...props }) => (
+                          <td className="border border-surface-200/50 px-3 py-2 align-top" {...props} />
+                        ),
+                      }}
+                    >
+                      {report}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
