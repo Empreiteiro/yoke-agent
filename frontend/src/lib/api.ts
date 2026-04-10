@@ -304,6 +304,8 @@ export const api = {
     request<any>(`/agent/experiments/${id}/run`, { method: "POST" }),
   stopAgentExperiment: (id: number) =>
     request<any>(`/agent/experiments/${id}/stop`, { method: "POST" }),
+  resumeAgentExperiment: (id: number, retryFailed: boolean = false) =>
+    request<any>(`/agent/experiments/${id}/resume?retry_failed=${retryFailed}`, { method: "POST" }),
   getAgentExperimentStatus: (id: number) =>
     request<any>(`/agent/experiments/${id}/status`),
   getAgentExperimentResults: (id: number) =>

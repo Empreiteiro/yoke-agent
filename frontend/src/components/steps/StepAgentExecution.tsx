@@ -107,6 +107,19 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
     }
   };
 
+  const handleResume = async (retryFailed: boolean = false) => {
+    if (!selectedExpId) return;
+    setRunning(true);
+    setError(null);
+    try {
+      await api.resumeAgentExperiment(selectedExpId, retryFailed);
+      startPolling();
+    } catch (err: any) {
+      setError(err.message || "Failed to resume experiment");
+      setRunning(false);
+    }
+  };
+
   const completedCount = combinations.filter((c) => c.status === "completed").length;
   const failedCount = combinations.filter((c) => c.status === "failed" || c.status === "error").length;
   const runningCount = combinations.filter((c) => c.status === "running").length;
@@ -279,20 +292,57 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
               </div>
             </div>
           )}
-          {/* CTA — Start or View Results */}
-          {!running && status?.status !== "completed" && (
+          {/* CTA — Start / Resume / Retry / Results */}
+          {!running && !status?.status && (
             <button
               onClick={handleRun}
               className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <Play className="w-4 h-4" />
-              {status?.status === "stopped" || status?.status === "failed" ? "Resume Execution" : "Start Execution"}
+              Start Execution
             </button>
           )}
-          {(status?.status === "completed" || (status?.status === "stopped" && completedCount > 0)) && (
+          {!running && (status?.status === "stopped" || status?.status === "failed") && (
+            <div className="space-y-2">
+              <button
+                onClick={() => handleResume(false)}
+                className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Play className="w-4 h-4" />
+                Resume Pending Combinations
+              </button>
+              {(status?.failed ?? 0) > 0 && (
+                <button
+                  onClick={() => handleResume(true)}
+                  className="w-full py-3 px-6 border-2 border-accent text-accent font-medium rounded-xl hover:bg-accent/10 transition-colors flex items-center justify-center gap-2"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Retry {status?.failed} Failed Combination{(status?.failed ?? 0) !== 1 ? "s" : ""}
+                </button>
+              )}
+            </div>
+          )}
+          {!running && status?.status === "completed" && (status?.failed ?? 0) > 0 && (
+            <div className="space-y-2">
+              <button
+                onClick={() => handleResume(true)}
+                className="w-full py-3 px-6 border-2 border-accent text-accent font-medium rounded-xl hover:bg-accent/10 transition-colors flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Retry {status?.failed} Failed Combination{(status?.failed ?? 0) !== 1 ? "s" : ""}
+              </button>
+              <button
+                onClick={() => onComplete?.()}
+                className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              >
+                View Results Report
+              </button>
+            </div>
+          )}
+          {!running && status?.status === "completed" && (status?.failed ?? 0) === 0 && (
             <button
               onClick={() => onComplete?.()}
-              className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
             >
               View Results Report
             </button>

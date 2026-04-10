@@ -464,13 +464,69 @@ def stop_experiment(exp_id: int, db: Session = Depends(get_db)):
     if not exp:
         raise HTTPException(404, "Experiment not found")
     exp.status = "stopped"
-    # Stop pending combinations
+    # Stop pending and running combinations
     db.query(AgentExperimentCombination).filter(
         AgentExperimentCombination.experiment_id == exp_id,
-        AgentExperimentCombination.status == "pending",
-    ).update({"status": "stopped"})
+        AgentExperimentCombination.status.in_(["pending", "running"]),
+    ).update({"status": "stopped"}, synchronize_session="fetch")
     db.commit()
     return {"status": "stopped"}
+
+
+@router.post("/experiments/{exp_id}/resume")
+async def resume_experiment(
+    exp_id: int,
+    retry_failed: bool = False,
+    bg: BackgroundTasks = None,
+    db: Session = Depends(get_db),
+):
+    """Resume a stopped/failed experiment. Optionally retry failed combinations."""
+    exp = db.query(AgentExperiment).filter(AgentExperiment.id == exp_id).first()
+    if not exp:
+        raise HTTPException(404, "Experiment not found")
+    if exp.status not in ("stopped", "failed", "completed"):
+        raise HTTPException(400, f"Cannot resume experiment with status: {exp.status}")
+
+    # Reset stopped and stuck (running) combinations back to pending
+    db.query(AgentExperimentCombination).filter(
+        AgentExperimentCombination.experiment_id == exp_id,
+        AgentExperimentCombination.status.in_(["stopped", "running"]),
+    ).update({"status": "pending", "error_message": None}, synchronize_session="fetch")
+
+    # Optionally retry failed combinations
+    if retry_failed:
+        db.query(AgentExperimentCombination).filter(
+            AgentExperimentCombination.experiment_id == exp_id,
+            AgentExperimentCombination.status == "failed",
+        ).update({
+            "status": "pending",
+            "error_message": None,
+            "total_simulations": 0,
+            "completed_simulations": 0,
+            "failed_simulations": 0,
+        }, synchronize_session="fetch")
+
+    remaining = db.query(AgentExperimentCombination).filter(
+        AgentExperimentCombination.experiment_id == exp_id,
+        AgentExperimentCombination.status == "pending",
+    ).count()
+
+    if remaining == 0:
+        raise HTTPException(400, "No combinations to resume. All are already completed.")
+
+    exp.status = "running"
+    run = SimulationRun(experiment_id=exp.id, status="running")
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+
+    bg.add_task(_run_experiment_bg, exp.id, run.id)
+    return {
+        "status": "resumed",
+        "experiment_id": exp.id,
+        "remaining": remaining,
+        "retry_failed": retry_failed,
+    }
 
 
 @router.get("/experiments/{exp_id}/status")
