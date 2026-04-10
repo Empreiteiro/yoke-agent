@@ -9,14 +9,11 @@ import {
   Play,
   BarChart3,
   Bot,
-  Zap,
   Settings,
   Clock,
   FileText,
   BookOpen,
   MessageSquare,
-  Sun,
-  Moon,
   Cable,
   FlaskConical,
   Users,
@@ -25,9 +22,9 @@ import {
   Archive,
   Search,
   FlaskRound,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTheme, Theme } from "@/contexts/ThemeContext";
 import Logo from "@/components/Logo";
 
 const iconMap: Record<string, any> = {
@@ -61,12 +58,6 @@ interface SidebarProps {
   currentPipeline: "rag" | "agent";
 }
 
-const themes: { key: Theme; icon: any; label: string }[] = [
-  { key: "light", icon: Sun, label: "Light" },
-  { key: "dark", icon: Moon, label: "Dark" },
-  { key: "neon", icon: Zap, label: "Neon" },
-];
-
 const HISTORY_ITEMS = [
   { id: "logs", label: "Logs", icon: FileText },
   { id: "history", label: "Results", icon: Clock },
@@ -78,6 +69,7 @@ const SETTINGS_ITEMS = [
   { id: "vectorstores", label: "Vector Stores", icon: Database },
   { id: "mcp", label: "MCP Server", icon: Cable },
   { id: "glossary", label: "Concepts", icon: BookOpen },
+  { id: "user-settings", label: "User", icon: User },
 ];
 
 // ── Reusable: render a single step button ────────────────────────────
@@ -223,7 +215,6 @@ export default function Sidebar({
   isStepAccessible,
   currentPipeline,
 }: SidebarProps) {
-  const { theme, setTheme } = useTheme();
   const isAnySpecialView = currentView !== null;
   const isSettingsView = SETTINGS_ITEMS.some((item) => item.id === currentView);
   const isHistoryView = HISTORY_ITEMS.some((item) => item.id === currentView);
@@ -408,28 +399,6 @@ export default function Sidebar({
           onNavigate={onNavigate}
         />
       </nav>
-
-      {/* Theme toggle at bottom */}
-      <div className="px-3 py-3" data-walkthrough="sidebar-theme">
-        <div className="flex items-center gap-1 px-1.5 py-1 bg-surface-100 rounded-lg border border-surface-200/50">
-          {themes.map(({ key, icon: ThemeIcon, label }) => (
-            <button
-              key={key}
-              onClick={() => setTheme(key)}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-md text-[10px] font-medium transition-all duration-200",
-                theme === key
-                  ? "bg-accent/15 text-accent shadow-sm"
-                  : "text-muted hover:text-t-secondary hover:bg-surface-200/50"
-              )}
-              title={label}
-            >
-              <ThemeIcon className="w-3 h-3" />
-              <span className="hidden sm:inline">{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
     </aside>
   );
 }

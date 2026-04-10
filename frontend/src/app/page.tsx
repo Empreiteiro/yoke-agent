@@ -19,6 +19,7 @@ import StepAgentExecution from "@/components/steps/StepAgentExecution";
 import StepAgentResults from "@/components/steps/StepAgentResults";
 import SettingsProviders from "@/components/SettingsProviders";
 import SettingsVectorStores from "@/components/SettingsVectorStores";
+import SettingsUser from "@/components/SettingsUser";
 import History from "@/components/History";
 import Logs from "@/components/Logs";
 import Glossary from "@/components/Glossary";
@@ -56,7 +57,7 @@ type StepId = RagStepId | AgentStepId;
 const ALL_RAG_STEPS = [STEP_CHAT, ...RAG_STEPS] as const;
 const ALL_AGENT_STEPS = [STEP_CHAT, ...AGENT_STEPS] as const;
 
-const VALID_VIEWS = ["history", "logs", "settings", "glossary", "collections", "vectorstores", "mcp"];
+const VALID_VIEWS = ["history", "logs", "settings", "glossary", "collections", "vectorstores", "mcp", "user-settings"];
 const VALID_STEPS: string[] = [
   STEP_CHAT.id,
   ...RAG_STEPS.map((s) => s.id),
@@ -277,6 +278,7 @@ function HomeContent() {
     glossary: <Glossary />,
     collections: <Collections />,
     mcp: <McpSettings />,
+    "user-settings": <SettingsUser />,
   };
 
   return (
