@@ -129,10 +129,28 @@ def get_embeddings(
 
     elif ptype == "google":
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
-        return GoogleGenerativeAIEmbeddings(
-            model=model_name,
-            google_api_key=provider.api_key,
-        )
+        # Back-compat: the legacy `embedding-001` was removed from the v1beta
+        # endpoint by Google and now 404s. Transparently remap any provider
+        # still configured with it to the current default so existing saved
+        # providers keep working without requiring the user to reconfigure.
+        if model_name == "embedding-001":
+            import logging
+            logging.getLogger(__name__).warning(
+                "Google provider '%s' is configured with deprecated "
+                "embedding-001; remapping to text-embedding-004.",
+                provider.name,
+            )
+            model_name = "text-embedding-004"
+        # LangChain auto-prefixes "models/" when missing. Pass dimensions
+        # through for gemini-embedding-001 (Matryoshka) — text-embedding-004
+        # ignores the kwarg since it's fixed at 768.
+        kwargs: dict = {
+            "model": model_name,
+            "google_api_key": provider.api_key,
+        }
+        if dimensions is not None and model_name == "gemini-embedding-001":
+            kwargs["output_dimensionality"] = dimensions
+        return GoogleGenerativeAIEmbeddings(**kwargs)
 
     elif ptype == "cohere":
         from langchain_cohere import CohereEmbeddings
