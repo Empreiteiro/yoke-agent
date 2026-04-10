@@ -225,7 +225,7 @@ export default function History({ onViewResults }: { onViewResults?: (experiment
       <div className="flex gap-2">
         <button
           onClick={() => setActiveTab("rag")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2 ${
+          className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center justify-center gap-2 ${
             activeTab === "rag"
               ? "bg-accent/20 border-accent text-accent"
               : "bg-surface-100 border-surface-200/50 text-t-secondary hover:text-primary"
@@ -240,7 +240,7 @@ export default function History({ onViewResults }: { onViewResults?: (experiment
         </button>
         <button
           onClick={() => setActiveTab("agent")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2 ${
+          className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center justify-center gap-2 ${
             activeTab === "agent"
               ? "bg-accent/20 border-accent text-accent"
               : "bg-surface-100 border-surface-200/50 text-t-secondary hover:text-primary"
