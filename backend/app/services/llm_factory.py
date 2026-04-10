@@ -7,6 +7,48 @@ from sqlalchemy.orm import Session
 from app.models.provider import Provider
 
 
+# Models that accept the "flex" service tier. Used to pre-flight test
+# calls so we don't issue a flex request against a model the upstream
+# API will reject (every non-flex model returns "service_tier 'flex'
+# is not supported for this model" rather than silently downgrading).
+#
+# OpenAI flex: reasoning models (o3*, o4-mini*) plus the gpt-4.1 / gpt-5
+# lineage. Source: https://platform.openai.com/docs/guides/flex-processing
+# Google flex: gemini-2.5-* family and the gemini-3.x preview lineage.
+# Source: https://ai.google.dev/gemini-api/docs/flex-processing
+_OPENAI_FLEX_PREFIXES = ("o3", "o4-mini", "gpt-4.1", "gpt-5")
+_GOOGLE_FLEX_PREFIXES = ("gemini-2.5", "gemini-3")
+
+
+def flex_supported_for(provider_type: str, model_name: str) -> bool:
+    """Return True if ``model_name`` supports the flex service tier for
+    the given provider. Conservative: unknown providers/models → False."""
+    if not model_name:
+        return False
+    name = model_name.lower()
+    if provider_type == "openai":
+        return any(name.startswith(p) for p in _OPENAI_FLEX_PREFIXES)
+    if provider_type == "google":
+        return any(name.startswith(p) for p in _GOOGLE_FLEX_PREFIXES)
+    return False
+
+
+def pick_flex_model(provider: Provider) -> Optional[str]:
+    """Pick the first flex-compatible model from a provider's model list,
+    preferring the configured default. Returns None if none are
+    compatible."""
+    candidates: list[str] = []
+    if provider.default_llm_model:
+        candidates.append(provider.default_llm_model)
+    for m in (provider.llm_models or []):
+        if m not in candidates:
+            candidates.append(m)
+    for m in candidates:
+        if flex_supported_for(provider.provider_type, m):
+            return m
+    return None
+
+
 def get_llm(
     db: Session,
     provider_id: Optional[int] = None,
@@ -33,13 +75,16 @@ def get_llm(
         }
         # Opt-in OpenAI "flex" service tier (~50% cheaper, best-effort
         # latency). Stored on the provider via extra_config.flex_tier=True.
-        # Passed through model_kwargs so it ends up as `service_tier=flex`
-        # on every ChatCompletion request, working across langchain-
-        # openai versions that don't expose a dedicated kwarg.
-        # Supported on o3, o4-mini, and the gpt-4.1 family.
+        # Only the reasoning family (o3*, o4-mini*) and gpt-4.1 / gpt-5
+        # lineage accept it — issuing flex against any other model
+        # returns a 400 from the API, so we silently skip the flag for
+        # unsupported models instead of breaking the call.
+        # ``langchain-openai >= 1.0`` exposes ``service_tier`` as an
+        # explicit Pydantic field; using it directly avoids the
+        # UserWarning from passing it through ``model_kwargs``.
         extra = provider.extra_config or {}
-        if extra.get("flex_tier"):
-            kwargs["model_kwargs"] = {"service_tier": "flex"}
+        if extra.get("flex_tier") and flex_supported_for("openai", model_name):
+            kwargs["service_tier"] = "flex"
         return ChatOpenAI(**kwargs)
 
     elif ptype == "anthropic":
@@ -63,9 +108,10 @@ def get_llm(
         # catch-all that never reaches the underlying SDK, so we use
         # Runnable.bind() — those kwargs flow straight into
         # `_build_request_config` → `GenerateContentConfig(service_tier=...)`.
-        # Requires google-genai >= 1.69.0.
+        # Requires google-genai >= 1.69.0. Skip for non-flex models so
+        # the API doesn't reject the request outright.
         extra = provider.extra_config or {}
-        if extra.get("flex_tier"):
+        if extra.get("flex_tier") and flex_supported_for("google", model_name):
             llm = llm.bind(service_tier="flex")
         return llm
 
