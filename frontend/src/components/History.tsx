@@ -256,50 +256,131 @@ export default function History({ onViewResults }: { onViewResults?: (experiment
       </div>
 
       {/* Agent experiments tab */}
-      {activeTab === "agent" && (
-        agentExperiments.length === 0 ? (
-          <div className="text-center py-20">
-            <Clock className="w-12 h-12 text-muted mx-auto mb-4" />
-            <p className="text-t-secondary">No agent experiments yet. Run your first agent evaluation to see history here.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {agentExperiments.map((exp: any) => {
-              const status = statusConfig[exp.status] || statusConfig.pending;
-              const StatusIcon = status.icon;
-              return (
-                <div
-                  key={exp.id}
-                  className="bg-surface-100 rounded-xl border border-surface-200/50 p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        exp.status === "completed" ? "bg-emerald-500/20" : "bg-surface-200/50"
-                      }`}>
-                        <StatusIcon className={`w-4 h-4 ${status.color} ${exp.status === "running" ? "animate-spin" : ""}`} />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-primary">{exp.name}</h3>
-                        <p className="text-xs text-t-secondary">
-                          {formatDate(exp.created_at)} · {exp.combination_count || 0} combinations
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${status.color} bg-surface-200/30`}>
+      {activeTab === "agent" && agentExperiments.length === 0 && (
+        <div className="text-center py-20">
+          <Clock className="w-12 h-12 text-muted mx-auto mb-4" />
+          <p className="text-t-secondary">No agent experiments yet. Run your first agent evaluation to see history here.</p>
+        </div>
+      )}
+      {activeTab === "agent" && agentExperiments.length > 0 && (
+        <div className="space-y-3">
+          {agentExperiments.map((exp: any) => {
+            const status = statusConfig[exp.status] || statusConfig.pending;
+            const StatusIcon = status.icon;
+            const isRunning = exp.status === "running";
+            const isStopped = exp.status === "stopped";
+            const isFailed = exp.status === "failed";
+            const isCompleted = exp.status === "completed";
+            const canResume = (isStopped || isFailed) && !isRunning;
+
+            return (
+              <div
+                key={exp.id}
+                className="bg-surface-100 rounded-2xl border border-visible overflow-hidden"
+              >
+                <div className="flex items-center gap-4 p-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="text-primary font-semibold truncate">{exp.name}</h3>
+                      <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${status.color} bg-surface-200/50`}>
+                        <StatusIcon className={`w-3 h-3 ${isRunning ? "animate-spin" : ""}`} />
                         {status.label}
                       </span>
                     </div>
+                    <div className="flex items-center gap-4 text-xs text-t-secondary">
+                      <span>{formatDate(exp.created_at)}</span>
+                      <span>{exp.combination_count || 0} combinations</span>
+                      {exp.description && <span className="truncate max-w-xs">{exp.description}</span>}
+                    </div>
                   </div>
-                  {exp.description && (
-                    <p className="text-xs text-t-secondary mt-2 ml-11">{exp.description}</p>
-                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* View Results */}
+                    {isCompleted && (
+                      <button
+                        onClick={() => onViewResults?.(exp.id)}
+                        className="p-1.5 rounded-lg text-muted hover:text-accent hover:bg-accent/10 transition-colors"
+                        title="View results"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    {/* Resume */}
+                    {canResume && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.resumeAgentExperiment(exp.id, false);
+                            loadExperiments();
+                          } catch {}
+                        }}
+                        className="p-1.5 rounded-lg text-accent hover:bg-accent/10 transition-colors"
+                        title="Resume"
+                      >
+                        <Play className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    {/* Retry failed */}
+                    {(isStopped || isFailed || isCompleted) && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.resumeAgentExperiment(exp.id, true);
+                            loadExperiments();
+                          } catch {}
+                        }}
+                        className="p-1.5 rounded-lg text-orange-400 hover:bg-orange-500/10 transition-colors"
+                        title="Retry failed"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    {/* Stop */}
+                    {isRunning && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.stopAgentExperiment(exp.id);
+                            loadExperiments();
+                          } catch {}
+                        }}
+                        className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                        title="Stop"
+                      >
+                        <Square className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    {/* Delete */}
+                    <button
+                      onClick={async () => {
+                        if (isRunning) return;
+                        if (!confirm("Delete this agent experiment?")) return;
+                        try {
+                          await api.deleteAgentExperiment(exp.id);
+                          setAgentExperiments((prev) => prev.filter((e) => e.id !== exp.id));
+                        } catch {}
+                      }}
+                      disabled={isRunning}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        isRunning
+                          ? "text-muted/30 cursor-not-allowed"
+                          : "text-muted hover:text-red-400 hover:bg-red-500/10"
+                      }`}
+                      title={isRunning ? "Stop first" : "Delete"}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        )
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* RAG experiments tab */}
