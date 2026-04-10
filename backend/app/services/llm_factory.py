@@ -31,11 +31,12 @@ def get_llm(
             "api_key": provider.api_key,
             "temperature": temperature,
         }
-        # Opt-in "flex" service tier: ~50% cheaper, best-effort latency.
-        # Stored on the provider via extra_config.flex_tier=True. We pass
-        # it through model_kwargs so it ends up as `service_tier=flex`
-        # on every ChatCompletion request, and works across langchain-
+        # Opt-in OpenAI "flex" service tier (~50% cheaper, best-effort
+        # latency). Stored on the provider via extra_config.flex_tier=True.
+        # Passed through model_kwargs so it ends up as `service_tier=flex`
+        # on every ChatCompletion request, working across langchain-
         # openai versions that don't expose a dedicated kwarg.
+        # Supported on o3, o4-mini, and the gpt-4.1 family.
         extra = provider.extra_config or {}
         if extra.get("flex_tier"):
             kwargs["model_kwargs"] = {"service_tier": "flex"}
@@ -51,11 +52,22 @@ def get_llm(
 
     elif ptype == "google":
         from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(
+        llm = ChatGoogleGenerativeAI(
             model=model_name,
             google_api_key=provider.api_key,
             temperature=temperature,
         )
+        # Opt-in Gemini "flex" service tier (~50% cheaper, best-effort
+        # latency). Supported on gemini-2.5-* and the gemini-3.x preview
+        # lineage. `ChatGoogleGenerativeAI.model_kwargs` is a Pydantic
+        # catch-all that never reaches the underlying SDK, so we use
+        # Runnable.bind() — those kwargs flow straight into
+        # `_build_request_config` → `GenerateContentConfig(service_tier=...)`.
+        # Requires google-genai >= 1.69.0.
+        extra = provider.extra_config or {}
+        if extra.get("flex_tier"):
+            llm = llm.bind(service_tier="flex")
+        return llm
 
     elif ptype == "cohere":
         from langchain_cohere import ChatCohere
