@@ -206,34 +206,42 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
     return val.toLocaleString();
   };
 
-  // Only these keys inside a combo represent metrics that should be rendered as %
-  const METRIC_KEYS = new Set([
-    "overall_score", "faithfulness", "answer_relevancy", "context_precision", "context_recall",
-    "answer_similarity", "answer_correctness", "accuracy", "precision", "recall", "f1_score",
-    "tool_accuracy", "goal_completion", "instruction_following", "coherence", "relevance",
-  ]);
+  // Canonical list of every agent-evaluation metric we might see.
+  // Kept in sync with backend/app/services/agent_evaluator.py → RUBRICS
+  // and CROSS_CUTTING. Metrics that aren't calculated for a given combo
+  // render as "---" rather than being hidden so the table stays stable.
+  const AGENT_METRICS: { key: string; label: string; title: string }[] = [
+    // tool_use
+    { key: "tool_call_accuracy",   label: "Tool Acc",    title: "Tool Call Accuracy" },
+    { key: "argument_correctness", label: "Arg Corr",    title: "Argument Correctness" },
+    // decision_path
+    { key: "goal_completion",      label: "Goal Comp",   title: "Goal Completion" },
+    { key: "path_optimality",      label: "Path Opt",    title: "Path Optimality" },
+    { key: "step_efficiency",      label: "Step Eff",    title: "Step Efficiency" },
+    // response_quality
+    { key: "answer_relevancy",     label: "Ans Relev",   title: "Answer Relevancy" },
+    { key: "faithfulness",         label: "Faith",       title: "Faithfulness" },
+    { key: "coherence",            label: "Coher",       title: "Coherence" },
+    { key: "conciseness",          label: "Concise",     title: "Conciseness" },
+    // guardrail
+    { key: "constraint_adherence", label: "Constr Adh",  title: "Constraint Adherence" },
+    { key: "hallucination_score",  label: "Hallucin",    title: "Hallucination Score" },
+    { key: "refusal_accuracy",     label: "Refusal Acc", title: "Refusal Accuracy" },
+    // cross-cutting (applied to every scenario type)
+    { key: "instruction_following",label: "Instr Foll",  title: "Instruction Following" },
+    { key: "persona_satisfaction", label: "Persona Sat", title: "Persona Satisfaction" },
+  ];
 
-  // Collect the union of metric keys across all combos so the All Results
-  // table has a dynamic set of per-scenario metric columns (overall_score
-  // is rendered separately as the last highlighted column).
-  // NOTE: computed inline (not useMemo) because this runs AFTER the early
-  // returns above — a conditional hook would violate the rules of hooks.
-  const metricColumnsSet = new Set<string>();
-  for (const c of sorted) {
-    const metrics = c.aggregated_metrics || c.metrics || {};
-    for (const [k, v] of Object.entries(metrics)) {
-      if (k === "overall_score") continue;
-      if (typeof v !== "number") continue;
-      if (METRIC_KEYS.has(k) || k.includes("score") || k.includes("accuracy")) {
-        metricColumnsSet.add(k);
-      }
-    }
-  }
-  const metricColumns = Array.from(metricColumnsSet);
-
-  const shortLabel = (key: string) => {
-    const words = key.replace(/_/g, " ").split(" ");
-    return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1, 6)).join(" ");
+  // The backend stores aggregated_metrics as
+  //   { metric_name: { mean, median, std, min, max, count } }
+  // but may also emit flat numbers in some legacy paths. This helper
+  // normalises both shapes to a single float (or null if absent).
+  const getMetricMean = (metrics: any, key: string): number | null => {
+    const raw = metrics?.[key];
+    if (raw == null) return null;
+    if (typeof raw === "number") return raw;
+    if (typeof raw === "object" && typeof raw.mean === "number") return raw.mean;
+    return null;
   };
 
   const scoreColor = (val: number | null | undefined) => {
@@ -320,15 +328,15 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                 <tr className="border-b border-visible">
                   <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Rank</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Model</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Temp</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Turns</th>
-                  {metricColumns.map((key) => (
+                  <th className="px-2 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Temp</th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Turns</th>
+                  {AGENT_METRICS.map(({ key, label, title }) => (
                     <th
                       key={key}
-                      className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider"
-                      title={key.replace(/_/g, " ")}
+                      className="px-2 py-3 text-left text-[10px] font-medium text-t-secondary uppercase tracking-wider whitespace-nowrap"
+                      title={title}
                     >
-                      {shortLabel(key)}
+                      {label}
                     </th>
                   ))}
                   <th
@@ -339,17 +347,17 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                       Overall <ArrowUpDown className="w-3 h-3" />
                     </span>
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Sims</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Tokens</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Cost</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Status</th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Sims</th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Tokens</th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Cost</th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-200/30">
                 {sorted.map((c: any, idx: number) => {
                   const p = c.params || {};
                   const metrics = c.aggregated_metrics || c.metrics || {};
-                  const overall = c.overall_score ?? metrics.overall_score;
+                  const overall = c.overall_score ?? getMetricMean(metrics, "overall_score");
                   const sims = `${c.completed_simulations ?? "—"}/${c.total_simulations ?? "—"}`;
                   return (
                     <tr
@@ -369,13 +377,13 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-3 text-primary text-xs font-medium">{p.model || `Combo #${c.id}`}</td>
-                      <td className="px-3 py-3 text-primary">{p.temperature ?? "—"}</td>
-                      <td className="px-3 py-3 text-primary">{p.max_turns ?? "—"}</td>
-                      {metricColumns.map((key) => {
-                        const val = metrics[key];
+                      <td className="px-3 py-3 text-primary text-xs font-medium whitespace-nowrap">{p.model || `Combo #${c.id}`}</td>
+                      <td className="px-2 py-3 text-primary">{p.temperature ?? "—"}</td>
+                      <td className="px-2 py-3 text-primary">{p.max_turns ?? "—"}</td>
+                      {AGENT_METRICS.map(({ key }) => {
+                        const val = getMetricMean(metrics, key);
                         return (
-                          <td key={key} className={`px-3 py-3 font-mono ${scoreColor(typeof val === "number" ? val : null)}`}>
+                          <td key={key} className={`px-2 py-3 font-mono text-xs ${scoreColor(val)}`}>
                             {renderMetricValue(val)}
                           </td>
                         );
@@ -385,10 +393,10 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                           {renderMetricValue(overall)}
                         </span>
                       </td>
-                      <td className="px-3 py-3 text-t-secondary text-xs font-mono">{sims}</td>
-                      <td className="px-3 py-3 text-t-secondary text-xs font-mono">{renderRawValue(c.total_tokens, "tokens")}</td>
-                      <td className="px-3 py-3 text-amber-400 text-xs font-mono">{renderRawValue(c.total_cost, "currency")}</td>
-                      <td className="px-3 py-3 capitalize text-t-secondary text-xs">{c.status || "—"}</td>
+                      <td className="px-2 py-3 text-t-secondary text-xs font-mono">{sims}</td>
+                      <td className="px-2 py-3 text-t-secondary text-xs font-mono">{renderRawValue(c.total_tokens, "tokens")}</td>
+                      <td className="px-2 py-3 text-amber-400 text-xs font-mono">{renderRawValue(c.total_cost, "currency")}</td>
+                      <td className="px-2 py-3 capitalize text-t-secondary text-xs">{c.status || "—"}</td>
                     </tr>
                   );
                 })}
@@ -602,23 +610,22 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                 stats are intentionally omitted because they are already
                 visible in the All Results table row. */}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-              {/* Quality metrics */}
+              {/* Quality metrics — every possible metric, "---" if absent */}
               {(() => {
                 const metrics = modalCombo.aggregated_metrics || modalCombo.metrics || {};
-                const metricEntries = Object.entries(metrics).filter(([k, v]) =>
-                  typeof v === "number" && (METRIC_KEYS.has(k) || k.includes("score") || k.includes("accuracy"))
-                );
-                if (metricEntries.length === 0) return null;
                 return (
                   <div>
                     <h4 className="text-[10px] font-semibold text-t-secondary uppercase tracking-wider mb-2">Quality Metrics</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {metricEntries.map(([key, val]) => (
-                        <div key={key} className="text-sm">
-                          <span className="text-t-secondary capitalize">{key.replace(/_/g, " ")}</span>
-                          <p className={`font-medium font-mono ${scoreColor(val as number)}`}>{renderMetricValue(val)}</p>
-                        </div>
-                      ))}
+                      {AGENT_METRICS.map(({ key, title }) => {
+                        const val = getMetricMean(metrics, key);
+                        return (
+                          <div key={key} className="text-sm">
+                            <span className="text-t-secondary">{title}</span>
+                            <p className={`font-medium font-mono ${scoreColor(val)}`}>{renderMetricValue(val)}</p>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
