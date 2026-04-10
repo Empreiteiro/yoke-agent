@@ -168,75 +168,103 @@ async def run_simulation(
     combination.failed_simulations = 0
     db.commit()
 
-    logger.info(f"Combo {combination.id}: starting {total} simulations ({len(items)} items, max_turns={max_turns})")
-
-    for idx, item in enumerate(items):
+    # Build flat list of simulation tasks
+    simulation_tasks = []
+    for item in items:
         scenario = scenario_map.get(item.scenario_id)
         persona = persona_map.get(item.persona_id)
-        # Per-persona multiplier (or global override)
         interaction_count = interaction_count_override or (persona.interaction_count if persona else 1) or 1
-
         for interaction_idx in range(interaction_count):
+            simulation_tasks.append({
+                "scenario": scenario,
+                "persona": persona,
+                "item": item,
+                "interaction_idx": interaction_idx,
+            })
+
+    logger.info(f"Combo {combination.id}: starting {len(simulation_tasks)} simulations ({len(items)} items, max_turns={max_turns})")
+
+    # Concurrency: run up to N simulations in parallel
+    # Each simulation uses subprocess — Claude CLI handles up to ~8 concurrent calls fine
+    MAX_CONCURRENCY = 4
+    semaphore = asyncio.Semaphore(MAX_CONCURRENCY)
+
+    completed_count = [0]  # mutable for closure
+    failed_count = [0]
+    progress_lock = asyncio.Lock()
+
+    async def run_one(task: dict) -> SimulationTranscript:
+        async with semaphore:
             try:
-                transcript = await asyncio.wait_for(
+                return await asyncio.wait_for(
                     _run_single_conversation(
                         db=db,
                         combination=combination,
                         variant=variant,
-                        scenario=scenario,
-                        persona=persona,
-                        item=item,
-                        interaction_idx=interaction_idx,
+                        scenario=task["scenario"],
+                        persona=task["persona"],
+                        item=task["item"],
+                        interaction_idx=task["interaction_idx"],
                         max_turns=max_turns,
                         model=model,
                         temperature=temperature,
                     ),
-                    timeout=120,  # 2 minutes max per simulation
+                    timeout=180,  # 3 minutes max per simulation
                 )
-                completed += 1
             except asyncio.TimeoutError:
-                logger.warning(f"Simulation timed out: combo={combination.id} scenario={getattr(item, 'scenario_id', '?')} persona={getattr(item, 'persona_id', '?')}")
-                transcript = SimulationTranscript(
+                logger.warning(f"Simulation timed out: scenario={task['scenario'].id if task['scenario'] else '?'} persona={task['persona'].id if task['persona'] else '?'}")
+                _kill_orphan_claude_processes()
+                return SimulationTranscript(
                     combination_id=combination.id,
-                    dataset_item_id=getattr(item, "id", None),
-                    scenario_id=getattr(item, "scenario_id", None),
-                    persona_id=getattr(item, "persona_id", None),
-                    interaction_index=interaction_idx,
+                    dataset_item_id=getattr(task["item"], "id", None),
+                    scenario_id=getattr(task["item"], "scenario_id", None),
+                    persona_id=getattr(task["item"], "persona_id", None),
+                    interaction_index=task["interaction_idx"],
                     interaction_mode="single_turn" if max_turns <= 1 else "multi_turn",
-                    messages=[{"role": "system", "content": "Simulation timed out after 120 seconds"}],
+                    messages=[{"role": "system", "content": "Simulation timed out after 180 seconds"}],
                     terminated_by="timeout",
                     turns=0,
-                    duration_ms=120000,
+                    duration_ms=180000,
                 )
-                db.add(transcript)
-                failed += 1
             except Exception as e:
-                logger.warning(f"Simulation failed: {e}")
-                transcript = SimulationTranscript(
+                logger.warning(f"Simulation failed: {type(e).__name__}: {e}")
+                return SimulationTranscript(
                     combination_id=combination.id,
-                    dataset_item_id=getattr(item, "id", None),
-                    scenario_id=getattr(item, "scenario_id", None),
-                    persona_id=getattr(item, "persona_id", None),
-                    interaction_index=interaction_idx,
+                    dataset_item_id=getattr(task["item"], "id", None),
+                    scenario_id=getattr(task["item"], "scenario_id", None),
+                    persona_id=getattr(task["item"], "persona_id", None),
+                    interaction_index=task["interaction_idx"],
                     interaction_mode="single_turn" if max_turns <= 1 else "multi_turn",
-                    messages=[],
+                    messages=[{"role": "system", "content": f"Error: {type(e).__name__}: {str(e)[:200]}"}],
                     terminated_by="error",
                     turns=0,
                     duration_ms=0,
                 )
+
+    async def run_and_track(task: dict):
+        transcript = await run_one(task)
+        async with progress_lock:
+            if transcript.terminated_by in ("error", "timeout"):
+                failed_count[0] += 1
+            else:
+                completed_count[0] += 1
+            # Only add/commit if it's a new transcript (not persisted yet)
+            if transcript.id is None:
                 db.add(transcript)
-                failed += 1
-
-            # Update progress after each simulation so the UI reflects real-time status
-            combination.completed_simulations = completed
-            combination.failed_simulations = failed
+            combination.completed_simulations = completed_count[0]
+            combination.failed_simulations = failed_count[0]
             db.commit()
+            logger.info(f"Combo {combination.id} progress: {completed_count[0] + failed_count[0]}/{len(simulation_tasks)}")
+        return transcript
 
-    combination.total_simulations = completed + failed
-    combination.completed_simulations = completed
-    combination.failed_simulations = failed
+    # Run all simulations concurrently (limited by semaphore)
+    await asyncio.gather(*[run_and_track(task) for task in simulation_tasks])
+
+    combination.total_simulations = len(simulation_tasks)
+    combination.completed_simulations = completed_count[0]
+    combination.failed_simulations = failed_count[0]
     db.commit()
-    logger.info(f"Combo {combination.id}: finished — {completed} completed, {failed} failed")
+    logger.info(f"Combo {combination.id}: finished — {completed_count[0]} completed, {failed_count[0]} failed")
 
 
 async def _run_single_conversation(
@@ -397,9 +425,8 @@ async def _run_single_conversation(
         completion_tokens=est_tokens // 2,
         total_tokens=est_tokens,
     )
-    db.add(transcript)
-    db.commit()
-    db.refresh(transcript)
+    # Don't commit here — the caller (run_and_track) handles persistence
+    # under a lock to avoid race conditions with concurrent simulations
     return transcript
 
 
