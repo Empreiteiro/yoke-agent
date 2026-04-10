@@ -129,26 +129,32 @@ def get_embeddings(
 
     elif ptype == "google":
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
-        # Back-compat: the legacy `embedding-001` was removed from the v1beta
-        # endpoint by Google and now 404s. Transparently remap any provider
-        # still configured with it to the current default so existing saved
-        # providers keep working without requiring the user to reconfigure.
-        if model_name == "embedding-001":
+        # Back-compat: Google removed both legacy text embedding models from
+        # the v1beta endpoint (embedding-001 first, then text-embedding-004
+        # in early 2026). Any provider still saved with one of those names
+        # 404s with "models/<name> is not found for API version v1beta".
+        # Transparently remap them to the current GA model so existing
+        # saved providers keep working without requiring the user to open
+        # Settings and reconfigure.
+        _GOOGLE_DEPRECATED_EMBEDDINGS = {"embedding-001", "text-embedding-004"}
+        if model_name in _GOOGLE_DEPRECATED_EMBEDDINGS:
             import logging
             logging.getLogger(__name__).warning(
                 "Google provider '%s' is configured with deprecated "
-                "embedding-001; remapping to text-embedding-004.",
+                "embedding model '%s'; remapping to gemini-embedding-001.",
                 provider.name,
+                model_name,
             )
-            model_name = "text-embedding-004"
-        # LangChain auto-prefixes "models/" when missing. Pass dimensions
-        # through for gemini-embedding-001 (Matryoshka) — text-embedding-004
-        # ignores the kwarg since it's fixed at 768.
+            model_name = "gemini-embedding-001"
+        # LangChain auto-prefixes "models/" when missing. Both
+        # gemini-embedding-001 and gemini-embedding-2-preview use
+        # Matryoshka Representation Learning, so `output_dimensionality`
+        # is honoured for either model when the user picked a custom dim.
         kwargs: dict = {
             "model": model_name,
             "google_api_key": provider.api_key,
         }
-        if dimensions is not None and model_name == "gemini-embedding-001":
+        if dimensions is not None and model_name.startswith("gemini-embedding"):
             kwargs["output_dimensionality"] = dimensions
         return GoogleGenerativeAIEmbeddings(**kwargs)
 

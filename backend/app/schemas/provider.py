@@ -45,7 +45,7 @@ PROVIDER_CATALOG = {
             "gemini-1.5-pro", "gemini-1.5-flash",
         ],
         "embedding_models": [
-            "gemini-embedding-001", "text-embedding-004",
+            "gemini-embedding-001", "gemini-embedding-2-preview",
         ],
         "requires_api_key": True,
         "supports_base_url": False,
@@ -135,11 +135,11 @@ EMBEDDING_DIMENSIONS = {
     "text-embedding-3-small": {"default": 1536, "supports_custom": True, "supported": [512, 1024, 1536]},
     "text-embedding-3-large": {"default": 3072, "supports_custom": True, "supported": [256, 1024, 3072]},
     "text-embedding-ada-002": {"default": 1536, "supports_custom": False, "supported": [1536]},
-    # Google
-    # gemini-embedding-001 uses Matryoshka Representation Learning so the
-    # vector can be truncated to 768/1536/3072 without re-embedding.
-    "gemini-embedding-001": {"default": 3072, "supports_custom": True, "supported": [768, 1536, 3072]},
-    "text-embedding-004": {"default": 768, "supports_custom": False, "supported": [768]},
+    # Google — both current GA/preview models use Matryoshka Representation
+    # Learning, so the vector can be truncated at call time without
+    # re-embedding. Google recommends 768, 1536, or 3072 dims.
+    "gemini-embedding-001":      {"default": 3072, "supports_custom": True, "supported": [768, 1536, 3072]},
+    "gemini-embedding-2-preview":{"default": 3072, "supports_custom": True, "supported": [768, 1536, 3072]},
     # Cohere
     "embed-english-v3.0": {"default": 1024, "supports_custom": False, "supported": [1024]},
     "embed-multilingual-v3.0": {"default": 1024, "supports_custom": False, "supported": [1024]},
