@@ -143,11 +143,30 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
 
   const best = sorted.length > 0 ? sorted[0] : null;
 
+  // Metric scores are 0-1 ratios, shown as percentages
   const renderMetricValue = (val: any) => {
     if (val === null || val === undefined) return "---";
     if (typeof val === "number") return (val * 100).toFixed(1) + "%";
     return String(val);
   };
+
+  // Raw numeric values (counts, tokens, durations) — shown as-is
+  const renderRawValue = (val: any, kind?: "int" | "float" | "currency" | "tokens" | "duration") => {
+    if (val === null || val === undefined) return "---";
+    if (typeof val !== "number") return String(val);
+    if (kind === "currency") return `$${val.toFixed(4)}`;
+    if (kind === "tokens") return val.toLocaleString();
+    if (kind === "duration") return `${val.toFixed(1)}s`;
+    if (kind === "int") return Math.round(val).toLocaleString();
+    return val.toLocaleString();
+  };
+
+  // Only these keys inside a combo represent metrics that should be rendered as %
+  const METRIC_KEYS = new Set([
+    "overall_score", "faithfulness", "answer_relevancy", "context_precision", "context_recall",
+    "answer_similarity", "answer_correctness", "accuracy", "precision", "recall", "f1_score",
+    "tool_accuracy", "goal_completion", "instruction_following", "coherence", "relevance",
+  ]);
 
   return (
     <div className="space-y-6">
@@ -216,22 +235,22 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4 text-sm">
-            {best.model && (
+            {best.params?.model && (
               <div>
                 <span className="text-t-secondary">Model</span>
-                <p className="text-primary font-medium">{best.model}</p>
+                <p className="text-primary font-medium">{best.params.model}</p>
               </div>
             )}
-            {best.temperature !== undefined && (
+            {best.params?.temperature !== undefined && (
               <div>
                 <span className="text-t-secondary">Temperature</span>
-                <p className="text-primary font-medium">{best.temperature}</p>
+                <p className="text-primary font-medium">{best.params.temperature}</p>
               </div>
             )}
-            {best.max_turns !== undefined && (
+            {best.params?.max_turns !== undefined && (
               <div>
                 <span className="text-t-secondary">Max Turns</span>
-                <p className="text-primary font-medium">{best.max_turns}</p>
+                <p className="text-primary font-medium">{best.params.max_turns}</p>
               </div>
             )}
           </div>
@@ -263,15 +282,16 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                 {sorted.map((c: any, idx: number) => {
                   const score = c.overall_score ?? c.metrics?.overall_score;
                   const isExpanded = expandedCombo === c.id;
+                  const p = c.params || {};
                   return (
                     <React.Fragment key={c.id}>
                       <tr className="border-b border-surface-200/50 hover:bg-surface-200/20 transition-colors">
                         <td className="px-4 py-3 text-t-secondary">{idx + 1}</td>
                         <td className="px-4 py-3 text-primary">
                           <div>
-                            <p className="font-medium">{c.model || `Combo #${c.id}`}</p>
+                            <p className="font-medium">{p.model || `Combo #${c.id}`}</p>
                             <p className="text-xs text-t-secondary">
-                              T={c.temperature ?? "?"} | Turns={c.max_turns ?? "?"}
+                              T={p.temperature ?? "?"} | Turns={p.max_turns ?? "?"}
                             </p>
                           </div>
                         </td>
@@ -290,22 +310,71 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                       </tr>
                       {isExpanded && (
                         <tr className="border-b border-surface-200/50">
-                          <td colSpan={5} className="px-6 py-4 bg-surface-200/10">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                              {Object.entries(c.metrics || c).map(([key, val]) => {
-                                if (["id", "status", "model", "temperature", "max_turns", "created_at", "updated_at", "experiment_id", "prompt_variant_id", "overall_score"].includes(key)) return null;
-                                if (typeof val !== "number") return null;
+                          <td colSpan={5} className="px-6 py-4 bg-surface-200/10 space-y-4">
+                            {/* Execution stats — raw values */}
+                            <div>
+                              <h4 className="text-[10px] font-semibold text-t-secondary uppercase tracking-wider mb-2">Execution Stats</h4>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="text-sm">
+                                  <span className="text-t-secondary">Total Simulations</span>
+                                  <p className="text-primary font-medium font-mono">{renderRawValue(c.total_simulations, "int")}</p>
+                                </div>
+                                <div className="text-sm">
+                                  <span className="text-t-secondary">Completed</span>
+                                  <p className="text-primary font-medium font-mono">{renderRawValue(c.completed_simulations, "int")}</p>
+                                </div>
+                                <div className="text-sm">
+                                  <span className="text-t-secondary">Failed</span>
+                                  <p className={`font-medium font-mono ${(c.failed_simulations ?? 0) > 0 ? "text-red-400" : "text-primary"}`}>
+                                    {renderRawValue(c.failed_simulations, "int")}
+                                  </p>
+                                </div>
+                                <div className="text-sm">
+                                  <span className="text-t-secondary">Duration</span>
+                                  <p className="text-primary font-medium font-mono">{renderRawValue(c.duration_seconds, "duration")}</p>
+                                </div>
+                                <div className="text-sm">
+                                  <span className="text-t-secondary">Tokens Used</span>
+                                  <p className="text-primary font-medium font-mono">{renderRawValue(c.total_tokens, "tokens")}</p>
+                                </div>
+                                <div className="text-sm">
+                                  <span className="text-t-secondary">Estimated Cost</span>
+                                  <p className="text-primary font-medium font-mono">{renderRawValue(c.total_cost, "currency")}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Quality metrics — percentages */}
+                            {(() => {
+                              const metrics = c.aggregated_metrics || c.metrics || {};
+                              const metricEntries = Object.entries(metrics).filter(([k, v]) =>
+                                typeof v === "number" && (METRIC_KEYS.has(k) || k.includes("score") || k.includes("accuracy"))
+                              );
+                              if (metricEntries.length === 0) {
                                 return (
-                                  <div key={key} className="text-sm">
-                                    <span className="text-t-secondary capitalize">{key.replace(/_/g, " ")}</span>
-                                    <p className="text-primary font-medium font-mono">{renderMetricValue(val)}</p>
+                                  <div className="text-xs text-t-secondary italic">
+                                    No quality metrics yet. Click &quot;Evaluate&quot; to score this combination.
                                   </div>
                                 );
-                              })}
-                            </div>
+                              }
+                              return (
+                                <div>
+                                  <h4 className="text-[10px] font-semibold text-t-secondary uppercase tracking-wider mb-2">Quality Metrics</h4>
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {metricEntries.map(([key, val]) => (
+                                      <div key={key} className="text-sm">
+                                        <span className="text-t-secondary capitalize">{key.replace(/_/g, " ")}</span>
+                                        <p className="text-primary font-medium font-mono">{renderMetricValue(val)}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
                             <button
                               onClick={() => loadTranscripts(c.id)}
-                              className="mt-3 text-xs text-accent hover:underline"
+                              className="text-xs text-accent hover:underline"
                             >
                               View transcripts for this combination
                             </button>

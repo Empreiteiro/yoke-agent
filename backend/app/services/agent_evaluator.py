@@ -49,7 +49,9 @@ CROSS_CUTTING = {
 
 
 async def evaluate_experiment(db: Session, experiment_id: int):
-    """Evaluate all transcripts for an experiment."""
+    """Evaluate all transcripts for an experiment (concurrent)."""
+    import asyncio
+
     experiment = db.query(AgentExperiment).filter(AgentExperiment.id == experiment_id).first()
     if not experiment:
         raise ValueError(f"Experiment {experiment_id} not found")
@@ -59,27 +61,50 @@ async def evaluate_experiment(db: Session, experiment_id: int):
         AgentExperimentCombination.status == "completed",
     ).all()
 
+    # Limit concurrent LLM judge calls
+    semaphore = asyncio.Semaphore(4)
+
+    async def evaluate_one(transcript, scenario):
+        async with semaphore:
+            try:
+                return await asyncio.wait_for(
+                    _evaluate_transcript(db, transcript, scenario),
+                    timeout=90,
+                )
+            except Exception as e:
+                logger.warning(f"Eval failed for transcript {transcript.id}: {e}")
+                return {}
+
     for combo in combos:
         transcripts = db.query(SimulationTranscript).filter(
             SimulationTranscript.combination_id == combo.id,
         ).all()
 
+        if not transcripts:
+            continue
+
+        # Pre-fetch scenarios
+        scenario_map = {}
+        for t in transcripts:
+            if t.scenario_id and t.scenario_id not in scenario_map:
+                scenario_map[t.scenario_id] = db.query(Scenario).filter(Scenario.id == t.scenario_id).first()
+
+        # Run evaluations concurrently
+        tasks = [
+            evaluate_one(t, scenario_map.get(t.scenario_id))
+            for t in transcripts
+        ]
+        all_scores = await asyncio.gather(*tasks)
+
         all_metrics = []
         metrics_by_type = {}
-        metrics_by_persona = {}
 
-        for transcript in transcripts:
-            # Get scenario for this transcript
-            scenario = None
-            if transcript.scenario_id:
-                scenario = db.query(Scenario).filter(Scenario.id == transcript.scenario_id).first()
-
+        for transcript, scores in zip(transcripts, all_scores):
+            if not scores:
+                continue
+            scenario = scenario_map.get(transcript.scenario_id)
             scenario_type = scenario.scenario_type if scenario else "response_quality"
 
-            # Evaluate this transcript
-            scores = await _evaluate_transcript(db, transcript, scenario)
-
-            # Store per-transcript metrics
             sm = SimulationMetrics(
                 transcript_id=transcript.id,
                 scenario_type=scenario_type,
@@ -88,8 +113,6 @@ async def evaluate_experiment(db: Session, experiment_id: int):
             db.add(sm)
 
             all_metrics.append(scores)
-
-            # Group by scenario type
             if scenario_type not in metrics_by_type:
                 metrics_by_type[scenario_type] = []
             metrics_by_type[scenario_type].append(scores)

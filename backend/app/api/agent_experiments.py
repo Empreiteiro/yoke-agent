@@ -631,13 +631,30 @@ def get_experiment_results(exp_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/experiments/{exp_id}/evaluate")
-async def evaluate_experiment(exp_id: int, bg: BackgroundTasks, db: Session = Depends(get_db)):
-    """Trigger evaluation of all completed transcripts."""
+async def evaluate_experiment(exp_id: int, db: Session = Depends(get_db)):
+    """Evaluate all completed transcripts synchronously and return results."""
     exp = db.query(AgentExperiment).filter(AgentExperiment.id == exp_id).first()
     if not exp:
         raise HTTPException(404, "Experiment not found")
-    bg.add_task(_evaluate_experiment_sync, exp_id)
-    return {"status": "evaluating", "experiment_id": exp_id}
+
+    # Run in a thread with its own event loop
+    import asyncio, concurrent.futures
+    def run():
+        asyncio.run(_evaluate_experiment_async(exp_id))
+
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        await asyncio.get_event_loop().run_in_executor(pool, run)
+
+    # Return fresh combination data
+    db.refresh(exp)
+    combos = db.query(AgentExperimentCombination).filter(
+        AgentExperimentCombination.experiment_id == exp_id
+    ).all()
+    return {
+        "status": "completed",
+        "experiment_id": exp_id,
+        "evaluated_combinations": len([c for c in combos if c.aggregated_metrics]),
+    }
 
 
 def _evaluate_experiment_sync(experiment_id: int):
@@ -659,13 +676,43 @@ async def _evaluate_experiment_async(experiment_id: int):
 
 
 @router.post("/experiments/{exp_id}/report/generate")
-async def generate_report(exp_id: int, bg: BackgroundTasks, db: Session = Depends(get_db)):
-    """Generate an LLM-powered improvement report."""
+async def generate_report(exp_id: int, db: Session = Depends(get_db)):
+    """Generate an LLM-powered improvement report synchronously and return it."""
     exp = db.query(AgentExperiment).filter(AgentExperiment.id == exp_id).first()
     if not exp:
         raise HTTPException(404, "Experiment not found")
-    bg.add_task(_generate_report_sync, exp_id)
-    return {"status": "generating", "experiment_id": exp_id}
+
+    import asyncio, concurrent.futures
+
+    result_container = {}
+    def run():
+        from app.services.agent_report_generator import generate_report as gen
+        from app.core.database import SessionLocal
+        db2 = SessionLocal()
+        try:
+            result = asyncio.run(gen(db2, exp_id))
+            result_container["result"] = result
+        finally:
+            db2.close()
+
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        await asyncio.get_event_loop().run_in_executor(pool, run)
+
+    return result_container.get("result", {"report": "", "experiment_id": exp_id})
+
+
+@router.get("/experiments/{exp_id}/report")
+def get_report(exp_id: int, db: Session = Depends(get_db)):
+    """Get an existing generated report."""
+    exp = db.query(AgentExperiment).filter(AgentExperiment.id == exp_id).first()
+    if not exp:
+        raise HTTPException(404, "Experiment not found")
+    grid = exp.grid_config or {}
+    return {
+        "report": grid.get("report", ""),
+        "generated": grid.get("report_generated", False),
+        "experiment_id": exp_id,
+    }
 
 
 def _generate_report_sync(experiment_id: int):

@@ -8,6 +8,7 @@ import logging
 import os
 import time
 from datetime import datetime
+from sqlalchemy import func as sqlfunc
 from sqlalchemy.orm import Session
 
 from app.models.agent import (
@@ -260,11 +261,26 @@ async def run_simulation(
     # Run all simulations concurrently (limited by semaphore)
     await asyncio.gather(*[run_and_track(task) for task in simulation_tasks])
 
+    # Aggregate tokens and cost from all transcripts of this combination
+    agg = db.query(
+        sqlfunc.sum(SimulationTranscript.total_tokens),
+        sqlfunc.sum(SimulationTranscript.prompt_tokens),
+        sqlfunc.sum(SimulationTranscript.completion_tokens),
+    ).filter(SimulationTranscript.combination_id == combination.id).first()
+    total_tokens = int(agg[0] or 0) if agg else 0
+    # Estimate cost at ~$0 for claude-code CLI (local); $3/M input + $15/M output for API providers
+    # For now, use a rough estimate based on model name
+    cost_per_m_input = {"gpt-4o": 2.5, "gpt-4o-mini": 0.15, "claude-opus-4": 15.0, "claude-sonnet-4": 3.0}.get(model, 0.0)
+    cost_per_m_output = {"gpt-4o": 10.0, "gpt-4o-mini": 0.6, "claude-opus-4": 75.0, "claude-sonnet-4": 15.0}.get(model, 0.0)
+    est_cost = ((agg[1] or 0) * cost_per_m_input + (agg[2] or 0) * cost_per_m_output) / 1_000_000 if agg else 0.0
+
     combination.total_simulations = len(simulation_tasks)
     combination.completed_simulations = completed_count[0]
     combination.failed_simulations = failed_count[0]
+    combination.total_tokens = total_tokens
+    combination.total_cost = round(est_cost, 6)
     db.commit()
-    logger.info(f"Combo {combination.id}: finished — {completed_count[0]} completed, {failed_count[0]} failed")
+    logger.info(f"Combo {combination.id}: finished — {completed_count[0]} completed, {failed_count[0]} failed, {total_tokens} tokens, ${est_cost:.4f}")
 
 
 async def _run_single_conversation(
