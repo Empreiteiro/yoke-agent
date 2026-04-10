@@ -5,6 +5,7 @@ Supports single-turn and multi-turn interactions.
 import asyncio
 import json
 import logging
+import os
 import time
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -16,7 +17,27 @@ from app.models.agent import (
 )
 from app.services.llm_factory import get_llm
 
+import subprocess as _subprocess
+
 logger = logging.getLogger(__name__)
+
+
+def _kill_orphan_claude_processes():
+    """Kill any claude CLI subprocess that was started by this backend and is still running."""
+    try:
+        result = _subprocess.run(
+            ["pgrep", "-f", "claude.*-p.*output-format text"],
+            capture_output=True, text=True, timeout=5,
+        )
+        for pid in result.stdout.strip().split("\n"):
+            if pid.strip():
+                try:
+                    os.kill(int(pid.strip()), 9)
+                    logger.info(f"Killed orphan claude process {pid.strip()}")
+                except (ProcessLookupError, ValueError):
+                    pass
+    except Exception:
+        pass
 
 USER_SIMULATOR_PROMPT = """\
 You are simulating a user with this profile:
@@ -250,9 +271,14 @@ async def _run_single_conversation(
     input_hint = getattr(item, "input_hint", None) or (scenario.input_hint if scenario else None)
     context = getattr(item, "context", None) or (scenario.context if scenario else None)
 
+    PER_CALL_TIMEOUT = 60  # seconds per LLM call
+
     if persona and objective:
         # Use LLM to generate the opening message as this persona would say it
-        user_message = await _generate_persona_message(db, persona, objective, context)
+        user_message = await asyncio.wait_for(
+            _generate_persona_message(db, persona, objective, context),
+            timeout=PER_CALL_TIMEOUT,
+        )
     elif input_hint:
         # Fallback to the hint if no persona
         user_message = input_hint
@@ -263,7 +289,8 @@ async def _run_single_conversation(
     terminated_by = "max_turns"
     turns = 0
 
-    for turn in range(max_turns):
+    try:
+      for turn in range(max_turns):
         turns = turn + 1
 
         # Record user message
@@ -275,8 +302,11 @@ async def _run_single_conversation(
         })
         agent_messages.append(HumanMessage(content=user_message))
 
-        # Agent responds
-        agent_response = await agent_llm.ainvoke(agent_messages)
+        # Agent responds (with per-call timeout)
+        agent_response = await asyncio.wait_for(
+            agent_llm.ainvoke(agent_messages),
+            timeout=PER_CALL_TIMEOUT,
+        )
         agent_text = agent_response.content if hasattr(agent_response, "content") else str(agent_response)
 
         recorded_messages.append({
@@ -305,8 +335,11 @@ async def _run_single_conversation(
 
         # Multi-turn: use user simulator to generate follow-up
         if persona and turn < max_turns - 1:
-            follow_up = await _simulate_user_followup(
-                db, persona, scenario, agent_text, recorded_messages,
+            follow_up = await asyncio.wait_for(
+                _simulate_user_followup(
+                    db, persona, scenario, agent_text, recorded_messages,
+                ),
+                timeout=PER_CALL_TIMEOUT,
             )
             if "[TASK_COMPLETE]" in follow_up:
                 terminated_by = "user_done"
@@ -329,6 +362,18 @@ async def _run_single_conversation(
                 })
                 break
             user_message = follow_up
+
+    except asyncio.TimeoutError:
+        terminated_by = "timeout"
+        logger.warning(f"Conversation timed out at turn {turns}")
+        recorded_messages.append({
+            "role": "system",
+            "content": f"Conversation timed out at turn {turns} (>{PER_CALL_TIMEOUT}s per call)",
+            "turn": turns,
+            "timestamp": datetime.utcnow().isoformat(),
+        })
+        # Kill any orphaned claude subprocess
+        _kill_orphan_claude_processes()
 
     elapsed_ms = int((time.time() - start_time) * 1000)
 
