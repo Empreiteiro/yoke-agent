@@ -18,6 +18,9 @@ langchain-huggingface>=0.1.0
 # Optional LangChain providers (installed for multi-provider support)
 langchain-anthropic>=0.2.0
 langchain-google-genai>=2.0.0
+# google-genai 1.69.0 added the `service_tier` field on GenerateContentConfig
+# which is required for Gemini's flex inference tier (~50% cheaper).
+google-genai>=1.69.0
 langchain-cohere>=0.3.0
 langchain-ollama>=0.2.0
 

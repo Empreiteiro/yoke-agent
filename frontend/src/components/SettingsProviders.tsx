@@ -335,7 +335,7 @@ function AddProviderForm({
 
   const isOllama = providerType === "ollama";
   const isClaudeCode = providerType === "claude_code";
-  const isOpenAI = providerType === "openai";
+  const supportsFlex = providerType === "openai" || providerType === "google";
   const [flexTier, setFlexTier] = useState(false);
   const [claudeStatus, setClaudeStatus] = useState<any>(null);
   const [claudeToken, setClaudeToken] = useState("");
@@ -420,7 +420,7 @@ function AddProviderForm({
         embedding_models: selectedEmbModels,
         default_llm_model: selectedLlmModels[0] || undefined,
         default_embedding_model: selectedEmbModels[0] || undefined,
-        extra_config: isOpenAI && flexTier ? { flex_tier: true } : {},
+        extra_config: supportsFlex && flexTier ? { flex_tier: true } : {},
       });
       onCreated(provider);
     } catch (e: any) {
@@ -501,8 +501,8 @@ function AddProviderForm({
             </div>
           )}
 
-          {/* Flex tier — OpenAI only */}
-          {isOpenAI && (
+          {/* Flex tier — OpenAI and Google Gemini */}
+          {supportsFlex && (
             <div className="bg-surface-50 rounded-xl border border-visible p-4">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
@@ -519,10 +519,13 @@ function AddProviderForm({
                     </span>
                   </div>
                   <p className="text-xs text-t-secondary mt-1">
-                    Routes requests through OpenAI&apos;s{" "}
-                    <code className="px-1 bg-surface-200/50 rounded text-accent">service_tier=flex</code>{" "}
-                    parameter. Best-effort latency (may be slower under load), no SLA, but roughly half the price of standard on-demand.
-                    Supported on reasoning models (o3, o4-mini) and gpt-4.1 family.
+                    Sends requests with{" "}
+                    <code className="px-1 bg-surface-200/50 rounded text-accent">service_tier=flex</code>.
+                    Best-effort latency (may be slower under load), no SLA, but
+                    roughly half the price of standard on-demand.{" "}
+                    {providerType === "openai"
+                      ? "Supported on o3, o4-mini, and the gpt-4.1 family."
+                      : "Supported on gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite, and the gemini-3.x preview lineage."}
                   </p>
                 </div>
               </label>
@@ -796,7 +799,8 @@ function ProviderDetails({
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isOpenAI = provider.provider_type === "openai";
+  const supportsFlex =
+    provider.provider_type === "openai" || provider.provider_type === "google";
 
   const markDirty = () => setDirty(true);
 
@@ -831,7 +835,7 @@ function ProviderDetails({
         default_embedding_model: defaultEmb || (embModels[0] ?? undefined),
       };
       if (apiKey) payload.api_key = apiKey;
-      if (isOpenAI) {
+      if (supportsFlex) {
         payload.extra_config = {
           ...(provider.extra_config || {}),
           flex_tier: flexTier,
@@ -900,8 +904,8 @@ function ProviderDetails({
         </div>
       )}
 
-      {/* Flex tier — OpenAI only */}
-      {isOpenAI && (
+      {/* Flex tier — OpenAI and Google Gemini */}
+      {supportsFlex && (
         <div className="bg-surface-50 rounded-lg border border-visible p-3">
           <label className="flex items-start gap-3 cursor-pointer">
             <input
@@ -920,8 +924,10 @@ function ProviderDetails({
               <p className="text-[11px] text-t-secondary mt-1 leading-relaxed">
                 Sends requests with{" "}
                 <code className="px-1 bg-surface-200/50 rounded text-accent">service_tier=flex</code>.
-                Best-effort latency, no SLA, roughly half the cost. Supported on
-                o3, o4-mini and the gpt-4.1 family.
+                Best-effort latency, no SLA, roughly half the cost.{" "}
+                {provider.provider_type === "openai"
+                  ? "Supported on o3, o4-mini and the gpt-4.1 family."
+                  : "Supported on gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite and the gemini-3.x preview lineage."}
               </p>
             </div>
           </label>
