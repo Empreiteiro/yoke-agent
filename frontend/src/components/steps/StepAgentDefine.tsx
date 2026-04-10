@@ -599,26 +599,14 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleSave}
-                disabled={saving || !name.trim()}
-                className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-50 border border-visible text-t-hover font-medium rounded-xl hover:border-accent/50 hover:text-primary transition-colors disabled:opacity-50"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {selectedConfigId ? "Update Agent" : "Save Agent"}
-              </button>
-              {selectedConfigId && (
-                <button
-                  onClick={handleGenerateVariants}
-                  disabled={generatingVariants}
-                  className="flex items-center gap-2 px-5 py-2.5 border border-accent/30 text-accent font-medium rounded-xl hover:bg-accent/10 transition-colors disabled:opacity-50"
-                >
-                  {generatingVariants ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  Generate Prompt Variants
-                </button>
-              )}
-            </div>
+            <button
+              onClick={handleSave}
+              disabled={saving || !name.trim()}
+              className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-50 border border-visible text-t-hover font-medium rounded-xl hover:border-accent/50 hover:text-primary transition-colors disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {selectedConfigId ? "Update Agent" : "Save Agent"}
+            </button>
           </div>
 
           {/* Continue CTA — outside the summary card */}
