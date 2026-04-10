@@ -335,6 +335,8 @@ function AddProviderForm({
 
   const isOllama = providerType === "ollama";
   const isClaudeCode = providerType === "claude_code";
+  const isOpenAI = providerType === "openai";
+  const [flexTier, setFlexTier] = useState(false);
   const [claudeStatus, setClaudeStatus] = useState<any>(null);
   const [claudeToken, setClaudeToken] = useState("");
   const [savingToken, setSavingToken] = useState(false);
@@ -418,6 +420,7 @@ function AddProviderForm({
         embedding_models: selectedEmbModels,
         default_llm_model: selectedLlmModels[0] || undefined,
         default_embedding_model: selectedEmbModels[0] || undefined,
+        extra_config: isOpenAI && flexTier ? { flex_tier: true } : {},
       });
       onCreated(provider);
     } catch (e: any) {
@@ -495,6 +498,34 @@ function AddProviderForm({
                   )}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Flex tier — OpenAI only */}
+          {isOpenAI && (
+            <div className="bg-surface-50 rounded-xl border border-visible p-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={flexTier}
+                  onChange={(e) => setFlexTier(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-accent"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-primary flex items-center gap-2">
+                    Use Flex service tier
+                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-500/15 text-emerald-400 uppercase">
+                      ~50% cheaper
+                    </span>
+                  </div>
+                  <p className="text-xs text-t-secondary mt-1">
+                    Routes requests through OpenAI&apos;s{" "}
+                    <code className="px-1 bg-surface-200/50 rounded text-accent">service_tier=flex</code>{" "}
+                    parameter. Best-effort latency (may be slower under load), no SLA, but roughly half the price of standard on-demand.
+                    Supported on reasoning models (o3, o4-mini) and gpt-4.1 family.
+                  </p>
+                </div>
+              </label>
             </div>
           )}
 
@@ -758,9 +789,14 @@ function ProviderDetails({
   const [defaultEmb, setDefaultEmb] = useState(provider.default_embedding_model || "");
   const [customLlm, setCustomLlm] = useState("");
   const [customEmb, setCustomEmb] = useState("");
+  const [flexTier, setFlexTier] = useState<boolean>(
+    Boolean(provider.extra_config?.flex_tier)
+  );
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isOpenAI = provider.provider_type === "openai";
 
   const markDirty = () => setDirty(true);
 
@@ -795,6 +831,12 @@ function ProviderDetails({
         default_embedding_model: defaultEmb || (embModels[0] ?? undefined),
       };
       if (apiKey) payload.api_key = apiKey;
+      if (isOpenAI) {
+        payload.extra_config = {
+          ...(provider.extra_config || {}),
+          flex_tier: flexTier,
+        };
+      }
       const updated = await api.updateProvider(provider.id, payload);
       onUpdate(updated);
       setApiKey("");
@@ -855,6 +897,34 @@ function ProviderDetails({
             placeholder={catalog.default_base_url || "https://..."}
             className="w-full px-3 py-2 bg-surface-50 border border-visible rounded-lg text-primary text-sm focus:outline-none focus:border-accent"
           />
+        </div>
+      )}
+
+      {/* Flex tier — OpenAI only */}
+      {isOpenAI && (
+        <div className="bg-surface-50 rounded-lg border border-visible p-3">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={flexTier}
+              onChange={(e) => { setFlexTier(e.target.checked); markDirty(); }}
+              className="mt-0.5 w-4 h-4 accent-accent"
+            />
+            <div className="flex-1">
+              <div className="text-xs font-medium text-primary flex items-center gap-2">
+                Use Flex service tier
+                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-500/15 text-emerald-400 uppercase">
+                  ~50% cheaper
+                </span>
+              </div>
+              <p className="text-[11px] text-t-secondary mt-1 leading-relaxed">
+                Sends requests with{" "}
+                <code className="px-1 bg-surface-200/50 rounded text-accent">service_tier=flex</code>.
+                Best-effort latency, no SLA, roughly half the cost. Supported on
+                o3, o4-mini and the gpt-4.1 family.
+              </p>
+            </div>
+          </label>
         </div>
       )}
 
