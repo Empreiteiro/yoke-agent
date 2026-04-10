@@ -249,11 +249,30 @@ function HomeContent() {
   const VIEW_COMPONENTS: Record<string, React.ReactNode> = {
     settings: <SettingsProviders />,
     vectorstores: <SettingsVectorStores />,
-    history: <History onViewResults={(experimentId: number) => {
-      setPipelineData((prev) => ({ ...prev, experimentId }));
-      setCompletedSteps((prev) => new Set([...prev, "upload", "dataset", "review", "grid-search", "execution"] as StepId[]));
-      router.push("/?step=results");
-    }} />,
+    history: <History
+      onViewResults={(experimentId: number) => {
+        setPipelineData((prev) => ({ ...prev, experimentId }));
+        setCompletedSteps((prev) => new Set([...prev, "upload", "dataset", "review", "grid-search", "execution"] as StepId[]));
+        router.push("/?pipeline=rag&step=results");
+      }}
+      onViewAgentResults={(exp: any, opts?: { focusReport?: boolean }) => {
+        setPipelineData((prev) => ({
+          ...prev,
+          agentConfigId: exp.agent_config_id ?? prev.agentConfigId,
+          agentExperimentId: exp.id,
+        }));
+        setCompletedSteps((prev) => new Set([
+          ...prev,
+          "agent-define",
+          "agent-scenarios",
+          "agent-personas",
+          "agent-grid",
+          "agent-execution",
+        ] as StepId[]));
+        const focusParam = opts?.focusReport ? "&focus=report" : "";
+        router.push(`/?pipeline=agent&step=agent-results${focusParam}`);
+      }}
+    />,
     logs: <Logs />,
     glossary: <Glossary />,
     collections: <Collections />,
