@@ -50,7 +50,9 @@ const statusConfig: Record<string, { icon: any; color: string; label: string }> 
 };
 
 export default function History({ onViewResults }: { onViewResults?: (experimentId: number) => void } = {}) {
+  const [activeTab, setActiveTab] = useState<"rag" | "agent">("rag");
   const [experiments, setExperiments] = useState<any[]>([]);
+  const [agentExperiments, setAgentExperiments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [expandedReport, setExpandedReport] = useState<any>(null);
@@ -67,8 +69,12 @@ export default function History({ onViewResults }: { onViewResults?: (experiment
 
   const loadExperiments = async () => {
     try {
-      const data = await api.listExperiments();
-      setExperiments(data);
+      const [ragData, agentData] = await Promise.all([
+        api.listExperiments(),
+        api.listAgentExperiments().catch(() => []),
+      ]);
+      setExperiments(ragData);
+      setAgentExperiments(agentData);
     } catch (err) {
       console.error("Failed to load experiments:", err);
     } finally {
@@ -209,18 +215,101 @@ export default function History({ onViewResults }: { onViewResults?: (experiment
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-primary">Pipeline History</h2>
+        <h2 className="text-2xl font-bold text-primary">Experiment History</h2>
         <p className="text-sm text-t-secondary mt-1">
-          {experiments.length} experiment{experiments.length !== 1 ? "s" : ""} recorded
+          {experiments.length + agentExperiments.length} experiment{(experiments.length + agentExperiments.length) !== 1 ? "s" : ""} recorded
         </p>
       </div>
 
-      {experiments.length === 0 ? (
+      {/* Pipeline tabs */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setActiveTab("rag")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2 ${
+            activeTab === "rag"
+              ? "bg-accent/20 border-accent text-accent"
+              : "bg-surface-100 border-surface-200/50 text-t-secondary hover:text-primary"
+          }`}
+        >
+          RAG Optimization
+          {experiments.length > 0 && (
+            <span className={`px-1.5 py-0.5 rounded-full text-xs ${activeTab === "rag" ? "bg-accent/30" : "bg-surface-200/50"}`}>
+              {experiments.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("agent")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2 ${
+            activeTab === "agent"
+              ? "bg-accent/20 border-accent text-accent"
+              : "bg-surface-100 border-surface-200/50 text-t-secondary hover:text-primary"
+          }`}
+        >
+          Agent Evaluation
+          {agentExperiments.length > 0 && (
+            <span className={`px-1.5 py-0.5 rounded-full text-xs ${activeTab === "agent" ? "bg-accent/30" : "bg-surface-200/50"}`}>
+              {agentExperiments.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Agent experiments tab */}
+      {activeTab === "agent" && (
+        agentExperiments.length === 0 ? (
+          <div className="text-center py-20">
+            <Clock className="w-12 h-12 text-muted mx-auto mb-4" />
+            <p className="text-t-secondary">No agent experiments yet. Run your first agent evaluation to see history here.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {agentExperiments.map((exp: any) => {
+              const status = statusConfig[exp.status] || statusConfig.pending;
+              const StatusIcon = status.icon;
+              return (
+                <div
+                  key={exp.id}
+                  className="bg-surface-100 rounded-xl border border-surface-200/50 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        exp.status === "completed" ? "bg-emerald-500/20" : "bg-surface-200/50"
+                      }`}>
+                        <StatusIcon className={`w-4 h-4 ${status.color} ${exp.status === "running" ? "animate-spin" : ""}`} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-primary">{exp.name}</h3>
+                        <p className="text-xs text-t-secondary">
+                          {formatDate(exp.created_at)} · {exp.combination_count || 0} combinations
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${status.color} bg-surface-200/30`}>
+                        {status.label}
+                      </span>
+                    </div>
+                  </div>
+                  {exp.description && (
+                    <p className="text-xs text-t-secondary mt-2 ml-11">{exp.description}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {/* RAG experiments tab */}
+      {activeTab === "rag" && experiments.length === 0 && (
         <div className="text-center py-20">
           <Clock className="w-12 h-12 text-muted mx-auto mb-4" />
           <p className="text-t-secondary">No experiments yet. Run your first pipeline to see history here.</p>
         </div>
-      ) : (
+      )}
+      {activeTab === "rag" && experiments.length > 0 && (
         <div className="space-y-3">
           {experiments.map((exp) => {
             const status = statusConfig[exp.status] || statusConfig.pending;

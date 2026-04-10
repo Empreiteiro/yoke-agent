@@ -69,7 +69,7 @@ const themes: { key: Theme; icon: any; label: string }[] = [
 
 const HISTORY_ITEMS = [
   { id: "logs", label: "Logs", icon: FileText },
-  { id: "history", label: "Past Results", icon: Clock },
+  { id: "history", label: "Results", icon: Clock },
   { id: "collections", label: "Collections", icon: MessageSquare },
 ];
 
