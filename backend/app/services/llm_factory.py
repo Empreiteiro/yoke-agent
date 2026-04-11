@@ -19,6 +19,24 @@ from app.models.provider import Provider
 _OPENAI_FLEX_PREFIXES = ("o3", "o4-mini", "gpt-4.1", "gpt-5")
 _GOOGLE_FLEX_PREFIXES = ("gemini-2.5", "gemini-3")
 
+# OpenAI reasoning models reject any custom ``temperature`` (and
+# ``top_p``, ``presence_penalty``, …) — only the default value of 1
+# is accepted. The API returns:
+#   "Unsupported value: 'temperature' does not support 0.0 with this
+#    model. Only the default (1) value is supported."
+# Detected by model-name prefix so we can simply omit the kwarg from
+# the ChatOpenAI constructor and let the SDK use the default.
+_OPENAI_REASONING_PREFIXES = ("o1", "o3", "o4-mini", "o4")
+
+
+def is_openai_reasoning_model(model_name: str) -> bool:
+    """Return True for OpenAI o-series reasoning models that don't
+    accept a custom ``temperature``."""
+    if not model_name:
+        return False
+    name = model_name.lower()
+    return any(name.startswith(p) for p in _OPENAI_REASONING_PREFIXES)
+
 
 def flex_supported_for(provider_type: str, model_name: str) -> bool:
     """Return True if ``model_name`` supports the flex service tier for
@@ -35,18 +53,31 @@ def flex_supported_for(provider_type: str, model_name: str) -> bool:
 
 def pick_flex_model(provider: Provider) -> Optional[str]:
     """Pick the first flex-compatible model from a provider's model list,
-    preferring the configured default. Returns None if none are
-    compatible."""
+    preferring the configured default. For OpenAI, non-reasoning models
+    (gpt-4.1*, gpt-5*) are preferred over reasoning ones (o3*, o4-mini*)
+    because the latter don't accept a custom ``temperature`` and trip up
+    callers that pass ``temperature=0`` for determinism. Returns None if
+    none are compatible."""
     candidates: list[str] = []
     if provider.default_llm_model:
         candidates.append(provider.default_llm_model)
     for m in (provider.llm_models or []):
         if m not in candidates:
             candidates.append(m)
-    for m in candidates:
-        if flex_supported_for(provider.provider_type, m):
-            return m
-    return None
+
+    eligible = [
+        m for m in candidates
+        if flex_supported_for(provider.provider_type, m)
+    ]
+    if not eligible:
+        return None
+
+    # Stable-sort: non-reasoning OpenAI models first, then reasoning.
+    # Order within each bucket is preserved (default model still wins
+    # the tie if it's flex-eligible and non-reasoning).
+    if provider.provider_type == "openai":
+        eligible.sort(key=lambda m: 1 if is_openai_reasoning_model(m) else 0)
+    return eligible[0]
 
 
 def get_llm(
@@ -71,8 +102,12 @@ def get_llm(
         kwargs: dict = {
             "model": model_name,
             "api_key": provider.api_key,
-            "temperature": temperature,
         }
+        # Reasoning models (o1*, o3*, o4-mini*) only accept the default
+        # temperature of 1; passing anything else returns 400. Just omit
+        # the kwarg so the SDK uses the default.
+        if not is_openai_reasoning_model(model_name):
+            kwargs["temperature"] = temperature
         # Opt-in OpenAI "flex" service tier (~50% cheaper, best-effort
         # latency). Stored on the provider via extra_config.flex_tier=True.
         # Only the reasoning family (o3*, o4-mini*) and gpt-4.1 / gpt-5
