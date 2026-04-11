@@ -89,11 +89,16 @@ def get_llm(
     db: Session,
     provider_id: Optional[int] = None,
     model: Optional[str] = None,
-    temperature: float = 0.0,
+    temperature: Optional[float] = 0.0,
     format: Optional[str] = None,
     isolated: bool = False,
 ):
-    """Create a LangChain LLM instance from a provider configuration."""
+    """Create a LangChain LLM instance from a provider configuration.
+
+    ``temperature=None`` means "use the SDK default" — the kwarg is
+    omitted from the constructor entirely. Useful for models that
+    reject any custom temperature (OpenAI o-series reasoning models).
+    """
     provider = _resolve_provider(db, provider_id, capability="llm", model=model)
     model_name = model or provider.default_llm_model or (provider.llm_models[0] if provider.llm_models else None)
 
@@ -110,8 +115,9 @@ def get_llm(
         }
         # Reasoning models (o1*, o3*, o4-mini*) only accept the default
         # temperature of 1; passing anything else returns 400. Just omit
-        # the kwarg so the SDK uses the default.
-        if not is_openai_reasoning_model(model_name):
+        # the kwarg so the SDK uses the default. Same when the caller
+        # explicitly passes temperature=None ("use SDK default").
+        if temperature is not None and not is_openai_reasoning_model(model_name):
             kwargs["temperature"] = temperature
         # Opt-in OpenAI "flex" service tier (~50% cheaper, best-effort
         # latency). Stored on the provider via extra_config.flex_tier=True.
@@ -129,19 +135,17 @@ def get_llm(
 
     elif ptype == "anthropic":
         from langchain_anthropic import ChatAnthropic
-        return ChatAnthropic(
-            model=model_name,
-            api_key=provider.api_key,
-            temperature=temperature,
-        )
+        kwargs = {"model": model_name, "api_key": provider.api_key}
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        return ChatAnthropic(**kwargs)
 
     elif ptype == "google":
         from langchain_google_genai import ChatGoogleGenerativeAI
-        llm = ChatGoogleGenerativeAI(
-            model=model_name,
-            google_api_key=provider.api_key,
-            temperature=temperature,
-        )
+        gkwargs: dict = {"model": model_name, "google_api_key": provider.api_key}
+        if temperature is not None:
+            gkwargs["temperature"] = temperature
+        llm = ChatGoogleGenerativeAI(**gkwargs)
         # Opt-in Gemini "flex" service tier (~50% cheaper, best-effort
         # latency). Supported on gemini-2.5-* and the gemini-3.x preview
         # lineage. `ChatGoogleGenerativeAI.model_kwargs` is a Pydantic
@@ -157,16 +161,17 @@ def get_llm(
 
     elif ptype == "cohere":
         from langchain_cohere import ChatCohere
-        return ChatCohere(
-            model=model_name,
-            cohere_api_key=provider.api_key,
-            temperature=temperature,
-        )
+        ckwargs = {"model": model_name, "cohere_api_key": provider.api_key}
+        if temperature is not None:
+            ckwargs["temperature"] = temperature
+        return ChatCohere(**ckwargs)
 
     elif ptype == "ollama":
         from langchain_ollama import ChatOllama
         base_url = provider.base_url or "http://localhost:11434"
-        kwargs = dict(model=model_name, base_url=base_url, temperature=temperature)
+        kwargs = dict(model=model_name, base_url=base_url)
+        if temperature is not None:
+            kwargs["temperature"] = temperature
         if format:
             kwargs["format"] = format
         return ChatOllama(**kwargs)
@@ -174,21 +179,24 @@ def get_llm(
     elif ptype == "azure_openai":
         from langchain_openai import AzureChatOpenAI
         extra = provider.extra_config or {}
-        return AzureChatOpenAI(
-            azure_deployment=model_name,
-            api_key=provider.api_key,
-            azure_endpoint=provider.base_url,
-            api_version=extra.get("api_version", "2024-02-01"),
-            temperature=temperature,
-        )
+        akwargs: dict = {
+            "azure_deployment": model_name,
+            "api_key": provider.api_key,
+            "azure_endpoint": provider.base_url,
+            "api_version": extra.get("api_version", "2024-02-01"),
+        }
+        # Azure also exposes the o-series reasoning deployments — same
+        # temperature restriction as the OpenAI API.
+        if temperature is not None and not is_openai_reasoning_model(model_name):
+            akwargs["temperature"] = temperature
+        return AzureChatOpenAI(**akwargs)
 
     elif ptype == "huggingface":
         from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-        llm = HuggingFaceEndpoint(
-            repo_id=model_name,
-            huggingfacehub_api_token=provider.api_key,
-            temperature=temperature,
-        )
+        hkwargs: dict = {"repo_id": model_name, "huggingfacehub_api_token": provider.api_key}
+        if temperature is not None:
+            hkwargs["temperature"] = temperature
+        llm = HuggingFaceEndpoint(**hkwargs)
         return ChatHuggingFace(llm=llm)
 
     elif ptype == "claude_code":

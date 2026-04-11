@@ -9,6 +9,7 @@ import os
 import re
 import time
 from datetime import datetime
+from typing import Optional
 from sqlalchemy import func as sqlfunc
 from sqlalchemy.orm import Session
 
@@ -253,7 +254,9 @@ async def run_simulation(
 
     max_turns = params.get("max_turns", 1)
     model = params.get("model", "claude-code")
-    temperature = params.get("temperature", 0.0)
+    # Temperature may be intentionally absent (reasoning models reject a
+    # custom value) — pass None through so get_llm() omits the kwarg.
+    temperature = params.get("temperature")
     interaction_count_override = params.get("interaction_count_override")
 
     # Pre-fetch scenarios and personas to avoid repeated queries
@@ -406,7 +409,7 @@ async def _run_single_conversation(
     interaction_idx: int,
     max_turns: int,
     model: str,
-    temperature: float,
+    temperature: Optional[float],
 ) -> SimulationTranscript:
     """Execute one conversation between user-simulator and agent-under-test."""
     from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
