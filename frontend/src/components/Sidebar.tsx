@@ -225,23 +225,30 @@ export default function Sidebar({
   const isRagActive = ragStepIds.has(currentStep) && !isAnySpecialView;
   const isAgentActive = agentStepIds.has(currentStep) && !isAnySpecialView;
 
-  const [ragOpen, setRagOpen] = useState(currentPipeline === "rag" || isRagActive);
-  const [agentOpen, setAgentOpen] = useState(currentPipeline === "agent" || isAgentActive);
+  // Pipeline groups start collapsed. They only auto-open when the current
+  // step actually belongs to the group (e.g. the user navigates to Define
+  // Agent). Landing on "/" — where the default step is "chat" — leaves both
+  // groups collapsed so the sidebar matches what the user is looking at.
+  const [ragOpen, setRagOpen] = useState(isRagActive);
+  const [agentOpen, setAgentOpen] = useState(isAgentActive);
   const [historyOpen, setHistoryOpen] = useState(isHistoryView);
   const [settingsOpen, setSettingsOpen] = useState(isSettingsView);
 
-  // Mutually exclusive pipeline groups: when the pipeline switches (e.g. via
-  // "View results" from History), open the active one and collapse the other.
+  // Mutually exclusive pipeline groups: when the active step actually lives
+  // inside a group (e.g. arriving via "View results" from History), open
+  // that group and collapse the other. When neither group is active (chat,
+  // settings, etc.) leave the state alone so we don't clobber a group the
+  // user expanded manually.
   useEffect(() => {
     if (isAnySpecialView) return;
-    if (currentPipeline === "agent") {
-      setAgentOpen(true);
-      setRagOpen(false);
-    } else {
+    if (isRagActive) {
       setRagOpen(true);
       setAgentOpen(false);
+    } else if (isAgentActive) {
+      setAgentOpen(true);
+      setRagOpen(false);
     }
-  }, [currentPipeline, isAnySpecialView]);
+  }, [isRagActive, isAgentActive, isAnySpecialView]);
 
   const chatIsActive = currentStep === chatStep.id && !isAnySpecialView;
   const ChatIcon = iconMap[chatStep.icon] || Bot;

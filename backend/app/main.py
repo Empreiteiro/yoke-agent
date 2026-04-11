@@ -38,6 +38,10 @@ def _run_migrations(engine):
         ("agent_configs", "http_endpoint", "VARCHAR(1024)"),
         ("agent_configs", "http_auth_header", "VARCHAR(1024)"),
         ("agent_configs", "http_timeout_seconds", "INTEGER DEFAULT 60"),
+        # HTTP agent request/response templating
+        ("agent_configs", "http_body_template", "TEXT"),
+        ("agent_configs", "http_response_path", "VARCHAR(255)"),
+        ("agent_configs", "http_tool_calls_path", "VARCHAR(255)"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:
