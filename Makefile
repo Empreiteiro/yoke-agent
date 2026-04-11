@@ -1,6 +1,7 @@
 .PHONY: help install install-backend install-frontend dev dev-backend dev-frontend \
        build start stop clean lint lint-backend lint-frontend test test-backend \
-       db-reset docker-up docker-down setup check-deps
+       db-reset docker-up docker-down setup check-deps \
+       sync-cli-client cli-install cli-uninstall
 
 # --- Configuration ---
 BACKEND_DIR   = backend
@@ -182,3 +183,20 @@ docker-publish: ## Build and push images to Docker Hub (DOCKER_TAG=v0.1.0)
 	@echo "$(GREEN)Published:$(RESET)"
 	@echo "  $(DOCKER_BACKEND):$(DOCKER_TAG)"
 	@echo "  $(DOCKER_FRONTEND):$(DOCKER_TAG)"
+
+# --- CLI ---
+
+CLI_DIR             = cli
+CANONICAL_CLIENT    = $(BACKEND_DIR)/yoke_client.py
+VENDORED_CLIENT     = $(CLI_DIR)/yoke_cli/client.py
+
+sync-cli-client: ## Regenerate cli/yoke_cli/client.py from backend/yoke_client.py
+	@$(PYTHON) $(CLI_DIR)/scripts/sync_client.py
+
+cli-install: ## Install the yoke CLI locally via pipx (editable)
+	@echo "$(CYAN)Installing yoke-cli via pipx...$(RESET)"
+	pipx install --force --editable ./$(CLI_DIR)
+	@echo "$(GREEN)✓ Installed. Run 'yoke --help' to get started.$(RESET)"
+
+cli-uninstall: ## Uninstall the yoke CLI from pipx
+	pipx uninstall yoke-cli
