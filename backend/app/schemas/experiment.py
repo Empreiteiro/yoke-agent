@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
+
+RatingValue = Literal["correct", "incorrect", "partial"]
 
 
 class RAGParams(BaseModel):
@@ -111,3 +113,49 @@ class ExperimentReport(BaseModel):
     experiment: ExperimentResponse
     best_combination: Optional[CombinationResponse] = None
     summary: dict
+
+
+# ── Human feedback loop (issue #118) ────────────────────────────────
+
+
+class HumanRatingCreate(BaseModel):
+    question_index: int = Field(..., ge=0, description="Index into combination.detailed_results")
+    rating: RatingValue
+    notes: Optional[str] = None
+    question_text: Optional[str] = Field(
+        None, description="Optional snapshot of the question for traceability"
+    )
+
+
+class HumanRatingUpdate(BaseModel):
+    rating: Optional[RatingValue] = None
+    notes: Optional[str] = None
+
+
+class HumanRatingResponse(BaseModel):
+    id: int
+    combination_id: int
+    question_index: int
+    rating: RatingValue
+    notes: Optional[str] = None
+    question_text: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CorrelationStat(BaseModel):
+    metric: str
+    n: int
+    pearson: Optional[float] = None
+    spearman: Optional[float] = None
+
+
+class ExperimentCorrelationReport(BaseModel):
+    experiment_id: int
+    total_ratings: int
+    rating_counts: dict  # {"correct": 12, "partial": 3, "incorrect": 5}
+    metrics: list[CorrelationStat]
+    notes: Optional[str] = None

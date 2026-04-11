@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { BarChart3, Trophy, Download, ArrowUpDown, ChevronDown, ChevronRight, Eye } from "lucide-react";
+import { BarChart3, Trophy, Download, ArrowUpDown, ChevronDown, ChevronRight, Eye, Check, X, Minus, MessageSquare } from "lucide-react";
 import { api } from "@/lib/api";
 import { useWalkthrough } from "@/contexts/WalkthroughContext";
 import {
@@ -33,9 +33,16 @@ export default function StepResults({ experimentId }: StepResultsProps) {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [expandedComboId, setExpandedComboId] = useState<number | null>(null);
   const [expandedQuestionIdx, setExpandedQuestionIdx] = useState<number | null>(null);
+  // Human ratings (issue #118): Map<combinationId, Map<questionIndex, rating>>
+  const [ratingsByCombo, setRatingsByCombo] = useState<Record<number, Record<number, any>>>({});
+  const [correlation, setCorrelation] = useState<any>(null);
+  const [savingRating, setSavingRating] = useState<string | null>(null);
 
   useEffect(() => {
-    if (experimentId) loadReport();
+    if (experimentId) {
+      loadReport();
+      loadCorrelation();
+    }
   }, [experimentId]);
 
   const loadReport = async () => {
@@ -47,6 +54,54 @@ export default function StepResults({ experimentId }: StepResultsProps) {
       console.error("Failed to load report:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCorrelation = async () => {
+    if (!experimentId) return;
+    try {
+      const c = await api.getExperimentCorrelation(experimentId);
+      setCorrelation(c);
+    } catch (err) {
+      console.error("Failed to load correlation:", err);
+    }
+  };
+
+  const loadRatingsForCombo = async (combinationId: number) => {
+    try {
+      const list = await api.listCombinationRatings(combinationId);
+      const map: Record<number, any> = {};
+      for (const r of list) map[r.question_index] = r;
+      setRatingsByCombo((prev) => ({ ...prev, [combinationId]: map }));
+    } catch (err) {
+      console.error("Failed to load ratings:", err);
+    }
+  };
+
+  const handleRate = async (
+    combinationId: number,
+    questionIndex: number,
+    rating: "correct" | "incorrect" | "partial",
+    questionText?: string
+  ) => {
+    const key = `${combinationId}:${questionIndex}`;
+    setSavingRating(key);
+    try {
+      const saved = await api.upsertCombinationRating(combinationId, {
+        question_index: questionIndex,
+        rating,
+        question_text: questionText,
+      });
+      setRatingsByCombo((prev) => ({
+        ...prev,
+        [combinationId]: { ...(prev[combinationId] || {}), [questionIndex]: saved },
+      }));
+      // Refresh correlation after each rating
+      loadCorrelation();
+    } catch (err) {
+      console.error("Failed to save rating:", err);
+    } finally {
+      setSavingRating(null);
     }
   };
 
@@ -192,6 +247,63 @@ export default function StepResults({ experimentId }: StepResultsProps) {
         </div>
       )}
 
+      {/* Human feedback correlation (issue #118) */}
+      {correlation && correlation.total_ratings > 0 && (
+        <div className="bg-surface-100 rounded-2xl border border-visible p-8">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 rounded-xl bg-secondary/15 flex items-center justify-center">
+              <MessageSquare className="w-5 h-5 text-secondary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-primary">Human ↔ RAGAS correlation</h3>
+              <p className="text-xs text-t-secondary">
+                {correlation.total_ratings} rating{correlation.total_ratings === 1 ? "" : "s"}
+                {Object.entries(correlation.rating_counts || {}).length > 0 && (
+                  <>
+                    {" — "}
+                    {Object.entries(correlation.rating_counts).map(([k, v]) => (
+                      <span key={k} className="mr-2">
+                        {k}: <span className="text-primary font-medium">{v as number}</span>
+                      </span>
+                    ))}
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {(correlation.metrics || []).map((m: any) => {
+              const p = m.pearson;
+              const colour =
+                p == null
+                  ? "text-t-secondary"
+                  : p >= 0.6
+                  ? "text-emerald-400"
+                  : p >= 0.3
+                  ? "text-amber-400"
+                  : p >= 0
+                  ? "text-t-secondary"
+                  : "text-red-400";
+              return (
+                <div
+                  key={m.metric}
+                  className="p-3 bg-surface-50 rounded-xl border border-visible text-center"
+                  title={`Spearman: ${m.spearman != null ? m.spearman.toFixed(3) : "n/a"} (n=${m.n})`}
+                >
+                  <p className="text-[10px] text-t-secondary uppercase tracking-wider mb-1">
+                    {m.metric.replace(/_/g, " ")}
+                  </p>
+                  <p className={`text-base font-semibold ${colour}`}>
+                    {p != null ? p.toFixed(2) : "—"}
+                  </p>
+                  <p className="text-[10px] text-muted">n={m.n}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Detailed table */}
       <div className="bg-surface-100 rounded-2xl border border-visible p-8" data-walkthrough="results-table">
         <div className="flex items-center justify-between mb-6">
@@ -199,14 +311,27 @@ export default function StepResults({ experimentId }: StepResultsProps) {
           <div className="flex items-center gap-3">
             <span className="text-sm text-t-secondary">{report.summary.completed} of {report.summary.total_combinations} completed</span>
             {experimentId && (
-              <a
-                href={api.exportExperimentCSV(experimentId)}
-                download
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent bg-accent/10 border border-visible rounded-lg hover:bg-accent/20 transition-colors"
-              >
-                <Download className="w-3 h-3" />
-                CSV
-              </a>
+              <>
+                <a
+                  href={api.exportExperimentCSV(experimentId)}
+                  download
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent bg-accent/10 border border-visible rounded-lg hover:bg-accent/20 transition-colors"
+                >
+                  <Download className="w-3 h-3" />
+                  CSV
+                </a>
+                {correlation && correlation.total_ratings > 0 && (
+                  <a
+                    href={api.exportRatedQuestionsCSV(experimentId)}
+                    download
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-secondary bg-secondary/10 border border-visible rounded-lg hover:bg-secondary/20 transition-colors"
+                    title="Export rated Q&A pairs (one row per rating)"
+                  >
+                    <Download className="w-3 h-3" />
+                    Rated CSV
+                  </a>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -235,8 +360,12 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                   <React.Fragment key={combo.id}>
                     <tr
                       onClick={() => {
-                        setExpandedComboId(isExpanded ? null : combo.id);
+                        const next = isExpanded ? null : combo.id;
+                        setExpandedComboId(next);
                         setExpandedQuestionIdx(null);
+                        if (next !== null && !ratingsByCombo[next]) {
+                          loadRatingsForCombo(next);
+                        }
                       }}
                       className={`hover:bg-surface-50 transition-colors cursor-pointer ${
                         index === 0 ? "bg-accent/5" : ""
@@ -314,6 +443,22 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                                 const relev = q.answer_relevancy;
                                 const prec = q.context_precision;
                                 const recall = q.context_recall;
+                                const questionText = q.user_input || q.question || "";
+                                const currentRating = ratingsByCombo[combo.id]?.[qi]?.rating as
+                                  | "correct"
+                                  | "incorrect"
+                                  | "partial"
+                                  | undefined;
+                                const ratingKey = `${combo.id}:${qi}`;
+                                const ratingSaving = savingRating === ratingKey;
+                                const ratingDot =
+                                  currentRating === "correct"
+                                    ? "bg-emerald-400"
+                                    : currentRating === "partial"
+                                    ? "bg-amber-400"
+                                    : currentRating === "incorrect"
+                                    ? "bg-red-400"
+                                    : "bg-surface-200";
                                 return (
                                   <div key={qi} className="bg-surface-100 rounded-lg border border-visible overflow-hidden">
                                     <button
@@ -321,8 +466,16 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                                       className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-surface-50 transition-colors"
                                     >
                                       <span className="text-xs font-mono text-muted mt-0.5">Q{qi + 1}</span>
+                                      <span
+                                        className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${ratingDot}`}
+                                        title={
+                                          currentRating
+                                            ? `Human rated: ${currentRating}`
+                                            : "Not rated"
+                                        }
+                                      />
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-primary line-clamp-1">{q.user_input || q.question || "—"}</p>
+                                        <p className="text-sm text-primary line-clamp-1">{questionText || "—"}</p>
                                       </div>
                                       <div className="flex items-center gap-3 flex-shrink-0 text-xs">
                                         <span className={faith >= 0.8 ? "text-emerald-400" : faith >= 0.5 ? "text-amber-400" : "text-red-400"}>
@@ -342,6 +495,36 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                                     </button>
                                     {qExpanded && (
                                       <div className="px-4 pb-4 space-y-3 border-t border-visible pt-3">
+                                        {/* Human rating buttons (issue #118) */}
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-medium text-t-secondary">Your rating:</span>
+                                          {(
+                                            [
+                                              { key: "correct", Icon: Check, label: "Correct", on: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40", off: "text-t-secondary hover:bg-surface-50" },
+                                              { key: "partial", Icon: Minus, label: "Partial", on: "bg-amber-500/20 text-amber-300 border-amber-500/40", off: "text-t-secondary hover:bg-surface-50" },
+                                              { key: "incorrect", Icon: X, label: "Incorrect", on: "bg-red-500/20 text-red-300 border-red-500/40", off: "text-t-secondary hover:bg-surface-50" },
+                                            ] as const
+                                          ).map(({ key, Icon, label, on, off }) => {
+                                            const active = currentRating === key;
+                                            return (
+                                              <button
+                                                key={key}
+                                                disabled={ratingSaving}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleRate(combo.id, qi, key, questionText);
+                                                }}
+                                                className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
+                                                  active ? on : `border-visible ${off}`
+                                                } ${ratingSaving ? "opacity-50 cursor-wait" : ""}`}
+                                                title={`Mark as ${label}`}
+                                              >
+                                                <Icon className="w-3 h-3" />
+                                                {label}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
                                         <div>
                                           <p className="text-xs font-medium text-t-secondary mb-1">Generated Answer</p>
                                           <p className="text-sm text-primary bg-surface-50 rounded-lg px-3 py-2">{q.response || q.answer || "—"}</p>
