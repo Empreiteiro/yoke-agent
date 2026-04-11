@@ -322,27 +322,45 @@ def create_experiment(body: AgentExperimentCreate, db: Session = Depends(get_db)
     db.add(exp)
     db.flush()
 
-    # Generate combinations: Cartesian product
+    # Generate combinations: Cartesian product, but skip parameter axes
+    # the model doesn't accept. OpenAI o-series reasoning models reject
+    # any custom temperature ("Only the default (1) value is supported"),
+    # so for those models we collapse the temperature axis to a single
+    # combo with temperature=None — get_llm() will then omit the kwarg
+    # and the SDK falls back to the default. Without this collapse, a
+    # mixed model list like [gpt-4.1-mini, o3] × temperatures=[0,0.5,1]
+    # would either generate combinations that 400 at runtime or, if
+    # we skipped them, leave reasoning models with zero combinations.
+    from app.services.llm_factory import is_openai_reasoning_model
+
     gc = body.grid_config
-    combos = list(itertools.product(
-        gc.prompt_variant_ids,
-        gc.llm_models,
-        gc.temperatures,
-        gc.max_turns,
-    ))
+    combos: list[tuple] = []
+    for variant_id in gc.prompt_variant_ids:
+        for max_turns in gc.max_turns:
+            for model in gc.llm_models:
+                if is_openai_reasoning_model(model):
+                    combos.append((variant_id, model, None, max_turns))
+                else:
+                    for temp in gc.temperatures:
+                        combos.append((variant_id, model, temp, max_turns))
 
     for variant_id, model, temp, max_turns in combos:
+        params: dict = {
+            "prompt_variant_id": variant_id,
+            "model": model,
+            "max_turns": max_turns,
+            "persona_group_names": gc.persona_group_names,
+            "scenario_types": gc.scenario_types,
+            "interaction_count_override": gc.interaction_count_override,
+        }
+        # Only persist temperature when the model actually honours it,
+        # so the experiment report doesn't claim a temperature was used
+        # when the API ignored it.
+        if temp is not None:
+            params["temperature"] = temp
         combo = AgentExperimentCombination(
             experiment_id=exp.id,
-            params={
-                "prompt_variant_id": variant_id,
-                "model": model,
-                "temperature": temp,
-                "max_turns": max_turns,
-                "persona_group_names": gc.persona_group_names,
-                "scenario_types": gc.scenario_types,
-                "interaction_count_override": gc.interaction_count_override,
-            },
+            params=params,
         )
         db.add(combo)
 
