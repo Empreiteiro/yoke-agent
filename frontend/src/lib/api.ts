@@ -254,6 +254,9 @@ export const api = {
     http_auth_header?: string;
     http_timeout_seconds?: number;
     sample_message?: string;
+    http_body_template?: string;
+    http_response_path?: string;
+    http_tool_calls_path?: string;
   }) =>
     request<{
       ok: boolean;
@@ -263,6 +266,7 @@ export const api = {
       tool_calls_detected: number;
       latency_ms?: number;
       error?: string;
+      rendered_body?: string;
     }>("/agent/configs/test-http", { method: "POST", body: JSON.stringify(data) }),
   testSavedHttpAgent: (configId: number) =>
     request<{
@@ -273,6 +277,7 @@ export const api = {
       tool_calls_detected: number;
       latency_ms?: number;
       error?: string;
+      rendered_body?: string;
     }>(`/agent/configs/${configId}/test-http`, { method: "POST" }),
 
   // AI Enhance

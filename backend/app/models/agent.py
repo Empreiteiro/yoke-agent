@@ -32,6 +32,15 @@ class AgentConfig(Base):
     http_endpoint = Column(String(1024))                 # https://example.com/agent/chat
     http_auth_header = Column(String(1024))              # e.g. "Bearer <token>"
     http_timeout_seconds = Column(Integer, default=60)
+    # Request body template (JSON with {{var}} placeholders). When empty, we
+    # fall back to the Yoke native shape (session_id/turn/messages/...).
+    http_body_template = Column(Text)
+    # JSON path (e.g. "choices[0].message.content") to the content field in
+    # the response. When empty, auto-detect native/OpenAI/text shapes.
+    http_response_path = Column(String(255))
+    # JSON path to an array of tool_calls in the response. When empty, fall
+    # back to auto-detection + TOOL_CALL: regex parser.
+    http_tool_calls_path = Column(String(255))
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

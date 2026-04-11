@@ -76,10 +76,19 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
   const [suggestingTools, setSuggestingTools] = useState(false);
   const [showToolPicker, setShowToolPicker] = useState(false);
   // External HTTP agent (issue #169)
+  const DEFAULT_BODY_TEMPLATE = `{
+  "query": "{{user_message}}",
+  "session_id": "{{session_id}}",
+  "messages": {{messages}}
+}`;
   const [agentType, setAgentType] = useState<"builtin" | "http">("builtin");
   const [httpEndpoint, setHttpEndpoint] = useState("");
   const [httpAuthHeader, setHttpAuthHeader] = useState("");
   const [httpTimeoutSeconds, setHttpTimeoutSeconds] = useState<number>(60);
+  const [httpBodyTemplate, setHttpBodyTemplate] = useState<string>("");
+  const [httpResponsePath, setHttpResponsePath] = useState<string>("");
+  const [httpToolCallsPath, setHttpToolCallsPath] = useState<string>("");
+  const [showVarRef, setShowVarRef] = useState(false);
   const [testingHttp, setTestingHttp] = useState(false);
   const [httpTestResult, setHttpTestResult] = useState<null | {
     ok: boolean;
@@ -89,6 +98,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
     tool_calls_detected?: number;
     latency_ms?: number;
     error?: string;
+    rendered_body?: string;
   }>(null);
 
   const loadConfigs = useCallback(async () => {
@@ -124,6 +134,9 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
       setHttpEndpoint(data.http_endpoint || "");
       setHttpAuthHeader(data.http_auth_header || "");
       setHttpTimeoutSeconds(data.http_timeout_seconds ?? 60);
+      setHttpBodyTemplate(data.http_body_template || "");
+      setHttpResponsePath(data.http_response_path || "");
+      setHttpToolCallsPath(data.http_tool_calls_path || "");
       setHttpTestResult(null);
       setSelectedConfigId(id);
       const v = await api.listPromptVariants(id);
@@ -146,6 +159,9 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
     setHttpEndpoint("");
     setHttpAuthHeader("");
     setHttpTimeoutSeconds(60);
+    setHttpBodyTemplate("");
+    setHttpResponsePath("");
+    setHttpToolCallsPath("");
     setHttpTestResult(null);
     setError(null);
   };
@@ -169,26 +185,49 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
         setError("HTTP endpoint must start with http:// or https://");
         return;
       }
+      // Validate body template is parseable (ignoring {{var}} substitutions).
+      // We strip {{var}} tokens to check the JSON skeleton is valid — the
+      // server does the real validation after rendering at runtime.
+      const tpl = httpBodyTemplate.trim();
+      if (tpl) {
+        try {
+          JSON.parse(
+            tpl.replace(/"{{[^}]+}}"/g, '"__str__"').replace(/{{[^}]+}}/g, "null")
+          );
+        } catch (e: any) {
+          setError(`Body template is not valid JSON: ${e.message}`);
+          return;
+        }
+      }
     }
     setSaving(true);
     setError(null);
     try {
+      const isHttp = agentType === "http";
       const payload: any = {
         name: name.trim(),
         description: description.trim(),
-        system_prompt: systemPrompt,
-        tools: tools.map((t) => ({
-          name: t.name,
-          description: t.description,
-          parameters: (() => { try { return JSON.parse(t.parameters); } catch { return {}; } })(),
-        })),
-        constraints,
+        // For HTTP agents, the prompt/tools/constraints fields in the UI
+        // are hidden — send empty values so the server treats this as a
+        // pure HTTP agent without any built-in sandbox config.
+        system_prompt: isHttp ? "" : systemPrompt,
+        tools: isHttp
+          ? []
+          : tools.map((t) => ({
+              name: t.name,
+              description: t.description,
+              parameters: (() => { try { return JSON.parse(t.parameters); } catch { return {}; } })(),
+            })),
+        constraints: isHttp ? [] : constraints,
         agent_type: agentType,
       };
-      if (agentType === "http") {
+      if (isHttp) {
         payload.http_endpoint = httpEndpoint.trim();
         payload.http_auth_header = httpAuthHeader.trim() || null;
         payload.http_timeout_seconds = httpTimeoutSeconds;
+        payload.http_body_template = httpBodyTemplate.trim() || null;
+        payload.http_response_path = httpResponsePath.trim() || null;
+        payload.http_tool_calls_path = httpToolCallsPath.trim() || null;
       }
       let config;
       if (selectedConfigId) {
@@ -219,6 +258,9 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
         http_endpoint: ep,
         http_auth_header: httpAuthHeader.trim() || undefined,
         http_timeout_seconds: Math.min(httpTimeoutSeconds || 30, 300),
+        http_body_template: httpBodyTemplate.trim() || undefined,
+        http_response_path: httpResponsePath.trim() || undefined,
+        http_tool_calls_path: httpToolCallsPath.trim() || undefined,
       });
       setHttpTestResult(result);
     } catch (err: any) {
@@ -469,98 +511,205 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
             {agentType === "http" && (
               <div className="rounded-xl border border-visible p-4 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-t-hover mb-1">HTTP Endpoint</label>
-                  <p className="text-xs text-muted mb-2">
-                    POST URL that accepts the Yoke chat payload (see docs). OpenAI-compatible chat-completion endpoints also work.
-                  </p>
-                  <input
-                    type="text"
-                    value={httpEndpoint}
-                    onChange={(e) => { setHttpEndpoint(e.target.value); setHttpTestResult(null); }}
-                    placeholder="https://api.example.com/agent/chat"
-                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-t-hover mb-1">Auth Header (optional)</label>
-                  <p className="text-xs text-muted mb-2">
-                    Either <code className="text-t-hover">Bearer &lt;token&gt;</code> (sent as <code className="text-t-hover">Authorization</code>) or a full <code className="text-t-hover">Header-Name: value</code> pair.
-                  </p>
-                  <input
-                    type="text"
-                    value={httpAuthHeader}
-                    onChange={(e) => { setHttpAuthHeader(e.target.value); setHttpTestResult(null); }}
-                    placeholder="Bearer sk-..."
-                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-t-hover mb-1">Timeout (seconds)</label>
-                  <p className="text-xs text-muted mb-2">Max wait per turn before the simulation marks it as failed.</p>
-                  <input
-                    type="number"
-                    min={1}
-                    max={600}
-                    value={httpTimeoutSeconds}
-                    onChange={(e) => setHttpTimeoutSeconds(parseInt(e.target.value || "60", 10))}
-                    className="w-32 px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
-                  />
+                  <h4 className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">Request</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-t-hover mb-1">HTTP Endpoint</label>
+                      <p className="text-xs text-muted mb-2">POST URL of your agent. Any JSON shape works — customize the body template below.</p>
+                      <input
+                        type="text"
+                        value={httpEndpoint}
+                        onChange={(e) => { setHttpEndpoint(e.target.value); setHttpTestResult(null); }}
+                        placeholder="https://api.example.com/agent/chat"
+                        className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-t-hover mb-1">Auth Header (optional)</label>
+                      <p className="text-xs text-muted mb-2">
+                        Either <code className="text-t-hover">Bearer &lt;token&gt;</code> (sent as <code className="text-t-hover">Authorization</code>) or a full <code className="text-t-hover">Header-Name: value</code> pair.
+                      </p>
+                      <input
+                        type="text"
+                        value={httpAuthHeader}
+                        onChange={(e) => { setHttpAuthHeader(e.target.value); setHttpTestResult(null); }}
+                        placeholder="Bearer sk-..."
+                        className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-t-hover mb-1">Timeout (seconds)</label>
+                      <p className="text-xs text-muted mb-2">Max wait per turn before the simulation marks it as failed.</p>
+                      <input
+                        type="number"
+                        min={1}
+                        max={600}
+                        value={httpTimeoutSeconds}
+                        onChange={(e) => setHttpTimeoutSeconds(parseInt(e.target.value || "60", 10))}
+                        className="w-32 px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1 gap-2">
+                        <label className="block text-sm font-medium text-t-hover">Body Template (JSON)</label>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setShowVarRef(!showVarRef)}
+                            className="flex items-center gap-1 px-2 py-1 text-[11px] text-t-secondary hover:text-primary border border-visible rounded-md transition-colors"
+                          >
+                            {showVarRef ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                            Variables
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setHttpBodyTemplate(DEFAULT_BODY_TEMPLATE); setHttpTestResult(null); }}
+                            className="flex items-center gap-1 px-2 py-1 text-[11px] text-accent hover:bg-accent/10 rounded-md transition-colors"
+                          >
+                            Insert example
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted mb-2">
+                        Use <code className="text-t-hover">&#123;&#123;var&#125;&#125;</code> placeholders — leave blank to send the Yoke native shape.
+                      </p>
+                      {showVarRef && (
+                        <div className="border border-visible rounded-lg p-3 bg-surface-50 mb-2 text-xs space-y-1">
+                          <p className="text-t-secondary mb-2">Available variables (quoted <code className="text-t-hover">&quot;&#123;&#123;x&#125;&#125;&quot;</code> = string, bare <code className="text-t-hover">&#123;&#123;x&#125;&#125;</code> = JSON value):</p>
+                          <ul className="grid grid-cols-2 gap-x-4 gap-y-0.5 font-mono text-[11px] text-t-hover">
+                            <li><span className="text-accent">&#123;&#123;user_message&#125;&#125;</span> — last user turn</li>
+                            <li><span className="text-accent">&#123;&#123;messages&#125;&#125;</span> — full history array</li>
+                            <li><span className="text-accent">&#123;&#123;messages_text&#125;&#125;</span> — history as text</li>
+                            <li><span className="text-accent">&#123;&#123;session_id&#125;&#125;</span> — stable id</li>
+                            <li><span className="text-accent">&#123;&#123;turn&#125;&#125;</span> — 1, 2, 3...</li>
+                            <li><span className="text-accent">&#123;&#123;variant_name&#125;&#125;</span></li>
+                            <li><span className="text-accent">&#123;&#123;scenario_name&#125;&#125;</span></li>
+                            <li><span className="text-accent">&#123;&#123;scenario_type&#125;&#125;</span></li>
+                            <li><span className="text-accent">&#123;&#123;scenario_objective&#125;&#125;</span></li>
+                            <li><span className="text-accent">&#123;&#123;persona_name&#125;&#125;</span></li>
+                            <li><span className="text-accent">&#123;&#123;persona_role&#125;&#125;</span></li>
+                            <li><span className="text-accent">&#123;&#123;persona_traits&#125;&#125;</span></li>
+                          </ul>
+                        </div>
+                      )}
+                      <textarea
+                        value={httpBodyTemplate}
+                        onChange={(e) => { setHttpBodyTemplate(e.target.value); setHttpTestResult(null); }}
+                        placeholder={DEFAULT_BODY_TEMPLATE}
+                        rows={8}
+                        className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-xs font-mono focus:outline-none focus:border-accent/50 resize-y"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleTestHttp}
-                    disabled={testingHttp || !httpEndpoint.trim()}
-                    className="flex items-center gap-2 px-3 py-2 text-xs bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {testingHttp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                    Test connection
-                  </button>
-                  {httpTestResult && (
-                    <span className="text-xs text-muted">
-                      {httpTestResult.ok
-                        ? `${httpTestResult.latency_ms ?? "—"} ms`
-                        : ""}
-                    </span>
+                <div className="border-t border-visible pt-4">
+                  <h4 className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">Response</h4>
+                  <p className="text-xs text-muted mb-3">
+                    Leave empty for auto-detect (Yoke native, OpenAI, or common aliases). Set explicit paths when your response shape is custom.
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-t-hover mb-1">Content path</label>
+                      <p className="text-xs text-muted mb-2">
+                        Dotted JSON path to the agent&apos;s reply text. Example: <code className="text-t-hover">choices[0].message.content</code>
+                      </p>
+                      <input
+                        type="text"
+                        value={httpResponsePath}
+                        onChange={(e) => { setHttpResponsePath(e.target.value); setHttpTestResult(null); }}
+                        placeholder="data.answer"
+                        className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-t-hover mb-1">Tool calls path (optional)</label>
+                      <p className="text-xs text-muted mb-2">
+                        Path to an array of tool calls. Accepts Yoke native <code className="text-t-hover">{"{tool_name, args}"}</code> or OpenAI <code className="text-t-hover">{"{function: {name, arguments}}"}</code>.
+                      </p>
+                      <input
+                        type="text"
+                        value={httpToolCallsPath}
+                        onChange={(e) => { setHttpToolCallsPath(e.target.value); setHttpTestResult(null); }}
+                        placeholder="choices[0].message.tool_calls"
+                        className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-visible pt-4">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleTestHttp}
+                      disabled={testingHttp || !httpEndpoint.trim()}
+                      className="flex items-center gap-2 px-3 py-2 text-xs bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {testingHttp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                      Test connection
+                    </button>
+                    {httpTestResult && (
+                      <span className="text-xs text-muted">
+                        {httpTestResult.ok
+                          ? `${httpTestResult.latency_ms ?? "—"} ms`
+                          : ""}
+                      </span>
+                    )}
+                  </div>
+
+                  {httpTestResult && httpTestResult.ok && (
+                    <div className="mt-3 flex items-start gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                      <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-xs text-green-300 space-y-1 min-w-0 flex-1">
+                        <p>
+                          <span className="font-medium">Connection OK</span> · status {httpTestResult.status_code ?? "—"} · format:{" "}
+                          <span className="font-mono">{httpTestResult.detected_format ?? "unknown"}</span>
+                          {" · "}tool_calls detected: {httpTestResult.tool_calls_detected ?? 0}
+                        </p>
+                        {httpTestResult.rendered_body && (
+                          <details className="pt-1">
+                            <summary className="cursor-pointer text-t-secondary hover:text-primary">Sent body</summary>
+                            <pre className="mt-1 whitespace-pre-wrap break-all bg-surface-100/50 rounded p-2 border border-visible text-t-secondary max-h-40 overflow-y-auto">
+                              {httpTestResult.rendered_body}
+                            </pre>
+                          </details>
+                        )}
+                        {httpTestResult.response_preview && (
+                          <details className="pt-1" open>
+                            <summary className="cursor-pointer text-t-secondary hover:text-primary">Agent reply</summary>
+                            <pre className="mt-1 whitespace-pre-wrap break-all bg-surface-100/50 rounded p-2 border border-visible text-t-secondary max-h-40 overflow-y-auto">
+                              {httpTestResult.response_preview}
+                            </pre>
+                          </details>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {httpTestResult && !httpTestResult.ok && (
+                    <div className="mt-3 flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                      <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-xs text-red-300 space-y-1 min-w-0 flex-1">
+                        <p className="font-medium">Connection failed</p>
+                        <p className="font-mono break-all">{httpTestResult.error || "Unknown error"}</p>
+                      </div>
+                    </div>
                   )}
                 </div>
-
-                {httpTestResult && httpTestResult.ok && (
-                  <div className="flex items-start gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                    <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
-                    <div className="text-xs text-green-300 space-y-1 min-w-0 flex-1">
-                      <p>
-                        <span className="font-medium">Connection OK</span> · status {httpTestResult.status_code ?? "—"} · format:{" "}
-                        <span className="font-mono">{httpTestResult.detected_format ?? "unknown"}</span>
-                        {" · "}tool_calls detected: {httpTestResult.tool_calls_detected ?? 0}
-                      </p>
-                      {httpTestResult.response_preview && (
-                        <pre className="whitespace-pre-wrap break-all bg-surface-100/50 rounded p-2 border border-visible text-t-secondary max-h-32 overflow-y-auto">
-                          {httpTestResult.response_preview}
-                        </pre>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {httpTestResult && !httpTestResult.ok && (
-                  <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                    <div className="text-xs text-red-300 space-y-1 min-w-0 flex-1">
-                      <p className="font-medium">Connection failed</p>
-                      <p className="font-mono break-all">{httpTestResult.error || "Unknown error"}</p>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
+            {/* System Prompt / Tools / Constraints — only for built-in
+                agents. HTTP agents own their prompt, tools, and constraints
+                server-side, so surfacing them here would be misleading. */}
+            {agentType === "builtin" && (
+            <>
             {/* System Prompt */}
-            <div className={`rounded-xl border border-visible p-4 ${agentType === "http" ? "opacity-60" : ""}`}>
+            <div className="rounded-xl border border-visible p-4">
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-sm font-medium text-t-hover">
                   System Prompt
-                  {agentType === "http" && <span className="ml-2 text-[10px] text-muted font-normal">(optional for HTTP agents)</span>}
                 </label>
                 <button
                   onClick={handleEnhancePrompt}
@@ -729,6 +878,16 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                 </div>
               )}
             </div>
+            </>
+            )}
+
+            {/* Hint for HTTP agents: explain what moved */}
+            {agentType === "http" && (
+              <div className="rounded-xl border border-dashed border-visible p-4 text-xs text-muted">
+                <p className="mb-1 text-t-hover font-medium">Prompt, tools, and constraints live inside your agent.</p>
+                <p>Yoke Agent only needs to know how to reach your endpoint. Expected tool use per test case is defined on the scenario — not here.</p>
+              </div>
+            )}
 
           {/* Close main form card */}
           </div>
@@ -785,20 +944,41 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
 
           {/* ════ Summary + Save footer ════ */}
           <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
-            <div className="grid grid-cols-3 gap-4 mb-5">
-              <div className="text-center rounded-lg bg-surface-50 py-3">
-                <p className="text-xs text-t-secondary mb-1">Tools</p>
-                <p className="text-2xl font-bold text-primary">{tools.length}</p>
+            {agentType === "builtin" ? (
+              <div className="grid grid-cols-3 gap-4 mb-5">
+                <div className="text-center rounded-lg bg-surface-50 py-3">
+                  <p className="text-xs text-t-secondary mb-1">Tools</p>
+                  <p className="text-2xl font-bold text-primary">{tools.length}</p>
+                </div>
+                <div className="text-center rounded-lg bg-surface-50 py-3">
+                  <p className="text-xs text-t-secondary mb-1">Constraints</p>
+                  <p className="text-2xl font-bold text-primary">{constraints.length}</p>
+                </div>
+                <div className="text-center rounded-lg bg-surface-50 py-3">
+                  <p className="text-xs text-t-secondary mb-1">Prompt Variants</p>
+                  <p className="text-2xl font-bold text-primary">{variants.length || "—"}</p>
+                </div>
               </div>
-              <div className="text-center rounded-lg bg-surface-50 py-3">
-                <p className="text-xs text-t-secondary mb-1">Constraints</p>
-                <p className="text-2xl font-bold text-primary">{constraints.length}</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-4 mb-5">
+                <div className="text-center rounded-lg bg-surface-50 py-3">
+                  <p className="text-xs text-t-secondary mb-1">Type</p>
+                  <p className="text-sm font-semibold text-accent mt-1.5">HTTP</p>
+                </div>
+                <div className="text-center rounded-lg bg-surface-50 py-3">
+                  <p className="text-xs text-t-secondary mb-1">Template</p>
+                  <p className="text-sm font-semibold text-primary mt-1.5">
+                    {httpBodyTemplate.trim() ? "Custom" : "Native"}
+                  </p>
+                </div>
+                <div className="text-center rounded-lg bg-surface-50 py-3">
+                  <p className="text-xs text-t-secondary mb-1">Response</p>
+                  <p className="text-sm font-semibold text-primary mt-1.5">
+                    {httpResponsePath.trim() ? "Custom path" : "Auto"}
+                  </p>
+                </div>
               </div>
-              <div className="text-center rounded-lg bg-surface-50 py-3">
-                <p className="text-xs text-t-secondary mb-1">Prompt Variants</p>
-                <p className="text-2xl font-bold text-primary">{variants.length || "—"}</p>
-              </div>
-            </div>
+            )}
 
             <button
               onClick={handleSave}

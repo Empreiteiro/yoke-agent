@@ -45,6 +45,9 @@ def _serialize_config(c: AgentConfig) -> AgentConfigResponse:
         http_endpoint=getattr(c, "http_endpoint", None),
         http_auth_header=getattr(c, "http_auth_header", None),
         http_timeout_seconds=getattr(c, "http_timeout_seconds", None),
+        http_body_template=getattr(c, "http_body_template", None),
+        http_response_path=getattr(c, "http_response_path", None),
+        http_tool_calls_path=getattr(c, "http_tool_calls_path", None),
         created_at=c.created_at,
         updated_at=c.updated_at,
         prompt_variant_count=len(c.prompt_variants),
@@ -77,6 +80,9 @@ def create_config(body: AgentConfigCreate, db: Session = Depends(get_db)):
         http_endpoint=body.http_endpoint,
         http_auth_header=body.http_auth_header,
         http_timeout_seconds=body.http_timeout_seconds,
+        http_body_template=body.http_body_template,
+        http_response_path=body.http_response_path,
+        http_tool_calls_path=body.http_tool_calls_path,
     )
     db.add(config)
     db.flush()
@@ -135,9 +141,9 @@ async def test_http_agent(body: TestHttpAgentRequest):
     """Fire one test request at an arbitrary HTTP endpoint.
 
     Used by the Define Agent form's "Test connection" button BEFORE the
-    agent is saved, so the user can validate their endpoint + auth header
-    without persisting anything. Never raises — failures are reported
-    inside the response body so the UI can render them.
+    agent is saved, so the user can validate their endpoint + auth +
+    body template without persisting anything. Never raises — failures
+    are reported inside the response body so the UI can render them.
     """
     from app.services.external_http_agent import test_http_agent_endpoint
     result = await test_http_agent_endpoint(
@@ -145,6 +151,9 @@ async def test_http_agent(body: TestHttpAgentRequest):
         http_auth_header=body.http_auth_header,
         http_timeout_seconds=body.http_timeout_seconds,
         sample_message=body.sample_message,
+        http_body_template=body.http_body_template,
+        http_response_path=body.http_response_path,
+        http_tool_calls_path=body.http_tool_calls_path,
     )
     return TestHttpAgentResponse(**result)
 
@@ -162,6 +171,9 @@ async def test_saved_http_agent(config_id: int, db: Session = Depends(get_db)):
         http_endpoint=c.http_endpoint,
         http_auth_header=c.http_auth_header,
         http_timeout_seconds=c.http_timeout_seconds or 30,
+        http_body_template=c.http_body_template,
+        http_response_path=c.http_response_path,
+        http_tool_calls_path=c.http_tool_calls_path,
     )
     return TestHttpAgentResponse(**result)
 

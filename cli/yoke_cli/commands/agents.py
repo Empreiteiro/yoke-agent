@@ -60,6 +60,14 @@ def list_personas(config_id: int = typer.Argument(...)):
 # ── External HTTP agents (issue #169) ───────────────────────────────
 
 
+def _read_template_source(body_template: Optional[str], body_template_file: Optional[str]) -> Optional[str]:
+    """Resolve `--body-template` or `--body-template-file` into a string."""
+    if body_template_file:
+        with open(body_template_file, "r", encoding="utf-8") as f:
+            return f.read()
+    return body_template
+
+
 @app.command("create-http")
 @handle_http_errors
 def create_http_agent(
@@ -68,13 +76,27 @@ def create_http_agent(
     description: str = typer.Option("", "--description"),
     auth_header: str = typer.Option("", "--auth-header", help="'Bearer <token>' or 'Header-Name: value'"),
     timeout: int = typer.Option(60, "--timeout", help="Per-turn timeout in seconds (1-600)"),
+    body_template: Optional[str] = typer.Option(
+        None, "--body-template", help="JSON template with {{var}} placeholders (use --body-template-file for multi-line)"
+    ),
+    body_template_file: Optional[str] = typer.Option(
+        None, "--body-template-file", help="Path to a JSON template file (alternative to --body-template)"
+    ),
+    response_path: Optional[str] = typer.Option(
+        None, "--response-path", help="Dotted JSON path to the content field, e.g. 'choices[0].message.content'"
+    ),
+    tool_calls_path: Optional[str] = typer.Option(
+        None, "--tool-calls-path", help="Dotted JSON path to the tool_calls array in the response"
+    ),
 ):
     """Register an external HTTP agent in Yoke (no prompt/tools required).
 
-    The endpoint will be POSTed once per turn during simulations. See the
-    Yoke docs for the expected request/response shape. OpenAI-compatible
-    chat-completion endpoints also work out of the box.
+    The endpoint will be POSTed once per turn during simulations. Pass
+    --body-template (or --body-template-file) to customize the request
+    shape with {{var}} placeholders; leave it empty to send the Yoke
+    native shape. Set --response-path for non-standard response layouts.
     """
+    template = _read_template_source(body_template, body_template_file)
     emit(
         make_client().create_agent_config(
             name=name,
@@ -84,6 +106,9 @@ def create_http_agent(
             http_endpoint=endpoint,
             http_auth_header=auth_header or None,
             http_timeout_seconds=timeout,
+            http_body_template=template,
+            http_response_path=response_path,
+            http_tool_calls_path=tool_calls_path,
         ),
         json_output=True,
     )
@@ -99,23 +124,31 @@ def test_http_agent(
     message: str = typer.Option(
         "Hello, this is a connection test from Yoke Agent.", "--message"
     ),
+    body_template: Optional[str] = typer.Option(None, "--body-template"),
+    body_template_file: Optional[str] = typer.Option(None, "--body-template-file"),
+    response_path: Optional[str] = typer.Option(None, "--response-path"),
+    tool_calls_path: Optional[str] = typer.Option(None, "--tool-calls-path"),
 ):
     """Fire one test POST at an HTTP agent endpoint and print the result.
 
     Pass either --endpoint (to test before saving) or --config-id (to test
     an already-saved HTTP agent). Reports status, latency, detected
-    response format, and tool_calls count.
+    response format, tool_calls count, and the rendered body that was sent.
     """
     client = make_client()
     if config_id is not None:
         emit(client.test_saved_http_agent(config_id), json_output=True)
     elif endpoint:
+        template = _read_template_source(body_template, body_template_file)
         emit(
             client.test_http_agent_endpoint(
                 http_endpoint=endpoint,
                 http_auth_header=auth_header or None,
                 http_timeout_seconds=timeout,
                 sample_message=message,
+                http_body_template=template,
+                http_response_path=response_path,
+                http_tool_calls_path=tool_calls_path,
             ),
             json_output=True,
         )

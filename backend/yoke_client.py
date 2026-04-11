@@ -374,12 +374,18 @@ class YokeClient:
         http_endpoint: Optional[str] = None,
         http_auth_header: Optional[str] = None,
         http_timeout_seconds: int = 60,
+        http_body_template: Optional[str] = None,
+        http_response_path: Optional[str] = None,
+        http_tool_calls_path: Optional[str] = None,
     ) -> dict:
         """Create an agent config.
 
         For built-in agents, pass `system_prompt` (required). For external
         HTTP agents, pass `agent_type="http"` plus `http_endpoint` — the
-        server will accept an empty `system_prompt`.
+        server will accept an empty `system_prompt`. Optional
+        `http_body_template` uses `{{var}}` placeholders to customize
+        the request body; `http_response_path` points at the content in
+        the response (e.g. `"choices[0].message.content"`).
         """
         payload: dict = {
             "name": name,
@@ -393,6 +399,9 @@ class YokeClient:
             payload["http_endpoint"] = http_endpoint
             payload["http_auth_header"] = http_auth_header
             payload["http_timeout_seconds"] = http_timeout_seconds
+            payload["http_body_template"] = http_body_template
+            payload["http_response_path"] = http_response_path
+            payload["http_tool_calls_path"] = http_tool_calls_path
         return self._post("/agent/configs/", json=payload)
 
     def update_agent_config(
@@ -407,6 +416,9 @@ class YokeClient:
         http_endpoint: Optional[str] = None,
         http_auth_header: Optional[str] = None,
         http_timeout_seconds: Optional[int] = None,
+        http_body_template: Optional[str] = None,
+        http_response_path: Optional[str] = None,
+        http_tool_calls_path: Optional[str] = None,
     ) -> dict:
         payload: dict = {}
         if name:
@@ -427,6 +439,12 @@ class YokeClient:
             payload["http_auth_header"] = http_auth_header
         if http_timeout_seconds is not None:
             payload["http_timeout_seconds"] = http_timeout_seconds
+        if http_body_template is not None:
+            payload["http_body_template"] = http_body_template
+        if http_response_path is not None:
+            payload["http_response_path"] = http_response_path
+        if http_tool_calls_path is not None:
+            payload["http_tool_calls_path"] = http_tool_calls_path
         return self._put(f"/agent/configs/{config_id}", json=payload)
 
     def delete_agent_config(self, config_id: int) -> dict:
@@ -438,17 +456,24 @@ class YokeClient:
         http_auth_header: Optional[str] = None,
         http_timeout_seconds: int = 30,
         sample_message: str = "Hello, this is a connection test from Yoke Agent.",
+        http_body_template: Optional[str] = None,
+        http_response_path: Optional[str] = None,
+        http_tool_calls_path: Optional[str] = None,
     ) -> dict:
         """Fire a single test call against an arbitrary HTTP agent endpoint.
 
-        Returns `{ok, status_code, detected_format, tool_calls_detected, ...}`.
-        Used before saving an HTTP-agent config to validate the endpoint.
+        Returns `{ok, status_code, detected_format, tool_calls_detected,
+        rendered_body, ...}`. Pass the template/path fields to test a
+        custom request/response shape before saving.
         """
         payload = {
             "http_endpoint": http_endpoint,
             "http_auth_header": http_auth_header,
             "http_timeout_seconds": http_timeout_seconds,
             "sample_message": sample_message,
+            "http_body_template": http_body_template,
+            "http_response_path": http_response_path,
+            "http_tool_calls_path": http_tool_calls_path,
         }
         return self._post("/agent/configs/test-http", json=payload)
 
