@@ -150,7 +150,7 @@ def test_provider(provider_id: int, db: Session = Depends(get_db)):
                         raise ValueError(
                             "Flex tier is enabled but no configured model "
                             "supports it. Add a flex-eligible model "
-                            "(OpenAI: o3, o4-mini, gpt-4.1*, gpt-5*; "
+                            "(OpenAI: o3, o4-mini, gpt-5*; "
                             "Google: gemini-2.5-*) or disable Flex."
                         )
             llm = get_llm(db, provider_id=provider.id, model=test_model)
