@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yoke-cli"
+version = "0.1.0"
+description = "Yoke Agent CLI — control the AI Quality Studio from your terminal"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Empreiteiro" }]
+keywords = ["yoke", "rag", "llm", "evaluation", "ai-quality", "cli"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+  "typer>=0.12.0",
+  "httpx>=0.27.0",
+  "rich>=13.7.0",
+]
+
+[project.scripts]
+yoke = "yoke_cli.main:app"
+
+[project.urls]
+Homepage = "https://github.com/Empreiteiro/yoke-agent"
+Repository = "https://github.com/Empreiteiro/yoke-agent"
+Issues = "https://github.com/Empreiteiro/yoke-agent/issues"
+
+[tool.setuptools.packages.find]
+include = ["yoke_cli*"]

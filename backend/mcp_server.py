@@ -1,32 +1,40 @@
 """MCP Server for Yoke Agent — AI Quality Studio.
 
 Exposes all platform functionality as MCP tools for AI agent control.
-Connects to the FastAPI backend via HTTP.
+Connects to the FastAPI backend via HTTP through the shared
+``YokeClient`` (see ``backend/yoke_client.py``), so the same code path
+is used by ``yoke`` CLI commands and by MCP tool calls.
 
 Usage:
     fastmcp run mcp_server.py
     # or via stdio for Claude Code integration
 
 Environment variables:
-    RAG_API_KEY  - API key for authenticating with the backend
-    RAG_BASE_URL - Backend base URL (default: http://localhost:4040/api)
+    YOKE_API_KEY  - API key for the backend (alias: RAG_API_KEY)
+    YOKE_BASE_URL - Backend base URL (default: http://localhost:4040/api)
+                    (alias: RAG_BASE_URL)
 """
 
-import os
 import json
-import httpx
+import os
+
 from fastmcp import FastMCP
+
+from yoke_client import YokeClient
 
 mcp = FastMCP(
     "Yoke Agent",
     instructions="AI Quality Studio: optimize RAG pipelines and evaluate AI agents through grid search, simulation testing, and metrics.",
 )
 
-API_KEY = os.environ.get("RAG_API_KEY", "")
-BASE_URL = os.environ.get("RAG_BASE_URL", "http://localhost:4040/api")
+# One shared client instance — picks up YOKE_BASE_URL / YOKE_API_KEY
+# (with RAG_* legacy fallbacks) from the environment.
+_yoke = YokeClient()
 
 # Load disabled tools from config
-_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "mcp_config.json")
+_config_path = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "data", "mcp_config.json"
+)
 _disabled_tools: set[str] = set()
 if os.path.exists(_config_path):
     try:
@@ -34,13 +42,6 @@ if os.path.exists(_config_path):
             _disabled_tools = set(json.load(f).get("disabled_tools", []))
     except Exception:
         pass
-
-
-def _client() -> httpx.Client:
-    headers = {}
-    if API_KEY:
-        headers["X-API-Key"] = API_KEY
-    return httpx.Client(base_url=BASE_URL, timeout=120, headers=headers)
 
 
 def _register(func):
@@ -52,11 +53,11 @@ def _register(func):
 
 # ─── Documents ───────────────────────────────────────────
 
+
 @_register
 def list_documents() -> list[dict]:
     """List all uploaded documents."""
-    with _client() as c:
-        return c.get("/documents/").json()
+    return _yoke.list_documents()
 
 
 @_register
@@ -66,20 +67,16 @@ def upload_document(filepath: str) -> dict:
     Args:
         filepath: Absolute path to the file to upload.
     """
-    import os as _os
-    filename = _os.path.basename(filepath)
-    with open(filepath, "rb") as f:
-        with _client() as c:
-            return c.post("/documents/upload", files={"file": (filename, f)}).json()
+    return _yoke.upload_document(filepath)
 
 
 # ─── Datasets ────────────────────────────────────────────
 
+
 @_register
 def list_datasets() -> list[dict]:
     """List all evaluation datasets."""
-    with _client() as c:
-        return c.get("/datasets/").json()
+    return _yoke.list_datasets()
 
 
 @_register
@@ -89,12 +86,13 @@ def get_dataset(dataset_id: int) -> dict:
     Args:
         dataset_id: The dataset ID.
     """
-    with _client() as c:
-        return c.get(f"/datasets/{dataset_id}").json()
+    return _yoke.get_dataset(dataset_id)
 
 
 @_register
-def create_dataset(document_ids: list[int], name: str = "", description: str = "") -> dict:
+def create_dataset(
+    document_ids: list[int], name: str = "", description: str = ""
+) -> dict:
     """Create a new evaluation dataset from uploaded documents.
 
     Args:
@@ -102,12 +100,7 @@ def create_dataset(document_ids: list[int], name: str = "", description: str = "
         name: Optional name for the dataset.
         description: Optional description.
     """
-    with _client() as c:
-        return c.post("/datasets/", json={
-            "name": name or None,
-            "description": description or None,
-            "document_ids": document_ids,
-        }).json()
+    return _yoke.create_dataset(document_ids, name=name, description=description)
 
 
 @_register
@@ -125,13 +118,12 @@ def generate_dataset(
         max_pages: When partial, max pages to read. 0 = no limit.
         num_questions: Number of questions. 0 = auto-calculate.
     """
-    options = {"reading_mode": reading_mode}
-    if max_pages > 0:
-        options["max_pages"] = max_pages
-    if num_questions > 0:
-        options["num_questions"] = num_questions
-    with _client() as c:
-        return c.post(f"/datasets/{dataset_id}/generate", json=options).json()
+    return _yoke.generate_dataset(
+        dataset_id,
+        reading_mode=reading_mode,
+        max_pages=max_pages,
+        num_questions=num_questions,
+    )
 
 
 @_register
@@ -141,21 +133,22 @@ def approve_dataset(dataset_id: int) -> dict:
     Args:
         dataset_id: The dataset ID to approve.
     """
-    with _client() as c:
-        return c.post(f"/datasets/{dataset_id}/approve").json()
+    return _yoke.approve_dataset(dataset_id)
 
 
 # ─── Experiments ─────────────────────────────────────────
 
+
 @_register
 def list_experiments() -> list[dict]:
     """List all experiments with their status and scores."""
-    with _client() as c:
-        return c.get("/experiments/").json()
+    return _yoke.list_experiments()
 
 
 @_register
-def create_experiment(dataset_id: int, name: str = "", vectorstore_type: str = "chromadb") -> dict:
+def create_experiment(
+    dataset_id: int, name: str = "", vectorstore_type: str = "chromadb"
+) -> dict:
     """Create a new experiment.
 
     Args:
@@ -163,12 +156,9 @@ def create_experiment(dataset_id: int, name: str = "", vectorstore_type: str = "
         name: Optional experiment name.
         vectorstore_type: Vector store backend (chromadb, pinecone, qdrant, weaviate, pgvector).
     """
-    with _client() as c:
-        return c.post("/experiments/", json={
-            "name": name or None,
-            "dataset_id": dataset_id,
-            "vectorstore_type": vectorstore_type,
-        }).json()
+    return _yoke.create_experiment(
+        dataset_id, name=name, vectorstore_type=vectorstore_type
+    )
 
 
 @_register
@@ -194,16 +184,16 @@ def configure_grid_search(
         distance_metrics: List of distance metrics (cosine, l2, ip).
         embedding_dimensions: List of embedding dimensions (empty = model defaults).
     """
-    with _client() as c:
-        return c.post(f"/experiments/{experiment_id}/configure-grid", json={
-            "chunk_sizes": chunk_sizes,
-            "chunk_overlaps": chunk_overlaps,
-            "embedding_models": embedding_models,
-            "top_k_values": top_k_values,
-            "search_types": search_types,
-            "distance_metrics": distance_metrics,
-            "embedding_dimensions": embedding_dimensions,
-        }).json()
+    return _yoke.configure_grid_search(
+        experiment_id,
+        chunk_sizes=chunk_sizes,
+        chunk_overlaps=chunk_overlaps,
+        embedding_models=embedding_models,
+        top_k_values=top_k_values,
+        search_types=search_types,
+        distance_metrics=distance_metrics,
+        embedding_dimensions=embedding_dimensions,
+    )
 
 
 @_register
@@ -213,8 +203,7 @@ def run_experiment(experiment_id: int) -> dict:
     Args:
         experiment_id: The experiment ID to run.
     """
-    with _client() as c:
-        return c.post(f"/experiments/{experiment_id}/run").json()
+    return _yoke.run_experiment(experiment_id)
 
 
 @_register
@@ -224,8 +213,7 @@ def stop_experiment(experiment_id: int) -> dict:
     Args:
         experiment_id: The experiment ID to stop.
     """
-    with _client() as c:
-        return c.post(f"/experiments/{experiment_id}/stop").json()
+    return _yoke.stop_experiment(experiment_id)
 
 
 @_register
@@ -236,8 +224,7 @@ def resume_experiment(experiment_id: int, retry_failed: bool = False) -> dict:
         experiment_id: The experiment ID to resume.
         retry_failed: Whether to also retry failed combinations.
     """
-    with _client() as c:
-        return c.post(f"/experiments/{experiment_id}/resume?retry_failed={retry_failed}").json()
+    return _yoke.resume_experiment(experiment_id, retry_failed=retry_failed)
 
 
 @_register
@@ -247,8 +234,7 @@ def get_experiment(experiment_id: int) -> dict:
     Args:
         experiment_id: The experiment ID.
     """
-    with _client() as c:
-        return c.get(f"/experiments/{experiment_id}").json()
+    return _yoke.get_experiment(experiment_id)
 
 
 @_register
@@ -258,8 +244,7 @@ def get_experiment_report(experiment_id: int) -> dict:
     Args:
         experiment_id: The experiment ID.
     """
-    with _client() as c:
-        return c.get(f"/experiments/{experiment_id}/report").json()
+    return _yoke.get_experiment_report(experiment_id)
 
 
 @_register
@@ -269,17 +254,16 @@ def delete_experiment(experiment_id: int) -> dict:
     Args:
         experiment_id: The experiment ID to delete.
     """
-    with _client() as c:
-        return c.delete(f"/experiments/{experiment_id}").json()
+    return _yoke.delete_experiment(experiment_id)
 
 
 # ─── Collections ─────────────────────────────────────────
 
+
 @_register
 def list_collections() -> list[dict]:
     """List all saved vectorstore collections from winning experiments."""
-    with _client() as c:
-        return c.get("/collections/").json()
+    return _yoke.list_collections()
 
 
 @_register
@@ -291,11 +275,7 @@ def query_collection(collection_id: int, question: str, top_k: int = 0) -> dict:
         question: The question to ask.
         top_k: Number of documents to retrieve (0 = use collection default).
     """
-    data = {"question": question}
-    if top_k > 0:
-        data["top_k"] = top_k
-    with _client() as c:
-        return c.post(f"/collections/{collection_id}/query", json=data).json()
+    return _yoke.query_collection(collection_id, question, top_k=top_k)
 
 
 @_register
@@ -305,24 +285,22 @@ def delete_collection(collection_id: int) -> dict:
     Args:
         collection_id: The collection ID to delete.
     """
-    with _client() as c:
-        return c.delete(f"/collections/{collection_id}").json()
+    return _yoke.delete_collection(collection_id)
 
 
 # ─── Providers ───────────────────────────────────────────
 
+
 @_register
 def list_providers() -> list[dict]:
     """List all configured LLM/embedding providers."""
-    with _client() as c:
-        return c.get("/providers/").json()
+    return _yoke.list_providers()
 
 
 @_register
 def get_available_models() -> dict:
     """Get all available LLM and embedding models from active providers."""
-    with _client() as c:
-        return c.get("/providers/models/available").json()
+    return _yoke.get_available_models()
 
 
 @_register
@@ -332,8 +310,7 @@ def get_provider_catalog() -> dict:
     Useful before creating a provider to learn which provider_type values
     are accepted and which models each one ships with.
     """
-    with _client() as c:
-        return c.get("/providers/catalog").json()
+    return _yoke.get_provider_catalog()
 
 
 @_register
@@ -343,8 +320,7 @@ def get_provider(provider_id: int) -> dict:
     Args:
         provider_id: The provider ID.
     """
-    with _client() as c:
-        return c.get(f"/providers/{provider_id}").json()
+    return _yoke.get_provider(provider_id)
 
 
 @_register
@@ -380,21 +356,19 @@ def create_provider(
               best-effort latency). Only effective on flex-eligible models.
             - api_version (str): Azure OpenAI API version.
     """
-    payload = {
-        "name": name,
-        "provider_type": provider_type,
-        "api_key": api_key or None,
-        "base_url": base_url or None,
-        "llm_models": llm_models or [],
-        "embedding_models": embedding_models or [],
-        "default_llm_model": default_llm_model or None,
-        "default_embedding_model": default_embedding_model or None,
-        "supports_llm": supports_llm,
-        "supports_embedding": supports_embedding,
-        "extra_config": extra_config or {},
-    }
-    with _client() as c:
-        return c.post("/providers/", json=payload).json()
+    return _yoke.create_provider(
+        name=name,
+        provider_type=provider_type,
+        api_key=api_key,
+        base_url=base_url,
+        llm_models=llm_models,
+        embedding_models=embedding_models,
+        default_llm_model=default_llm_model,
+        default_embedding_model=default_embedding_model,
+        supports_llm=supports_llm,
+        supports_embedding=supports_embedding,
+        extra_config=extra_config,
+    )
 
 
 @_register
@@ -425,27 +399,18 @@ def update_provider(
         is_active: Toggle the provider on/off.
         extra_config: Replace the extra_config dict (e.g. {"flex_tier": true}).
     """
-    payload: dict = {}
-    if name:
-        payload["name"] = name
-    if api_key:
-        payload["api_key"] = api_key
-    if base_url:
-        payload["base_url"] = base_url
-    if llm_models is not None:
-        payload["llm_models"] = llm_models
-    if embedding_models is not None:
-        payload["embedding_models"] = embedding_models
-    if default_llm_model:
-        payload["default_llm_model"] = default_llm_model
-    if default_embedding_model:
-        payload["default_embedding_model"] = default_embedding_model
-    if is_active is not None:
-        payload["is_active"] = is_active
-    if extra_config is not None:
-        payload["extra_config"] = extra_config
-    with _client() as c:
-        return c.put(f"/providers/{provider_id}", json=payload).json()
+    return _yoke.update_provider(
+        provider_id,
+        name=name,
+        api_key=api_key,
+        base_url=base_url,
+        llm_models=llm_models,
+        embedding_models=embedding_models,
+        default_llm_model=default_llm_model,
+        default_embedding_model=default_embedding_model,
+        is_active=is_active,
+        extra_config=extra_config,
+    )
 
 
 @_register
@@ -455,8 +420,7 @@ def delete_provider(provider_id: int) -> dict:
     Args:
         provider_id: The provider to delete.
     """
-    with _client() as c:
-        return c.delete(f"/providers/{provider_id}").json()
+    return _yoke.delete_provider(provider_id)
 
 
 @_register
@@ -467,8 +431,7 @@ def test_provider(provider_id: int) -> dict:
     Args:
         provider_id: The provider to test.
     """
-    with _client() as c:
-        return c.post(f"/providers/{provider_id}/test").json()
+    return _yoke.test_provider(provider_id)
 
 
 # ─── Agent Workbench: Configs ────────────────────────────
@@ -477,8 +440,7 @@ def test_provider(provider_id: int) -> dict:
 @_register
 def list_agent_configs() -> list[dict]:
     """List all agent configurations (system prompts, tools, constraints)."""
-    with _client() as c:
-        return c.get("/agent/configs/").json()
+    return _yoke.list_agent_configs()
 
 
 @_register
@@ -488,8 +450,7 @@ def get_agent_config(config_id: int) -> dict:
     Args:
         config_id: The agent config ID.
     """
-    with _client() as c:
-        return c.get(f"/agent/configs/{config_id}").json()
+    return _yoke.get_agent_config(config_id)
 
 
 @_register
@@ -509,15 +470,13 @@ def create_agent_config(
         tools: Optional list of tool definitions: [{"name": "...", "description": "...", "parameters": {...}}].
         constraints: Optional list of plain-text constraints / safety rules.
     """
-    payload = {
-        "name": name,
-        "system_prompt": system_prompt,
-        "description": description or None,
-        "tools": tools or [],
-        "constraints": constraints or [],
-    }
-    with _client() as c:
-        return c.post("/agent/configs/", json=payload).json()
+    return _yoke.create_agent_config(
+        name=name,
+        system_prompt=system_prompt,
+        description=description,
+        tools=tools,
+        constraints=constraints,
+    )
 
 
 @_register
@@ -535,19 +494,14 @@ def update_agent_config(
     Args:
         config_id: The agent config to update.
     """
-    payload: dict = {}
-    if name:
-        payload["name"] = name
-    if description:
-        payload["description"] = description
-    if system_prompt:
-        payload["system_prompt"] = system_prompt
-    if tools is not None:
-        payload["tools"] = tools
-    if constraints is not None:
-        payload["constraints"] = constraints
-    with _client() as c:
-        return c.put(f"/agent/configs/{config_id}", json=payload).json()
+    return _yoke.update_agent_config(
+        config_id,
+        name=name,
+        description=description,
+        system_prompt=system_prompt,
+        tools=tools,
+        constraints=constraints,
+    )
 
 
 @_register
@@ -557,9 +511,7 @@ def delete_agent_config(config_id: int) -> dict:
     Args:
         config_id: The agent config to delete.
     """
-    with _client() as c:
-        c.delete(f"/agent/configs/{config_id}")
-        return {"detail": "deleted"}
+    return _yoke.delete_agent_config(config_id)
 
 
 # ─── Agent Workbench: Prompt Variants ────────────────────
@@ -572,8 +524,7 @@ def list_prompt_variants(config_id: int) -> list[dict]:
     Args:
         config_id: The agent config ID.
     """
-    with _client() as c:
-        return c.get(f"/agent/configs/{config_id}/variants").json()
+    return _yoke.list_prompt_variants(config_id)
 
 
 @_register
@@ -587,9 +538,7 @@ def generate_prompt_variants(
         count: How many variants to generate.
         focus: Optional steering hint, e.g. "conciseness", "tone", "detail".
     """
-    payload = {"count": count, "focus": focus or None}
-    with _client() as c:
-        return c.post(f"/agent/configs/{config_id}/variants/generate", json=payload).json()
+    return _yoke.generate_prompt_variants(config_id, count=count, focus=focus)
 
 
 # ─── Agent Workbench: Scenarios ──────────────────────────
@@ -602,8 +551,7 @@ def list_scenarios(config_id: int) -> list[dict]:
     Args:
         config_id: The agent config ID.
     """
-    with _client() as c:
-        return c.get(f"/agent/configs/{config_id}/scenarios").json()
+    return _yoke.list_scenarios(config_id)
 
 
 @_register
@@ -617,9 +565,9 @@ def generate_scenarios(
         scenario_type: One of: tool_use, decision_path, response_quality, guardrail.
         count: How many scenarios to generate.
     """
-    payload = {"scenario_type": scenario_type, "count": count}
-    with _client() as c:
-        return c.post(f"/agent/configs/{config_id}/scenarios/generate", json=payload).json()
+    return _yoke.generate_scenarios(
+        config_id, scenario_type=scenario_type, count=count
+    )
 
 
 # ─── Agent Workbench: Personas ───────────────────────────
@@ -632,8 +580,7 @@ def list_personas(config_id: int) -> list[dict]:
     Args:
         config_id: The agent config ID.
     """
-    with _client() as c:
-        return c.get(f"/agent/configs/{config_id}/personas").json()
+    return _yoke.list_personas(config_id)
 
 
 @_register
@@ -651,13 +598,12 @@ def generate_personas(
         count: How many personas to generate.
         interaction_count: How many simulated interactions each persona will run.
     """
-    payload = {
-        "audience_description": audience_description,
-        "count": count,
-        "interaction_count": interaction_count,
-    }
-    with _client() as c:
-        return c.post(f"/agent/configs/{config_id}/personas/generate", json=payload).json()
+    return _yoke.generate_personas(
+        config_id,
+        audience_description=audience_description,
+        count=count,
+        interaction_count=interaction_count,
+    )
 
 
 # ─── Agent Workbench: Experiments ────────────────────────
@@ -666,8 +612,7 @@ def generate_personas(
 @_register
 def list_agent_experiments() -> list[dict]:
     """List all agent experiments with their status and grid configuration."""
-    with _client() as c:
-        return c.get("/agent/experiments").json()
+    return _yoke.list_agent_experiments()
 
 
 @_register
@@ -677,8 +622,7 @@ def get_agent_experiment(experiment_id: int) -> dict:
     Args:
         experiment_id: The agent experiment ID.
     """
-    with _client() as c:
-        return c.get(f"/agent/experiments/{experiment_id}").json()
+    return _yoke.get_agent_experiment(experiment_id)
 
 
 @_register
@@ -706,22 +650,17 @@ def create_agent_experiment(
         max_turns: Max conversation turns per scenario. Defaults to [1].
         description: Optional description.
     """
-    grid_config = {
-        "prompt_variant_ids": prompt_variant_ids,
-        "llm_models": llm_models,
-        "temperatures": temperatures or [0.0],
-        "persona_group_names": persona_group_names or [],
-        "scenario_types": scenario_types or [],
-        "max_turns": max_turns or [1],
-    }
-    payload = {
-        "name": name,
-        "agent_config_id": agent_config_id,
-        "description": description or None,
-        "grid_config": grid_config,
-    }
-    with _client() as c:
-        return c.post("/agent/experiments", json=payload).json()
+    return _yoke.create_agent_experiment(
+        name=name,
+        agent_config_id=agent_config_id,
+        prompt_variant_ids=prompt_variant_ids,
+        llm_models=llm_models,
+        temperatures=temperatures,
+        persona_group_names=persona_group_names,
+        scenario_types=scenario_types,
+        max_turns=max_turns,
+        description=description,
+    )
 
 
 @_register
@@ -731,8 +670,7 @@ def run_agent_experiment(experiment_id: int) -> dict:
     Args:
         experiment_id: The agent experiment ID.
     """
-    with _client() as c:
-        return c.post(f"/agent/experiments/{experiment_id}/run").json()
+    return _yoke.run_agent_experiment(experiment_id)
 
 
 @_register
@@ -742,8 +680,7 @@ def stop_agent_experiment(experiment_id: int) -> dict:
     Args:
         experiment_id: The agent experiment ID.
     """
-    with _client() as c:
-        return c.post(f"/agent/experiments/{experiment_id}/stop").json()
+    return _yoke.stop_agent_experiment(experiment_id)
 
 
 @_register
@@ -753,8 +690,7 @@ def get_agent_experiment_status(experiment_id: int) -> dict:
     Args:
         experiment_id: The agent experiment ID.
     """
-    with _client() as c:
-        return c.get(f"/agent/experiments/{experiment_id}/status").json()
+    return _yoke.get_agent_experiment_status(experiment_id)
 
 
 @_register
@@ -764,8 +700,7 @@ def get_agent_experiment_results(experiment_id: int) -> dict:
     Args:
         experiment_id: The agent experiment ID.
     """
-    with _client() as c:
-        return c.get(f"/agent/experiments/{experiment_id}/results").json()
+    return _yoke.get_agent_experiment_results(experiment_id)
 
 
 @_register
@@ -775,8 +710,7 @@ def generate_agent_experiment_report(experiment_id: int) -> dict:
     Args:
         experiment_id: The agent experiment ID.
     """
-    with _client() as c:
-        return c.post(f"/agent/experiments/{experiment_id}/report/generate").json()
+    return _yoke.generate_agent_experiment_report(experiment_id)
 
 
 @_register
@@ -786,8 +720,7 @@ def get_agent_experiment_report(experiment_id: int) -> dict:
     Args:
         experiment_id: The agent experiment ID.
     """
-    with _client() as c:
-        return c.get(f"/agent/experiments/{experiment_id}/report").json()
+    return _yoke.get_agent_experiment_report(experiment_id)
 
 
 @_register
@@ -797,12 +730,11 @@ def delete_agent_experiment(experiment_id: int) -> dict:
     Args:
         experiment_id: The agent experiment ID.
     """
-    with _client() as c:
-        c.delete(f"/agent/experiments/{experiment_id}")
-        return {"detail": "deleted"}
+    return _yoke.delete_agent_experiment(experiment_id)
 
 
 # ─── Token Usage ─────────────────────────────────────────
+
 
 @_register
 def get_token_usage_summary(days: int = 30) -> dict:
@@ -811,8 +743,7 @@ def get_token_usage_summary(days: int = 30) -> dict:
     Args:
         days: Number of days to look back (default 30).
     """
-    with _client() as c:
-        return c.get(f"/token-usage/summary?days={days}").json()
+    return _yoke.get_token_usage_summary(days=days)
 
 
 if __name__ == "__main__":
