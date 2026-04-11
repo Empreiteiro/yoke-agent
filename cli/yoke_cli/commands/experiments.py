@@ -135,3 +135,48 @@ def delete(
     if not yes:
         typer.confirm(f"Delete experiment {experiment_id}?", abort=True)
     emit(make_client().delete_experiment(experiment_id), json_output=True)
+
+
+# ── human ratings (issue #118) ──────────────────────────────────────
+
+
+@app.command("rate")
+@handle_http_errors
+def rate(
+    combination_id: int = typer.Argument(..., help="ID of the experiment combination"),
+    question_index: int = typer.Argument(..., help="Zero-based index of the question"),
+    rating: str = typer.Argument(..., help="One of: correct, incorrect, partial"),
+    notes: str = typer.Option("", "--notes", help="Optional reviewer notes"),
+):
+    """Record a human rating for one Q&A pair in an experiment combination."""
+    if rating not in ("correct", "incorrect", "partial"):
+        raise typer.BadParameter("rating must be one of: correct, incorrect, partial")
+    emit(
+        make_client().rate_combination_question(
+            combination_id, question_index, rating, notes=notes
+        ),
+        json_output=True,
+    )
+
+
+@app.command("ratings")
+@handle_http_errors
+def ratings(
+    combination_id: int = typer.Argument(...),
+    json_output: bool = typer.Option(False, "--json"),
+):
+    """List human ratings for an experiment combination."""
+    data = make_client().list_combination_ratings(combination_id)
+    emit(
+        data,
+        json_output,
+        columns=["id", "question_index", "rating", "notes", "updated_at"],
+        title=f"Ratings for combination {combination_id}",
+    )
+
+
+@app.command("correlation")
+@handle_http_errors
+def correlation(experiment_id: int = typer.Argument(...)):
+    """Show Pearson/Spearman correlation between human ratings and RAGAS metrics."""
+    emit(make_client().get_experiment_correlation(experiment_id), json_output=True)

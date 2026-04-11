@@ -257,6 +257,73 @@ def delete_experiment(experiment_id: int) -> dict:
     return _yoke.delete_experiment(experiment_id)
 
 
+# ─── Human ratings (issue #118) ──────────────────────────
+
+
+@_register
+def list_combination_ratings(combination_id: int) -> list[dict]:
+    """List all human ratings for a specific experiment combination.
+
+    Args:
+        combination_id: The experiment combination ID.
+    """
+    return _yoke.list_combination_ratings(combination_id)
+
+
+@_register
+def rate_combination_question(
+    combination_id: int,
+    question_index: int,
+    rating: str,
+    notes: str = "",
+    question_text: str = "",
+) -> dict:
+    """Rate a single Q&A pair from an experiment combination as correct, incorrect, or partial.
+
+    Use this to record human judgement on individual generated answers so it can
+    be correlated with automated RAGAS scores. Calling twice for the same
+    (combination, question_index) updates the existing rating.
+
+    Args:
+        combination_id: The experiment combination ID.
+        question_index: Zero-based index of the question inside the combination's detailed_results.
+        rating: One of "correct", "incorrect", "partial".
+        notes: Optional reviewer notes explaining the judgement.
+        question_text: Optional question text snapshot for traceability.
+    """
+    return _yoke.rate_combination_question(
+        combination_id,
+        question_index,
+        rating,
+        notes=notes,
+        question_text=question_text,
+    )
+
+
+@_register
+def delete_combination_rating(combination_id: int, rating_id: int) -> dict:
+    """Delete a human rating.
+
+    Args:
+        combination_id: The experiment combination ID.
+        rating_id: The rating ID returned by ``rate_combination_question``.
+    """
+    return _yoke.delete_combination_rating(combination_id, rating_id)
+
+
+@_register
+def get_experiment_correlation(experiment_id: int) -> dict:
+    """Pearson/Spearman correlation between human ratings and RAGAS metrics for an experiment.
+
+    Returns per-metric ``pearson`` and ``spearman`` coefficients pooled across
+    all combinations of the experiment, plus rating counts.
+
+    Args:
+        experiment_id: The experiment ID.
+    """
+    return _yoke.get_experiment_correlation(experiment_id)
+
+
 # ─── Collections ─────────────────────────────────────────
 
 

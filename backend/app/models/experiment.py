@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Float, JSON, ForeignKey, func
+from sqlalchemy import Column, Integer, String, DateTime, Text, Float, JSON, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -43,3 +43,44 @@ class ExperimentCombination(Base):
     created_at = Column(DateTime, server_default=func.now())
     completed_at = Column(DateTime)
     experiment = relationship("Experiment", back_populates="combinations")
+    human_ratings = relationship(
+        "HumanRating",
+        back_populates="combination",
+        cascade="all, delete-orphan",
+    )
+
+
+class HumanRating(Base):
+    """A human rating for a single Q&A pair inside an experiment combination.
+
+    Ratings reference a combination + the index of the question inside that
+    combination's ``detailed_results`` JSON list. We don't FK to dataset_items
+    because RAGAS' detailed_results don't carry a stable dataset_item_id —
+    the rating is about a specific *generated answer*, not the abstract
+    question. Question text is denormalised for traceability.
+    """
+
+    __tablename__ = "human_ratings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    combination_id = Column(
+        Integer,
+        ForeignKey("experiment_combinations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    question_index = Column(Integer, nullable=False)
+    # "correct" | "incorrect" | "partial"
+    rating = Column(String(20), nullable=False)
+    notes = Column(Text)
+    question_text = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    combination = relationship("ExperimentCombination", back_populates="human_ratings")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "combination_id", "question_index", name="uq_human_rating_combo_question"
+        ),
+    )

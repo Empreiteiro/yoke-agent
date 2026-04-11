@@ -123,6 +123,32 @@ export const api = {
     request<any>(`/experiments/${id}/estimate-cost`, { method: "POST", body: JSON.stringify(config) }),
   exportExperimentCSV: (id: number) =>
     `${API_BASE}/experiments/${id}/export?format=csv`,
+  exportRatedQuestionsCSV: (id: number) =>
+    `${API_BASE}/experiments/${id}/export-rated`,
+
+  // Human ratings (issue #118)
+  listCombinationRatings: (combinationId: number) =>
+    request<any[]>(`/experiments/combinations/${combinationId}/ratings`),
+  upsertCombinationRating: (
+    combinationId: number,
+    payload: {
+      question_index: number;
+      rating: "correct" | "incorrect" | "partial";
+      notes?: string;
+      question_text?: string;
+    }
+  ) =>
+    request<any>(`/experiments/combinations/${combinationId}/ratings`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  deleteCombinationRating: (combinationId: number, ratingId: number) =>
+    request<any>(
+      `/experiments/combinations/${combinationId}/ratings/${ratingId}`,
+      { method: "DELETE" }
+    ),
+  getExperimentCorrelation: (id: number) =>
+    request<any>(`/experiments/${id}/correlation`),
 
   // Vector stores
   getVectorStoreCatalog: () => request<any>("/vectorstores/catalog"),

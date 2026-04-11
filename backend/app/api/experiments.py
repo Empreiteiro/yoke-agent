@@ -5,19 +5,26 @@ import csv
 import io
 import itertools
 import uuid
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db, SessionLocal
-from app.models.experiment import Experiment, ExperimentCombination
+from app.models.experiment import Experiment, ExperimentCombination, HumanRating
 from app.models.dataset import Dataset
 from app.schemas.provider import EMBEDDING_DIMENSIONS
 from app.schemas.experiment import (
+    CorrelationStat,
+    ExperimentCorrelationReport,
     ExperimentCreate,
     ExperimentResponse,
     GridSearchConfig,
     ExperimentReport,
+    HumanRatingCreate,
+    HumanRatingResponse,
+    HumanRatingUpdate,
 )
 from app.services.experiment_runner import run_experiment as run_experiment_service
 
@@ -621,6 +628,20 @@ def get_experiment_report(experiment_id: int, db: Session = Depends(get_db)):
     completed_count = len([c for c in exp.combinations if c.status == "completed"])
     failed_count = len([c for c in exp.combinations if c.status == "failed"])
 
+    # Pool human ratings across the experiment for the summary panel
+    combo_ids = [c.id for c in exp.combinations]
+    rating_counts: dict[str, int] = {}
+    total_ratings = 0
+    if combo_ids:
+        ratings = (
+            db.query(HumanRating)
+            .filter(HumanRating.combination_id.in_(combo_ids))
+            .all()
+        )
+        total_ratings = len(ratings)
+        for r in ratings:
+            rating_counts[r.rating] = rating_counts.get(r.rating, 0) + 1
+
     return ExperimentReport(
         experiment=exp,
         best_combination=best,
@@ -629,6 +650,10 @@ def get_experiment_report(experiment_id: int, db: Session = Depends(get_db)):
             "completed": completed_count,
             "failed": failed_count,
             "pending": total - completed_count - failed_count,
+            "human_ratings": {
+                "total": total_ratings,
+                "counts": rating_counts,
+            },
         },
     )
 
@@ -687,6 +712,372 @@ def export_experiment(experiment_id: int, format: str = "csv", db: Session = Dep
 
     output.seek(0)
     filename = f"{exp.name or 'experiment'}-results.csv"
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ── Human feedback loop (issue #118) ────────────────────────────────
+
+RATING_SCORE = {"correct": 1.0, "partial": 0.5, "incorrect": 0.0}
+
+
+def _ratings_by_combo(db: Session, combination_id: int) -> dict[int, HumanRating]:
+    rows = (
+        db.query(HumanRating)
+        .filter(HumanRating.combination_id == combination_id)
+        .all()
+    )
+    return {r.question_index: r for r in rows}
+
+
+@router.get(
+    "/combinations/{combination_id}/ratings",
+    response_model=list[HumanRatingResponse],
+)
+def list_combination_ratings(combination_id: int, db: Session = Depends(get_db)):
+    combo = (
+        db.query(ExperimentCombination)
+        .filter(ExperimentCombination.id == combination_id)
+        .first()
+    )
+    if not combo:
+        raise HTTPException(status_code=404, detail="Combination not found")
+    return (
+        db.query(HumanRating)
+        .filter(HumanRating.combination_id == combination_id)
+        .order_by(HumanRating.question_index)
+        .all()
+    )
+
+
+@router.post(
+    "/combinations/{combination_id}/ratings",
+    response_model=HumanRatingResponse,
+)
+def upsert_combination_rating(
+    combination_id: int,
+    payload: HumanRatingCreate,
+    db: Session = Depends(get_db),
+):
+    """Create or update the rating for a (combination, question_index) pair."""
+    combo = (
+        db.query(ExperimentCombination)
+        .filter(ExperimentCombination.id == combination_id)
+        .first()
+    )
+    if not combo:
+        raise HTTPException(status_code=404, detail="Combination not found")
+
+    # Validate question_index against detailed_results length when available
+    details = combo.detailed_results if isinstance(combo.detailed_results, list) else None
+    if details is not None and payload.question_index >= len(details):
+        raise HTTPException(
+            status_code=400,
+            detail=f"question_index {payload.question_index} out of range "
+            f"(combination has {len(details)} questions)",
+        )
+
+    existing = (
+        db.query(HumanRating)
+        .filter(
+            HumanRating.combination_id == combination_id,
+            HumanRating.question_index == payload.question_index,
+        )
+        .first()
+    )
+
+    # Auto-fill question_text from detailed_results if caller didn't provide one
+    question_text = payload.question_text
+    if question_text is None and details is not None:
+        item = details[payload.question_index]
+        if isinstance(item, dict):
+            question_text = item.get("user_input") or item.get("question")
+
+    if existing:
+        existing.rating = payload.rating
+        if payload.notes is not None:
+            existing.notes = payload.notes
+        if question_text is not None and not existing.question_text:
+            existing.question_text = question_text
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    rating = HumanRating(
+        combination_id=combination_id,
+        question_index=payload.question_index,
+        rating=payload.rating,
+        notes=payload.notes,
+        question_text=question_text,
+    )
+    db.add(rating)
+    db.commit()
+    db.refresh(rating)
+    return rating
+
+
+@router.patch(
+    "/combinations/{combination_id}/ratings/{rating_id}",
+    response_model=HumanRatingResponse,
+)
+def update_combination_rating(
+    combination_id: int,
+    rating_id: int,
+    payload: HumanRatingUpdate,
+    db: Session = Depends(get_db),
+):
+    rating = (
+        db.query(HumanRating)
+        .filter(
+            HumanRating.id == rating_id,
+            HumanRating.combination_id == combination_id,
+        )
+        .first()
+    )
+    if not rating:
+        raise HTTPException(status_code=404, detail="Rating not found")
+    if payload.rating is not None:
+        rating.rating = payload.rating
+    if payload.notes is not None:
+        rating.notes = payload.notes
+    db.commit()
+    db.refresh(rating)
+    return rating
+
+
+@router.delete("/combinations/{combination_id}/ratings/{rating_id}")
+def delete_combination_rating(
+    combination_id: int, rating_id: int, db: Session = Depends(get_db)
+):
+    rating = (
+        db.query(HumanRating)
+        .filter(
+            HumanRating.id == rating_id,
+            HumanRating.combination_id == combination_id,
+        )
+        .first()
+    )
+    if not rating:
+        raise HTTPException(status_code=404, detail="Rating not found")
+    db.delete(rating)
+    db.commit()
+    return {"detail": "Rating deleted", "rating_id": rating_id}
+
+
+def _pearson(xs: list[float], ys: list[float]) -> Optional[float]:
+    n = len(xs)
+    if n < 2:
+        return None
+    mean_x = sum(xs) / n
+    mean_y = sum(ys) / n
+    num = sum((xs[i] - mean_x) * (ys[i] - mean_y) for i in range(n))
+    den_x = sum((x - mean_x) ** 2 for x in xs)
+    den_y = sum((y - mean_y) ** 2 for y in ys)
+    if den_x == 0 or den_y == 0:
+        return None
+    return num / ((den_x * den_y) ** 0.5)
+
+
+def _spearman(xs: list[float], ys: list[float]) -> Optional[float]:
+    """Spearman = Pearson on ranks. Average ranks for ties."""
+    n = len(xs)
+    if n < 2:
+        return None
+
+    def ranks(values: list[float]) -> list[float]:
+        sorted_idx = sorted(range(n), key=lambda i: values[i])
+        result = [0.0] * n
+        i = 0
+        while i < n:
+            j = i
+            while j + 1 < n and values[sorted_idx[j + 1]] == values[sorted_idx[i]]:
+                j += 1
+            avg_rank = (i + j) / 2.0 + 1.0  # 1-indexed
+            for k in range(i, j + 1):
+                result[sorted_idx[k]] = avg_rank
+            i = j + 1
+        return result
+
+    return _pearson(ranks(xs), ranks(ys))
+
+
+@router.get("/{experiment_id}/correlation", response_model=ExperimentCorrelationReport)
+def get_experiment_correlation(experiment_id: int, db: Session = Depends(get_db)):
+    """Pearson/Spearman correlation between human ratings and per-question RAGAS metrics.
+
+    Pools across all combinations of the experiment. Each (combination, question)
+    rating pair is matched with the per-question score in ``detailed_results``.
+    """
+    exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+
+    combo_ids = [c.id for c in exp.combinations]
+    if not combo_ids:
+        return ExperimentCorrelationReport(
+            experiment_id=experiment_id,
+            total_ratings=0,
+            rating_counts={},
+            metrics=[],
+            notes="No combinations in experiment.",
+        )
+
+    ratings = (
+        db.query(HumanRating)
+        .filter(HumanRating.combination_id.in_(combo_ids))
+        .all()
+    )
+
+    rating_counts: dict[str, int] = {}
+    for r in ratings:
+        rating_counts[r.rating] = rating_counts.get(r.rating, 0) + 1
+
+    if not ratings:
+        return ExperimentCorrelationReport(
+            experiment_id=experiment_id,
+            total_ratings=0,
+            rating_counts={},
+            metrics=[],
+            notes="No human ratings yet.",
+        )
+
+    # Build {combo_id: detailed_results}
+    details_by_combo: dict[int, list] = {}
+    for c in exp.combinations:
+        if isinstance(c.detailed_results, list):
+            details_by_combo[c.id] = c.detailed_results
+
+    metric_names = [
+        "faithfulness",
+        "answer_relevancy",
+        "context_precision",
+        "context_recall",
+        "answer_similarity",
+        "answer_correctness",
+    ]
+
+    stats: list[CorrelationStat] = []
+    for metric in metric_names:
+        xs: list[float] = []
+        ys: list[float] = []
+        for r in ratings:
+            details = details_by_combo.get(r.combination_id)
+            if not details or r.question_index >= len(details):
+                continue
+            item = details[r.question_index]
+            if not isinstance(item, dict):
+                continue
+            score = item.get(metric)
+            if score is None:
+                continue
+            try:
+                ys.append(float(score))
+            except (TypeError, ValueError):
+                continue
+            xs.append(RATING_SCORE[r.rating])
+
+        stats.append(
+            CorrelationStat(
+                metric=metric,
+                n=len(xs),
+                pearson=_pearson(xs, ys) if xs else None,
+                spearman=_spearman(xs, ys) if xs else None,
+            )
+        )
+
+    return ExperimentCorrelationReport(
+        experiment_id=experiment_id,
+        total_ratings=len(ratings),
+        rating_counts=rating_counts,
+        metrics=stats,
+    )
+
+
+@router.get("/{experiment_id}/export-rated")
+def export_rated_questions(experiment_id: int, db: Session = Depends(get_db)):
+    """Export per-question rated data as CSV. One row per (combination, question).
+
+    Only includes questions that have at least one human rating across the
+    experiment, joined with the combination's per-question RAGAS scores —
+    ready for fine-tuning or dataset improvement.
+    """
+    exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+
+    combo_ids = [c.id for c in exp.combinations]
+    ratings = (
+        db.query(HumanRating)
+        .filter(HumanRating.combination_id.in_(combo_ids))
+        .order_by(HumanRating.combination_id, HumanRating.question_index)
+        .all()
+    )
+
+    combos_by_id = {c.id: c for c in exp.combinations}
+
+    headers = [
+        "combination_id",
+        "question_index",
+        "rating",
+        "notes",
+        "question",
+        "generated_answer",
+        "ground_truth",
+        "faithfulness",
+        "answer_relevancy",
+        "context_precision",
+        "context_recall",
+        "answer_similarity",
+        "answer_correctness",
+        "pipeline_type",
+        "chunk_size",
+        "chunk_overlap",
+        "embedding_model",
+        "top_k",
+        "search_type",
+    ]
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+
+    for r in ratings:
+        combo = combos_by_id.get(r.combination_id)
+        if not combo:
+            continue
+        details = combo.detailed_results if isinstance(combo.detailed_results, list) else []
+        item: dict = {}
+        if r.question_index < len(details) and isinstance(details[r.question_index], dict):
+            item = details[r.question_index]
+        p = combo.params or {}
+
+        writer.writerow([
+            combo.id,
+            r.question_index,
+            r.rating,
+            r.notes or "",
+            r.question_text or item.get("user_input") or item.get("question") or "",
+            item.get("response") or item.get("answer") or "",
+            item.get("reference") or item.get("ground_truth") or "",
+            item.get("faithfulness", ""),
+            item.get("answer_relevancy", ""),
+            item.get("context_precision", ""),
+            item.get("context_recall", ""),
+            item.get("answer_similarity", ""),
+            item.get("answer_correctness", ""),
+            p.get("pipeline_type", "rag"),
+            p.get("chunk_size", ""),
+            p.get("chunk_overlap", ""),
+            p.get("embedding_model", ""),
+            p.get("top_k", ""),
+            p.get("search_type", ""),
+        ])
+
+    output.seek(0)
+    filename = f"{exp.name or 'experiment'}-rated.csv"
     return StreamingResponse(
         output,
         media_type="text/csv",

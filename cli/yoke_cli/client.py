@@ -206,6 +206,47 @@ class YokeClient:
     def delete_experiment(self, experiment_id: int) -> dict:
         return self._delete(f"/experiments/{experiment_id}")
 
+    # ── human ratings (issue #118) ──────────────────────────────────
+
+    def list_combination_ratings(self, combination_id: int) -> list[dict]:
+        return self._get(f"/experiments/combinations/{combination_id}/ratings")
+
+    def rate_combination_question(
+        self,
+        combination_id: int,
+        question_index: int,
+        rating: str,
+        notes: str = "",
+        question_text: str = "",
+    ) -> dict:
+        """Create or update the human rating for one question in a combination.
+
+        ``rating`` must be one of ``"correct"``, ``"incorrect"``, ``"partial"``.
+        """
+        payload: dict = {
+            "question_index": question_index,
+            "rating": rating,
+        }
+        if notes:
+            payload["notes"] = notes
+        if question_text:
+            payload["question_text"] = question_text
+        return self._post(
+            f"/experiments/combinations/{combination_id}/ratings",
+            json=payload,
+        )
+
+    def delete_combination_rating(
+        self, combination_id: int, rating_id: int
+    ) -> dict:
+        return self._delete(
+            f"/experiments/combinations/{combination_id}/ratings/{rating_id}"
+        )
+
+    def get_experiment_correlation(self, experiment_id: int) -> dict:
+        """Pearson/Spearman correlation between human ratings and RAGAS metrics."""
+        return self._get(f"/experiments/{experiment_id}/correlation")
+
     # ── collections ─────────────────────────────────────────────────
 
     def list_collections(self) -> list[dict]:
