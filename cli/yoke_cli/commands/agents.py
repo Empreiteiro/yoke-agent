@@ -57,6 +57,72 @@ def list_personas(config_id: int = typer.Argument(...)):
     emit(make_client().list_personas(config_id), json_output=True)
 
 
+# ── External HTTP agents (issue #169) ───────────────────────────────
+
+
+@app.command("create-http")
+@handle_http_errors
+def create_http_agent(
+    name: str = typer.Option(..., "--name", help="Agent name"),
+    endpoint: str = typer.Option(..., "--endpoint", help="HTTP POST URL (https://...)"),
+    description: str = typer.Option("", "--description"),
+    auth_header: str = typer.Option("", "--auth-header", help="'Bearer <token>' or 'Header-Name: value'"),
+    timeout: int = typer.Option(60, "--timeout", help="Per-turn timeout in seconds (1-600)"),
+):
+    """Register an external HTTP agent in Yoke (no prompt/tools required).
+
+    The endpoint will be POSTed once per turn during simulations. See the
+    Yoke docs for the expected request/response shape. OpenAI-compatible
+    chat-completion endpoints also work out of the box.
+    """
+    emit(
+        make_client().create_agent_config(
+            name=name,
+            description=description,
+            system_prompt="",
+            agent_type="http",
+            http_endpoint=endpoint,
+            http_auth_header=auth_header or None,
+            http_timeout_seconds=timeout,
+        ),
+        json_output=True,
+    )
+
+
+@app.command("test-http")
+@handle_http_errors
+def test_http_agent(
+    endpoint: Optional[str] = typer.Option(None, "--endpoint", help="Test an arbitrary URL"),
+    config_id: Optional[int] = typer.Option(None, "--config-id", help="Test a saved HTTP agent"),
+    auth_header: str = typer.Option("", "--auth-header"),
+    timeout: int = typer.Option(30, "--timeout"),
+    message: str = typer.Option(
+        "Hello, this is a connection test from Yoke Agent.", "--message"
+    ),
+):
+    """Fire one test POST at an HTTP agent endpoint and print the result.
+
+    Pass either --endpoint (to test before saving) or --config-id (to test
+    an already-saved HTTP agent). Reports status, latency, detected
+    response format, and tool_calls count.
+    """
+    client = make_client()
+    if config_id is not None:
+        emit(client.test_saved_http_agent(config_id), json_output=True)
+    elif endpoint:
+        emit(
+            client.test_http_agent_endpoint(
+                http_endpoint=endpoint,
+                http_auth_header=auth_header or None,
+                http_timeout_seconds=timeout,
+                sample_message=message,
+            ),
+            json_output=True,
+        )
+    else:
+        raise typer.BadParameter("Pass --endpoint <url> or --config-id <id>")
+
+
 # ── experiments ─────────────────────────────────────────────────────
 
 

@@ -33,6 +33,11 @@ def _run_migrations(engine):
         # Agent pipeline: interaction dataset items refactor
         ("interaction_dataset_items", "objective", "TEXT"),
         ("interaction_dataset_items", "generated_input", "TEXT"),
+        # External HTTP agents (issue #169)
+        ("agent_configs", "agent_type", "VARCHAR(20) DEFAULT 'builtin'"),
+        ("agent_configs", "http_endpoint", "VARCHAR(1024)"),
+        ("agent_configs", "http_auth_header", "VARCHAR(1024)"),
+        ("agent_configs", "http_timeout_seconds", "INTEGER DEFAULT 60"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:

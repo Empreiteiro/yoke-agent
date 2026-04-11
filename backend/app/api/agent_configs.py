@@ -14,6 +14,7 @@ from app.schemas.agent import (
     PromptVariantCreate, PromptVariantResponse, GenerateVariantsRequest,
     ScenarioCreate, ScenarioUpdate, ScenarioResponse, GenerateScenariosRequest,
     PersonaCreate, PersonaUpdate, PersonaResponse, GeneratePersonasRequest,
+    TestHttpAgentRequest, TestHttpAgentResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,29 @@ def _get_config_or_404(db: Session, config_id: int) -> AgentConfig:
     return config
 
 
+def _serialize_config(c: AgentConfig) -> AgentConfigResponse:
+    """Build the API response for an AgentConfig, including HTTP-agent fields."""
+    return AgentConfigResponse(
+        id=c.id,
+        name=c.name,
+        description=c.description,
+        system_prompt=c.system_prompt,
+        tools=c.tools or [],
+        constraints=c.constraints or [],
+        variables=c.variables or {},
+        metadata=c.metadata_ or {},
+        agent_type=getattr(c, "agent_type", "builtin") or "builtin",
+        http_endpoint=getattr(c, "http_endpoint", None),
+        http_auth_header=getattr(c, "http_auth_header", None),
+        http_timeout_seconds=getattr(c, "http_timeout_seconds", None),
+        created_at=c.created_at,
+        updated_at=c.updated_at,
+        prompt_variant_count=len(c.prompt_variants),
+        scenario_count=len(c.scenarios),
+        persona_count=len(c.personas),
+    )
+
+
 # ══════════════════════════════════════════════════════════════════════
 #  AGENT CONFIGS
 # ══════════════════════════════════════════════════════════════════════
@@ -36,20 +60,7 @@ def _get_config_or_404(db: Session, config_id: int) -> AgentConfig:
 @router.get("/", response_model=list[AgentConfigResponse])
 def list_configs(db: Session = Depends(get_db)):
     configs = db.query(AgentConfig).order_by(AgentConfig.updated_at.desc()).all()
-    result = []
-    for c in configs:
-        resp = AgentConfigResponse(
-            id=c.id, name=c.name, description=c.description,
-            system_prompt=c.system_prompt, tools=c.tools or [],
-            constraints=c.constraints or [], variables=c.variables or {},
-            metadata=c.metadata_ or {},
-            created_at=c.created_at, updated_at=c.updated_at,
-            prompt_variant_count=len(c.prompt_variants),
-            scenario_count=len(c.scenarios),
-            persona_count=len(c.personas),
-        )
-        result.append(resp)
-    return result
+    return [_serialize_config(c) for c in configs]
 
 
 @router.post("/", response_model=AgentConfigResponse, status_code=201)
@@ -62,43 +73,36 @@ def create_config(body: AgentConfigCreate, db: Session = Depends(get_db)):
         constraints=body.constraints,
         variables=body.variables,
         metadata_=body.metadata,
+        agent_type=body.agent_type,
+        http_endpoint=body.http_endpoint,
+        http_auth_header=body.http_auth_header,
+        http_timeout_seconds=body.http_timeout_seconds,
     )
     db.add(config)
     db.flush()
-    # Auto-create the original prompt as a variant
+    # Auto-create the original prompt as a variant — but only for built-in
+    # agents. HTTP agents own their own prompts server-side, so we create
+    # a stub variant so grid search (which iterates prompt_variants) still
+    # has something to pick. The stub prompt is empty and gets ignored by
+    # the simulation engine when agent_type=="http".
+    original_prompt = body.system_prompt or "(external HTTP agent — prompt is managed remotely)"
     original = PromptVariant(
         agent_config_id=config.id,
         variant_name="Original",
-        system_prompt=body.system_prompt,
-        description="Original system prompt",
+        system_prompt=original_prompt,
+        description="Original system prompt" if body.agent_type == "builtin" else "Stub variant for HTTP agent",
         is_original=True,
     )
     db.add(original)
     db.commit()
     db.refresh(config)
-    return AgentConfigResponse(
-        id=config.id, name=config.name, description=config.description,
-        system_prompt=config.system_prompt, tools=config.tools or [],
-        constraints=config.constraints or [], variables=config.variables or {},
-        metadata=config.metadata_ or {},
-        created_at=config.created_at, updated_at=config.updated_at,
-        prompt_variant_count=1, scenario_count=0, persona_count=0,
-    )
+    return _serialize_config(config)
 
 
 @router.get("/{config_id}", response_model=AgentConfigResponse)
 def get_config(config_id: int, db: Session = Depends(get_db)):
     c = _get_config_or_404(db, config_id)
-    return AgentConfigResponse(
-        id=c.id, name=c.name, description=c.description,
-        system_prompt=c.system_prompt, tools=c.tools or [],
-        constraints=c.constraints or [], variables=c.variables or {},
-        metadata=c.metadata_ or {},
-        created_at=c.created_at, updated_at=c.updated_at,
-        prompt_variant_count=len(c.prompt_variants),
-        scenario_count=len(c.scenarios),
-        persona_count=len(c.personas),
-    )
+    return _serialize_config(c)
 
 
 @router.put("/{config_id}", response_model=AgentConfigResponse)
@@ -113,16 +117,7 @@ def update_config(config_id: int, body: AgentConfigUpdate, db: Session = Depends
             setattr(c, field, value)
     db.commit()
     db.refresh(c)
-    return AgentConfigResponse(
-        id=c.id, name=c.name, description=c.description,
-        system_prompt=c.system_prompt, tools=c.tools or [],
-        constraints=c.constraints or [], variables=c.variables or {},
-        metadata=c.metadata_ or {},
-        created_at=c.created_at, updated_at=c.updated_at,
-        prompt_variant_count=len(c.prompt_variants),
-        scenario_count=len(c.scenarios),
-        persona_count=len(c.personas),
-    )
+    return _serialize_config(c)
 
 
 @router.delete("/{config_id}", status_code=204)
@@ -130,6 +125,45 @@ def delete_config(config_id: int, db: Session = Depends(get_db)):
     c = _get_config_or_404(db, config_id)
     db.delete(c)
     db.commit()
+
+
+# ── External HTTP agent test (issue #169) ────────────────────────────
+
+
+@router.post("/test-http", response_model=TestHttpAgentResponse)
+async def test_http_agent(body: TestHttpAgentRequest):
+    """Fire one test request at an arbitrary HTTP endpoint.
+
+    Used by the Define Agent form's "Test connection" button BEFORE the
+    agent is saved, so the user can validate their endpoint + auth header
+    without persisting anything. Never raises — failures are reported
+    inside the response body so the UI can render them.
+    """
+    from app.services.external_http_agent import test_http_agent_endpoint
+    result = await test_http_agent_endpoint(
+        http_endpoint=body.http_endpoint,
+        http_auth_header=body.http_auth_header,
+        http_timeout_seconds=body.http_timeout_seconds,
+        sample_message=body.sample_message,
+    )
+    return TestHttpAgentResponse(**result)
+
+
+@router.post("/{config_id}/test-http", response_model=TestHttpAgentResponse)
+async def test_saved_http_agent(config_id: int, db: Session = Depends(get_db)):
+    """Test the endpoint stored on an already-saved HTTP agent config."""
+    c = _get_config_or_404(db, config_id)
+    if (getattr(c, "agent_type", "builtin") or "builtin") != "http":
+        raise HTTPException(400, "This agent is not configured as an external HTTP agent")
+    if not c.http_endpoint:
+        raise HTTPException(400, "Agent has no http_endpoint configured")
+    from app.services.external_http_agent import test_http_agent_endpoint
+    result = await test_http_agent_endpoint(
+        http_endpoint=c.http_endpoint,
+        http_auth_header=c.http_auth_header,
+        http_timeout_seconds=c.http_timeout_seconds or 30,
+    )
+    return TestHttpAgentResponse(**result)
 
 
 # ── AI Enhance endpoints ─────────────────────────────────────────────

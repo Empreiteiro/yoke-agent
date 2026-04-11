@@ -416,23 +416,44 @@ async def _run_single_conversation(
 
     start_time = time.time()
 
+    # Fetch the config once — we need its agent_type to decide between
+    # running a local LangChain LLM or calling an external HTTP endpoint.
+    config = db.query(AgentConfig).filter(AgentConfig.id == variant.agent_config_id).first()
+    agent_type = getattr(config, "agent_type", "builtin") or "builtin"
+    is_http_agent = agent_type == "http"
+
     # Agent LLM — runs in isolation so the user's personal MCP servers,
     # plugins, skills, and CLAUDE.md files never leak into simulations.
-    agent_llm = get_llm(db, model=model, temperature=temperature, isolated=True)
+    # For HTTP agents we skip the LangChain LLM entirely: the external
+    # endpoint IS the agent-under-test, and a local LLM would just waste
+    # tokens.
+    agent_llm = None
+    if not is_http_agent:
+        agent_llm = get_llm(db, model=model, temperature=temperature, isolated=True)
     # Resolve the provider powering this combination so every simulation
-    # call can be attributed to it in the token usage logs.
-    try:
-        agent_provider = resolve_provider(db, capability="llm", model=model)
-        agent_provider_name = agent_provider.name
-    except Exception:
-        agent_provider_name = "unknown"
+    # call can be attributed to it in the token usage logs. HTTP agents
+    # have no local provider, so we label them explicitly.
+    if is_http_agent:
+        agent_provider_name = "external_http"
+    else:
+        try:
+            agent_provider = resolve_provider(db, capability="llm", model=model)
+            agent_provider_name = agent_provider.name
+        except Exception:
+            agent_provider_name = "unknown"
 
     # Build the agent's sandboxed system prompt: the user-authored variant
     # prompt + the sandbox instructions with the fictitious tool catalog.
-    config = db.query(AgentConfig).filter(AgentConfig.id == variant.agent_config_id).first()
+    # For HTTP agents the sandbox prompt is only forwarded as a courtesy —
+    # the external agent is free to ignore it. Most production agents use
+    # their own system prompt, but the sandbox text still gives them the
+    # tool catalog so they know what `tool_calls` to return.
     tool_catalog = _build_tool_catalog(config.tools if config else None)
     sandbox_instructions = SANDBOX_INSTRUCTIONS_TEMPLATE.format(tool_catalog=tool_catalog)
-    sandboxed_system_prompt = (variant.system_prompt or "") + sandbox_instructions
+    if is_http_agent:
+        sandboxed_system_prompt = sandbox_instructions.strip()
+    else:
+        sandboxed_system_prompt = (variant.system_prompt or "") + sandbox_instructions
 
     # Build agent messages
     agent_messages = [SystemMessage(content=sandboxed_system_prompt)]
@@ -481,33 +502,74 @@ async def _run_single_conversation(
         })
         agent_messages.append(HumanMessage(content=user_message))
 
-        # Agent responds (with per-call timeout)
-        agent_response = await asyncio.wait_for(
-            agent_llm.ainvoke(agent_messages),
-            timeout=PER_CALL_TIMEOUT,
-        )
-        agent_text = agent_response.content if hasattr(agent_response, "content") else str(agent_response)
+        # Agent responds (with per-call timeout).
+        # Two branches:
+        #   - built-in: ask the configured LangChain LLM
+        #   - http:     POST to the external agent's endpoint (issue #169)
+        if is_http_agent:
+            from app.services.external_http_agent import (
+                ExternalAgentError,
+                invoke_http_agent,
+            )
+            try:
+                http_result = await asyncio.wait_for(
+                    invoke_http_agent(
+                        config,
+                        agent_messages,
+                        scenario=scenario,
+                        persona=persona,
+                        session_id=f"{combination.id}-{interaction_idx}",
+                        turn=turns,
+                        variant_name=getattr(variant, "variant_name", None),
+                    ),
+                    timeout=PER_CALL_TIMEOUT,
+                )
+            except ExternalAgentError as e:
+                terminated_by = "error"
+                recorded_messages.append({
+                    "role": "system",
+                    "content": f"External HTTP agent error: {e}",
+                    "turn": turns,
+                    "timestamp": datetime.utcnow().isoformat(),
+                })
+                break
+            agent_text = http_result.get("content") or ""
+            # tool_calls reported explicitly by the external agent are
+            # authoritative — if present, we trust them and skip the
+            # TOOL_CALL: regex fallback. Otherwise we let the built-in
+            # parser run below so text-only agents still work.
+            explicit_tool_calls = http_result.get("tool_calls") or []
+            agent_response = None  # no LangChain response object for token logging
+        else:
+            agent_response = await asyncio.wait_for(
+                agent_llm.ainvoke(agent_messages),
+                timeout=PER_CALL_TIMEOUT,
+            )
+            agent_text = agent_response.content if hasattr(agent_response, "content") else str(agent_response)
+            explicit_tool_calls = []
 
         # Log token usage for the agent-under-test call. This is the LLM
         # consuming the real budget during experiments — we want every
-        # turn attributed to the combination.
-        try:
-            log_llm_response(
-                db=db,
-                response=agent_response,
-                operation="agent_simulation",
-                provider_name=agent_provider_name,
-                model_name=model,
-                experiment_id=combination.experiment_id,
-                combination_id=combination.id,
-                metadata={"sub_operation": "agent_under_test", "turn": turns},
-                prompt_text="\n".join(
-                    getattr(m, "content", "") or ""
-                    for m in agent_messages
-                ),
-            )
-        except Exception as log_err:
-            logger.debug(f"Failed to log agent simulation token usage: {log_err}")
+        # turn attributed to the combination. HTTP agents have no local
+        # LLM response object, so skip the logger (no tokens to count).
+        if agent_response is not None:
+            try:
+                log_llm_response(
+                    db=db,
+                    response=agent_response,
+                    operation="agent_simulation",
+                    provider_name=agent_provider_name,
+                    model_name=model,
+                    experiment_id=combination.experiment_id,
+                    combination_id=combination.id,
+                    metadata={"sub_operation": "agent_under_test", "turn": turns},
+                    prompt_text="\n".join(
+                        getattr(m, "content", "") or ""
+                        for m in agent_messages
+                    ),
+                )
+            except Exception as log_err:
+                logger.debug(f"Failed to log agent simulation token usage: {log_err}")
 
         recorded_messages.append({
             "role": "assistant",
@@ -517,10 +579,14 @@ async def _run_single_conversation(
         })
         agent_messages.append(AIMessage(content=agent_text))
 
-        # Parse TOOL_CALL: lines from the agent's response — this is the
-        # structured signal the agent emits to describe its tool decisions
-        # inside the simulation sandbox (where no real tool ever runs).
-        parsed = _parse_tool_calls(agent_text)
+        # Tool calls: HTTP agents may report them explicitly via the
+        # `tool_calls` response field; when they do, we use that list as-is.
+        # Otherwise (and always for built-in agents) we fall back to
+        # parsing TOOL_CALL: lines from the response text.
+        if explicit_tool_calls:
+            parsed = explicit_tool_calls
+        else:
+            parsed = _parse_tool_calls(agent_text)
         for inv in parsed:
             inv["turn"] = turns
             inv["timestamp"] = datetime.utcnow().isoformat()

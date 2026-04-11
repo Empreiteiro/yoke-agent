@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Bot, Plus, X, Loader2, AlertCircle, Save, Sparkles, Trash2, Wrench, ShieldCheck, Wand2, ChevronDown, ChevronRight } from "lucide-react";
+import { Bot, Plus, X, Loader2, AlertCircle, Save, Sparkles, Trash2, Wrench, ShieldCheck, Wand2, ChevronDown, ChevronRight, Globe, Cpu, CheckCircle2, Zap } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepAgentDefineProps {
@@ -75,6 +75,21 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
   const [enhancingDescription, setEnhancingDescription] = useState(false);
   const [suggestingTools, setSuggestingTools] = useState(false);
   const [showToolPicker, setShowToolPicker] = useState(false);
+  // External HTTP agent (issue #169)
+  const [agentType, setAgentType] = useState<"builtin" | "http">("builtin");
+  const [httpEndpoint, setHttpEndpoint] = useState("");
+  const [httpAuthHeader, setHttpAuthHeader] = useState("");
+  const [httpTimeoutSeconds, setHttpTimeoutSeconds] = useState<number>(60);
+  const [testingHttp, setTestingHttp] = useState(false);
+  const [httpTestResult, setHttpTestResult] = useState<null | {
+    ok: boolean;
+    status_code?: number;
+    response_preview?: string;
+    detected_format?: string;
+    tool_calls_detected?: number;
+    latency_ms?: number;
+    error?: string;
+  }>(null);
 
   const loadConfigs = useCallback(async () => {
     try {
@@ -105,6 +120,11 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
         }))
       );
       setConstraints(data.constraints || []);
+      setAgentType((data.agent_type as "builtin" | "http") || "builtin");
+      setHttpEndpoint(data.http_endpoint || "");
+      setHttpAuthHeader(data.http_auth_header || "");
+      setHttpTimeoutSeconds(data.http_timeout_seconds ?? 60);
+      setHttpTestResult(null);
       setSelectedConfigId(id);
       const v = await api.listPromptVariants(id);
       setVariants(v);
@@ -122,6 +142,11 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
     setConstraints([]);
     setNewConstraint("");
     setVariants([]);
+    setAgentType("builtin");
+    setHttpEndpoint("");
+    setHttpAuthHeader("");
+    setHttpTimeoutSeconds(60);
+    setHttpTestResult(null);
     setError(null);
   };
 
@@ -130,10 +155,25 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
       setError("Name is required");
       return;
     }
+    if (agentType === "builtin" && !systemPrompt.trim()) {
+      setError("System prompt is required for built-in agents");
+      return;
+    }
+    if (agentType === "http") {
+      const ep = httpEndpoint.trim();
+      if (!ep) {
+        setError("HTTP endpoint is required for external agents");
+        return;
+      }
+      if (!/^https?:\/\//i.test(ep)) {
+        setError("HTTP endpoint must start with http:// or https://");
+        return;
+      }
+    }
     setSaving(true);
     setError(null);
     try {
-      const payload = {
+      const payload: any = {
         name: name.trim(),
         description: description.trim(),
         system_prompt: systemPrompt,
@@ -143,7 +183,13 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
           parameters: (() => { try { return JSON.parse(t.parameters); } catch { return {}; } })(),
         })),
         constraints,
+        agent_type: agentType,
       };
+      if (agentType === "http") {
+        payload.http_endpoint = httpEndpoint.trim();
+        payload.http_auth_header = httpAuthHeader.trim() || null;
+        payload.http_timeout_seconds = httpTimeoutSeconds;
+      }
       let config;
       if (selectedConfigId) {
         config = await api.updateAgentConfig(selectedConfigId, payload);
@@ -157,6 +203,28 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
       setError(err.message || "Failed to save agent config");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestHttp = async () => {
+    const ep = httpEndpoint.trim();
+    if (!ep) {
+      setHttpTestResult({ ok: false, error: "HTTP endpoint is required" });
+      return;
+    }
+    setTestingHttp(true);
+    setHttpTestResult(null);
+    try {
+      const result = await api.testHttpAgentEndpoint({
+        http_endpoint: ep,
+        http_auth_header: httpAuthHeader.trim() || undefined,
+        http_timeout_seconds: Math.min(httpTimeoutSeconds || 30, 300),
+      });
+      setHttpTestResult(result);
+    } catch (err: any) {
+      setHttpTestResult({ ok: false, error: err.message || "Test failed" });
+    } finally {
+      setTestingHttp(false);
     }
   };
 
@@ -357,10 +425,143 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
               />
             </div>
 
-            {/* System Prompt */}
+            {/* Agent type selector (issue #169) */}
             <div className="rounded-xl border border-visible p-4">
+              <label className="block text-sm font-medium text-t-hover mb-1">Agent Type</label>
+              <p className="text-xs text-muted mb-3">
+                Run the evaluation against a prompt-defined LLM here, or point it at an agent you&apos;ve already built behind an HTTP endpoint.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAgentType("builtin")}
+                  className={`flex items-start gap-3 p-3 rounded-lg border text-left transition-colors ${
+                    agentType === "builtin"
+                      ? "bg-accent/10 border-accent"
+                      : "bg-surface-50 border-visible hover:border-accent/40"
+                  }`}
+                >
+                  <Cpu className={`w-4 h-4 mt-0.5 flex-shrink-0 ${agentType === "builtin" ? "text-accent" : "text-t-secondary"}`} />
+                  <div>
+                    <p className={`text-sm font-medium ${agentType === "builtin" ? "text-accent" : "text-primary"}`}>Built-in (prompt + tools)</p>
+                    <p className="text-xs text-muted mt-0.5">Yoke runs a LangChain LLM with the system prompt and fictitious tools you define below.</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAgentType("http")}
+                  className={`flex items-start gap-3 p-3 rounded-lg border text-left transition-colors ${
+                    agentType === "http"
+                      ? "bg-accent/10 border-accent"
+                      : "bg-surface-50 border-visible hover:border-accent/40"
+                  }`}
+                >
+                  <Globe className={`w-4 h-4 mt-0.5 flex-shrink-0 ${agentType === "http" ? "text-accent" : "text-t-secondary"}`} />
+                  <div>
+                    <p className={`text-sm font-medium ${agentType === "http" ? "text-accent" : "text-primary"}`}>External HTTP agent</p>
+                    <p className="text-xs text-muted mt-0.5">Yoke POSTs each turn to your endpoint. Test your production agent without re-implementing it.</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* HTTP agent config (issue #169) */}
+            {agentType === "http" && (
+              <div className="rounded-xl border border-visible p-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-t-hover mb-1">HTTP Endpoint</label>
+                  <p className="text-xs text-muted mb-2">
+                    POST URL that accepts the Yoke chat payload (see docs). OpenAI-compatible chat-completion endpoints also work.
+                  </p>
+                  <input
+                    type="text"
+                    value={httpEndpoint}
+                    onChange={(e) => { setHttpEndpoint(e.target.value); setHttpTestResult(null); }}
+                    placeholder="https://api.example.com/agent/chat"
+                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-t-hover mb-1">Auth Header (optional)</label>
+                  <p className="text-xs text-muted mb-2">
+                    Either <code className="text-t-hover">Bearer &lt;token&gt;</code> (sent as <code className="text-t-hover">Authorization</code>) or a full <code className="text-t-hover">Header-Name: value</code> pair.
+                  </p>
+                  <input
+                    type="text"
+                    value={httpAuthHeader}
+                    onChange={(e) => { setHttpAuthHeader(e.target.value); setHttpTestResult(null); }}
+                    placeholder="Bearer sk-..."
+                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-t-hover mb-1">Timeout (seconds)</label>
+                  <p className="text-xs text-muted mb-2">Max wait per turn before the simulation marks it as failed.</p>
+                  <input
+                    type="number"
+                    min={1}
+                    max={600}
+                    value={httpTimeoutSeconds}
+                    onChange={(e) => setHttpTimeoutSeconds(parseInt(e.target.value || "60", 10))}
+                    className="w-32 px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleTestHttp}
+                    disabled={testingHttp || !httpEndpoint.trim()}
+                    className="flex items-center gap-2 px-3 py-2 text-xs bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {testingHttp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                    Test connection
+                  </button>
+                  {httpTestResult && (
+                    <span className="text-xs text-muted">
+                      {httpTestResult.ok
+                        ? `${httpTestResult.latency_ms ?? "—"} ms`
+                        : ""}
+                    </span>
+                  )}
+                </div>
+
+                {httpTestResult && httpTestResult.ok && (
+                  <div className="flex items-start gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                    <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-green-300 space-y-1 min-w-0 flex-1">
+                      <p>
+                        <span className="font-medium">Connection OK</span> · status {httpTestResult.status_code ?? "—"} · format:{" "}
+                        <span className="font-mono">{httpTestResult.detected_format ?? "unknown"}</span>
+                        {" · "}tool_calls detected: {httpTestResult.tool_calls_detected ?? 0}
+                      </p>
+                      {httpTestResult.response_preview && (
+                        <pre className="whitespace-pre-wrap break-all bg-surface-100/50 rounded p-2 border border-visible text-t-secondary max-h-32 overflow-y-auto">
+                          {httpTestResult.response_preview}
+                        </pre>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {httpTestResult && !httpTestResult.ok && (
+                  <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-red-300 space-y-1 min-w-0 flex-1">
+                      <p className="font-medium">Connection failed</p>
+                      <p className="font-mono break-all">{httpTestResult.error || "Unknown error"}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* System Prompt */}
+            <div className={`rounded-xl border border-visible p-4 ${agentType === "http" ? "opacity-60" : ""}`}>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-t-hover">System Prompt</label>
+                <label className="block text-sm font-medium text-t-hover">
+                  System Prompt
+                  {agentType === "http" && <span className="ml-2 text-[10px] text-muted font-normal">(optional for HTTP agents)</span>}
+                </label>
                 <button
                   onClick={handleEnhancePrompt}
                   disabled={enhancingPrompt || !systemPrompt.trim()}

@@ -21,11 +21,17 @@ class AgentConfig(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
-    system_prompt = Column(Text, nullable=False)
+    # system_prompt is required for built-in agents, optional for HTTP agents
+    system_prompt = Column(Text, nullable=True)
     tools = Column(JSON, default=list)           # [{name, description, parameters}]
     constraints = Column(JSON, default=list)     # ["Never share pricing", ...]
     variables = Column(JSON, default=dict)       # {var_name: description}
     metadata_ = Column("metadata", JSON, default=dict)
+    # External HTTP agent integration (issue #169)
+    agent_type = Column(String(20), default="builtin", nullable=False)  # "builtin" | "http"
+    http_endpoint = Column(String(1024))                 # https://example.com/agent/chat
+    http_auth_header = Column(String(1024))              # e.g. "Bearer <token>"
+    http_timeout_seconds = Column(Integer, default=60)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

@@ -523,19 +523,30 @@ def get_agent_config(config_id: int) -> dict:
 @_register
 def create_agent_config(
     name: str,
-    system_prompt: str,
+    system_prompt: str = "",
     description: str = "",
     tools: list[dict] | None = None,
     constraints: list[str] | None = None,
+    agent_type: str = "builtin",
+    http_endpoint: str = "",
+    http_auth_header: str = "",
+    http_timeout_seconds: int = 60,
 ) -> dict:
     """Create a new agent configuration.
 
     Args:
         name: Short name for the agent.
-        system_prompt: The agent's system prompt.
+        system_prompt: The agent's system prompt (required for builtin, optional for http).
         description: Optional description.
         tools: Optional list of tool definitions: [{"name": "...", "description": "...", "parameters": {...}}].
         constraints: Optional list of plain-text constraints / safety rules.
+        agent_type: "builtin" (default, Yoke runs an LLM with the prompt) or "http"
+            (Yoke calls an external HTTP endpoint each turn).
+        http_endpoint: Required when agent_type="http". POST URL that accepts the
+            Yoke chat payload; OpenAI-compatible chat-completion endpoints also work.
+        http_auth_header: Optional auth header for the HTTP endpoint — either
+            "Bearer <token>" or a full "Header-Name: value" pair.
+        http_timeout_seconds: Per-turn timeout for HTTP agents (1-600). Default 60.
     """
     return _yoke.create_agent_config(
         name=name,
@@ -543,6 +554,10 @@ def create_agent_config(
         description=description,
         tools=tools,
         constraints=constraints,
+        agent_type=agent_type,
+        http_endpoint=http_endpoint or None,
+        http_auth_header=http_auth_header or None,
+        http_timeout_seconds=http_timeout_seconds,
     )
 
 
@@ -554,12 +569,20 @@ def update_agent_config(
     system_prompt: str = "",
     tools: list[dict] | None = None,
     constraints: list[str] | None = None,
+    agent_type: str = "",
+    http_endpoint: str = "",
+    http_auth_header: str = "",
+    http_timeout_seconds: int = 0,
 ) -> dict:
     """Update an agent configuration. Only non-empty / non-None fields
     are sent.
 
     Args:
         config_id: The agent config to update.
+        agent_type: Optional — "builtin" or "http". Leave empty to keep current.
+        http_endpoint: Optional — update the external HTTP endpoint.
+        http_auth_header: Optional — update the auth header.
+        http_timeout_seconds: Optional — update the per-turn timeout. 0 = keep current.
     """
     return _yoke.update_agent_config(
         config_id,
@@ -568,6 +591,10 @@ def update_agent_config(
         system_prompt=system_prompt,
         tools=tools,
         constraints=constraints,
+        agent_type=agent_type or None,
+        http_endpoint=http_endpoint or None,
+        http_auth_header=http_auth_header or None,
+        http_timeout_seconds=http_timeout_seconds if http_timeout_seconds > 0 else None,
     )
 
 
@@ -579,6 +606,45 @@ def delete_agent_config(config_id: int) -> dict:
         config_id: The agent config to delete.
     """
     return _yoke.delete_agent_config(config_id)
+
+
+@_register
+def test_http_agent_endpoint(
+    http_endpoint: str,
+    http_auth_header: str = "",
+    http_timeout_seconds: int = 30,
+    sample_message: str = "Hello, this is a connection test from Yoke Agent.",
+) -> dict:
+    """Test connectivity to an external HTTP agent endpoint (issue #169).
+
+    Fires a single POST and reports status, latency, detected response
+    format ("native", "openai", or "text"), and how many tool_calls were
+    detected. Use this before creating an HTTP agent config so you can
+    validate the endpoint and auth first.
+
+    Args:
+        http_endpoint: POST URL to hit (must start with http:// or https://).
+        http_auth_header: Optional auth header — "Bearer <token>" or
+            "Header-Name: value".
+        http_timeout_seconds: Timeout in seconds (1-300). Default 30.
+        sample_message: Test user message sent to the endpoint.
+    """
+    return _yoke.test_http_agent_endpoint(
+        http_endpoint=http_endpoint,
+        http_auth_header=http_auth_header or None,
+        http_timeout_seconds=http_timeout_seconds,
+        sample_message=sample_message,
+    )
+
+
+@_register
+def test_saved_http_agent(config_id: int) -> dict:
+    """Test the stored HTTP endpoint of an already-saved agent config.
+
+    Args:
+        config_id: The agent config ID (must have agent_type="http").
+    """
+    return _yoke.test_saved_http_agent(config_id)
 
 
 # ─── Agent Workbench: Prompt Variants ────────────────────
