@@ -9,14 +9,19 @@ from app.models.provider import Provider
 
 # Models that accept the "flex" service tier. Used to pre-flight test
 # calls so we don't issue a flex request against a model the upstream
-# API will reject (every non-flex model returns "service_tier 'flex'
-# is not supported for this model" rather than silently downgrading).
+# API will reject (non-flex models return either "service_tier 'flex'
+# is not supported for this model" or the more generic "Invalid
+# service_tier argument" rather than silently downgrading).
 #
-# OpenAI flex: reasoning models (o3*, o4-mini*) plus the gpt-4.1 / gpt-5
-# lineage. Source: https://platform.openai.com/docs/guides/flex-processing
+# OpenAI flex: o3, o4-mini, and the gpt-5 family (gpt-5, gpt-5-mini,
+# gpt-5-nano). gpt-4.1 was once listed in early previews but the GA
+# flex SKU does NOT cover it — using flex against gpt-4.1 returns
+# "Invalid service_tier argument".
+# Source: https://platform.openai.com/docs/guides/flex-processing
+#
 # Google flex: gemini-2.5-* family and the gemini-3.x preview lineage.
 # Source: https://ai.google.dev/gemini-api/docs/flex-processing
-_OPENAI_FLEX_PREFIXES = ("o3", "o4-mini", "gpt-4.1", "gpt-5")
+_OPENAI_FLEX_PREFIXES = ("o3", "o4-mini", "gpt-5")
 _GOOGLE_FLEX_PREFIXES = ("gemini-2.5", "gemini-3")
 
 # OpenAI reasoning models reject any custom ``temperature`` (and
