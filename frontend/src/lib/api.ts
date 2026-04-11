@@ -248,6 +248,33 @@ export const api = {
   deleteAgentConfig: (id: number) =>
     request<any>(`/agent/configs/${id}`, { method: "DELETE" }),
 
+  // External HTTP agents (issue #169)
+  testHttpAgentEndpoint: (data: {
+    http_endpoint: string;
+    http_auth_header?: string;
+    http_timeout_seconds?: number;
+    sample_message?: string;
+  }) =>
+    request<{
+      ok: boolean;
+      status_code?: number;
+      response_preview?: string;
+      detected_format?: string;
+      tool_calls_detected: number;
+      latency_ms?: number;
+      error?: string;
+    }>("/agent/configs/test-http", { method: "POST", body: JSON.stringify(data) }),
+  testSavedHttpAgent: (configId: number) =>
+    request<{
+      ok: boolean;
+      status_code?: number;
+      response_preview?: string;
+      detected_format?: string;
+      tool_calls_detected: number;
+      latency_ms?: number;
+      error?: string;
+    }>(`/agent/configs/${configId}/test-http`, { method: "POST" }),
+
   // AI Enhance
   enhancePrompt: (data: { text: string; context?: string }) =>
     request<{ result: string }>("/agent/configs/enhance/prompt", { method: "POST", body: JSON.stringify(data) }),

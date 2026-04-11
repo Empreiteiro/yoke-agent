@@ -1,10 +1,13 @@
 """Pydantic schemas for the Agent Evaluation Pipeline."""
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field, model_validator
+from typing import Literal, Optional
 from datetime import datetime
 
 
 # ── Agent Config ──────────────────────────────────────────────────────
+
+
+AgentType = Literal["builtin", "http"]
 
 
 class ToolDefinition(BaseModel):
@@ -16,11 +19,29 @@ class ToolDefinition(BaseModel):
 class AgentConfigCreate(BaseModel):
     name: str
     description: Optional[str] = None
-    system_prompt: str
+    # system_prompt is required for built-in agents, optional for HTTP agents
+    system_prompt: Optional[str] = None
     tools: list[ToolDefinition] = []
     constraints: list[str] = []
     variables: dict = {}
     metadata: dict = {}
+    # External HTTP agent (issue #169)
+    agent_type: AgentType = "builtin"
+    http_endpoint: Optional[str] = None
+    http_auth_header: Optional[str] = None
+    http_timeout_seconds: int = Field(60, ge=1, le=600)
+
+    @model_validator(mode="after")
+    def _validate_agent_type(self):
+        if self.agent_type == "builtin":
+            if not self.system_prompt or not self.system_prompt.strip():
+                raise ValueError("system_prompt is required for built-in agents")
+        elif self.agent_type == "http":
+            if not self.http_endpoint or not self.http_endpoint.strip():
+                raise ValueError("http_endpoint is required for external HTTP agents")
+            if not self.http_endpoint.startswith(("http://", "https://")):
+                raise ValueError("http_endpoint must start with http:// or https://")
+        return self
 
 
 class AgentConfigUpdate(BaseModel):
@@ -31,17 +52,25 @@ class AgentConfigUpdate(BaseModel):
     constraints: Optional[list[str]] = None
     variables: Optional[dict] = None
     metadata: Optional[dict] = None
+    agent_type: Optional[AgentType] = None
+    http_endpoint: Optional[str] = None
+    http_auth_header: Optional[str] = None
+    http_timeout_seconds: Optional[int] = Field(None, ge=1, le=600)
 
 
 class AgentConfigResponse(BaseModel):
     id: int
     name: str
     description: Optional[str]
-    system_prompt: str
+    system_prompt: Optional[str]
     tools: list
     constraints: list
     variables: dict
     metadata: dict
+    agent_type: AgentType = "builtin"
+    http_endpoint: Optional[str] = None
+    http_auth_header: Optional[str] = None  # returned so UI can show it (consider masking upstream)
+    http_timeout_seconds: Optional[int] = None
     created_at: datetime
     updated_at: datetime
     prompt_variant_count: int = 0
@@ -50,6 +79,27 @@ class AgentConfigResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ── External HTTP agent test ───────────────────────────────────────────
+
+
+class TestHttpAgentRequest(BaseModel):
+    """Ad-hoc connectivity test for an HTTP endpoint (used before saving)."""
+    http_endpoint: str
+    http_auth_header: Optional[str] = None
+    http_timeout_seconds: int = Field(30, ge=1, le=300)
+    sample_message: str = "Hello, this is a connection test from Yoke Agent."
+
+
+class TestHttpAgentResponse(BaseModel):
+    ok: bool
+    status_code: Optional[int] = None
+    response_preview: Optional[str] = None
+    detected_format: Optional[str] = None  # "native" | "openai" | "text"
+    tool_calls_detected: int = 0
+    latency_ms: Optional[int] = None
+    error: Optional[str] = None
 
 
 # ── Prompt Variants ───────────────────────────────────────────────────

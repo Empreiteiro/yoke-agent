@@ -357,18 +357,33 @@ class YokeClient:
     def create_agent_config(
         self,
         name: str,
-        system_prompt: str,
+        system_prompt: str = "",
         description: str = "",
         tools: Optional[list[dict]] = None,
         constraints: Optional[list[str]] = None,
+        agent_type: str = "builtin",
+        http_endpoint: Optional[str] = None,
+        http_auth_header: Optional[str] = None,
+        http_timeout_seconds: int = 60,
     ) -> dict:
-        payload = {
+        """Create an agent config.
+
+        For built-in agents, pass `system_prompt` (required). For external
+        HTTP agents, pass `agent_type="http"` plus `http_endpoint` — the
+        server will accept an empty `system_prompt`.
+        """
+        payload: dict = {
             "name": name,
             "system_prompt": system_prompt,
             "description": description or None,
             "tools": tools or [],
             "constraints": constraints or [],
+            "agent_type": agent_type,
         }
+        if agent_type == "http":
+            payload["http_endpoint"] = http_endpoint
+            payload["http_auth_header"] = http_auth_header
+            payload["http_timeout_seconds"] = http_timeout_seconds
         return self._post("/agent/configs/", json=payload)
 
     def update_agent_config(
@@ -379,6 +394,10 @@ class YokeClient:
         system_prompt: str = "",
         tools: Optional[list[dict]] = None,
         constraints: Optional[list[str]] = None,
+        agent_type: Optional[str] = None,
+        http_endpoint: Optional[str] = None,
+        http_auth_header: Optional[str] = None,
+        http_timeout_seconds: Optional[int] = None,
     ) -> dict:
         payload: dict = {}
         if name:
@@ -391,10 +410,42 @@ class YokeClient:
             payload["tools"] = tools
         if constraints is not None:
             payload["constraints"] = constraints
+        if agent_type is not None:
+            payload["agent_type"] = agent_type
+        if http_endpoint is not None:
+            payload["http_endpoint"] = http_endpoint
+        if http_auth_header is not None:
+            payload["http_auth_header"] = http_auth_header
+        if http_timeout_seconds is not None:
+            payload["http_timeout_seconds"] = http_timeout_seconds
         return self._put(f"/agent/configs/{config_id}", json=payload)
 
     def delete_agent_config(self, config_id: int) -> dict:
         return self._delete(f"/agent/configs/{config_id}")
+
+    def test_http_agent_endpoint(
+        self,
+        http_endpoint: str,
+        http_auth_header: Optional[str] = None,
+        http_timeout_seconds: int = 30,
+        sample_message: str = "Hello, this is a connection test from Yoke Agent.",
+    ) -> dict:
+        """Fire a single test call against an arbitrary HTTP agent endpoint.
+
+        Returns `{ok, status_code, detected_format, tool_calls_detected, ...}`.
+        Used before saving an HTTP-agent config to validate the endpoint.
+        """
+        payload = {
+            "http_endpoint": http_endpoint,
+            "http_auth_header": http_auth_header,
+            "http_timeout_seconds": http_timeout_seconds,
+            "sample_message": sample_message,
+        }
+        return self._post("/agent/configs/test-http", json=payload)
+
+    def test_saved_http_agent(self, config_id: int) -> dict:
+        """Test the stored HTTP endpoint of an already-saved agent config."""
+        return self._post(f"/agent/configs/{config_id}/test-http")
 
     # ── agent workbench: prompt variants ────────────────────────────
 
