@@ -7,6 +7,7 @@ class Experiment(Base):
     __tablename__ = "experiments"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
     dataset_id = Column(Integer, ForeignKey("datasets.id"), nullable=False)

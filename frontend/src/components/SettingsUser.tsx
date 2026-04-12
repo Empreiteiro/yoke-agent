@@ -1,7 +1,8 @@
 "use client";
 
-import { User, Sun, Moon, Zap } from "lucide-react";
+import { User, Sun, Moon, Zap, LogOut } from "lucide-react";
 import { useTheme, Theme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 const THEMES: { key: Theme; icon: any; label: string; description: string }[] = [
@@ -12,6 +13,7 @@ const THEMES: { key: Theme; icon: any; label: string; description: string }[] = 
 
 export default function SettingsUser() {
   const { theme, setTheme } = useTheme();
+  const { user, logout } = useAuth();
 
   return (
     <div className="space-y-8">
@@ -30,6 +32,29 @@ export default function SettingsUser() {
           </p>
         </div>
       </div>
+
+      {/* Account (issue #123) */}
+      {user && (
+        <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-primary">Account</h3>
+            <p className="text-xs text-t-secondary mt-1">
+              Signed in as <span className="text-primary font-medium">{user.email}</span> · role:{" "}
+              <span className="text-accent capitalize">{user.role}</span>
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              logout();
+              window.location.reload();
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-t-secondary border border-visible rounded-lg hover:text-red-400 hover:border-red-500/40 transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Sign out
+          </button>
+        </div>
+      )}
 
       {/* ─── Appearance ─── */}
       <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">

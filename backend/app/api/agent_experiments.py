@@ -1,12 +1,13 @@
 """API endpoints for Agent Experiments, Interaction Datasets, Simulations, and Results."""
 import itertools
 import logging
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sqlfunc
 
 from app.core.database import get_db
+from app.core.tenancy import assert_can_access, current_user_id, scope_query
 from app.models.agent import (
     AgentConfig, PromptVariant, Scenario, Persona,
     InteractionDataset, InteractionDatasetItem,
@@ -292,8 +293,9 @@ async def _generate_dataset_bg(dataset_id: int, body: GenerateDatasetRequest):
 # ══════════════════════════════════════════════════════════════════════
 
 @router.get("/experiments", response_model=list[AgentExperimentResponse])
-def list_experiments(db: Session = Depends(get_db)):
-    exps = db.query(AgentExperiment).order_by(AgentExperiment.updated_at.desc()).all()
+def list_experiments(request: Request, db: Session = Depends(get_db)):
+    q = scope_query(request, db.query(AgentExperiment), AgentExperiment)
+    exps = q.order_by(AgentExperiment.updated_at.desc()).all()
     result = []
     for e in exps:
         result.append(AgentExperimentResponse(
@@ -307,7 +309,7 @@ def list_experiments(db: Session = Depends(get_db)):
 
 
 @router.post("/experiments", response_model=AgentExperimentResponse, status_code=201)
-def create_experiment(body: AgentExperimentCreate, db: Session = Depends(get_db)):
+def create_experiment(body: AgentExperimentCreate, request: Request, db: Session = Depends(get_db)):
     config = db.query(AgentConfig).filter(AgentConfig.id == body.agent_config_id).first()
     if not config:
         raise HTTPException(404, "Agent config not found")
@@ -319,6 +321,7 @@ def create_experiment(body: AgentExperimentCreate, db: Session = Depends(get_db)
         dataset_id=body.dataset_id,
         grid_config=body.grid_config.model_dump(),
         status="configured",
+        user_id=current_user_id(request),
     )
     db.add(exp)
     db.flush()
@@ -377,10 +380,11 @@ def create_experiment(body: AgentExperimentCreate, db: Session = Depends(get_db)
 
 
 @router.get("/experiments/{exp_id}", response_model=AgentExperimentResponse)
-def get_experiment(exp_id: int, db: Session = Depends(get_db)):
+def get_experiment(exp_id: int, request: Request, db: Session = Depends(get_db)):
     e = db.query(AgentExperiment).filter(AgentExperiment.id == exp_id).first()
     if not e:
         raise HTTPException(404, "Experiment not found")
+    assert_can_access(request, e)
     return AgentExperimentResponse(
         id=e.id, name=e.name, description=e.description,
         agent_config_id=e.agent_config_id, dataset_id=e.dataset_id,
@@ -391,10 +395,11 @@ def get_experiment(exp_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/experiments/{exp_id}", status_code=204)
-def delete_experiment(exp_id: int, db: Session = Depends(get_db)):
+def delete_experiment(exp_id: int, request: Request, db: Session = Depends(get_db)):
     e = db.query(AgentExperiment).filter(AgentExperiment.id == exp_id).first()
     if not e:
         raise HTTPException(404, "Experiment not found")
+    assert_can_access(request, e)
     db.delete(e)
     db.commit()
 

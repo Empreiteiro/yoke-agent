@@ -1,5 +1,6 @@
 const API_BASE = "/api";
 const API_KEY_STORAGE_KEY = "rag-api-key";
+const JWT_STORAGE_KEY = "rag-jwt";
 
 export function getStoredApiKey(): string {
   if (typeof window === "undefined") return "";
@@ -15,7 +16,24 @@ export function setStoredApiKey(key: string) {
   }
 }
 
+export function getStoredJwt(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(JWT_STORAGE_KEY) || "";
+}
+
+export function setStoredJwt(token: string) {
+  if (typeof window === "undefined") return;
+  if (token) {
+    localStorage.setItem(JWT_STORAGE_KEY, token);
+  } else {
+    localStorage.removeItem(JWT_STORAGE_KEY);
+  }
+}
+
 function authHeaders(): Record<string, string> {
+  // JWT takes priority over the long-lived API key when both are present.
+  const jwt = getStoredJwt();
+  if (jwt) return { Authorization: `Bearer ${jwt}` };
   const key = getStoredApiKey();
   return key ? { "X-API-Key": key } : {};
 }
@@ -232,6 +250,27 @@ export const api = {
     request<any>("/auth/keys", { method: "POST", body: JSON.stringify({ name }) }),
   deleteApiKey: (id: number) =>
     request<any>(`/auth/keys/${id}`, { method: "DELETE" }),
+
+  // Users / sessions (issue #123)
+  register: (email: string, password: string) =>
+    request<any>("/users/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  login: (email: string, password: string) =>
+    request<any>("/users/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  getMe: () => request<any>("/users/me"),
+  listUsers: () => request<any[]>("/users/"),
+  updateUserRole: (userId: number, role: "admin" | "user" | "viewer") =>
+    request<any>(`/users/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+  listAuditLogs: (limit = 200) =>
+    request<any[]>(`/users/audit-logs?limit=${limit}`),
 
   // MCP
   listMcpTools: () => request<any>("/mcp/tools"),

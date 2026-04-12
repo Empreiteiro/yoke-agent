@@ -7,12 +7,13 @@ import itertools
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db, SessionLocal
+from app.core.tenancy import assert_can_access, current_user_id, scope_query
 from app.models.experiment import Experiment, ExperimentCombination, HumanRating
 from app.models.dataset import Dataset
 from app.schemas.provider import EMBEDDING_DIMENSIONS
@@ -57,12 +58,13 @@ def _run_experiment_sync(experiment_id: int, max_workers: int = 2):
 
 
 @router.post("/", response_model=ExperimentResponse)
-def create_experiment(data: ExperimentCreate, db: Session = Depends(get_db)):
+def create_experiment(data: ExperimentCreate, request: Request, db: Session = Depends(get_db)):
     experiment = Experiment(
         name=data.name or f"experiment-{uuid.uuid4().hex[:8]}",
         description=data.description,
         dataset_id=data.dataset_id,
         vectorstore_type=data.vectorstore_type,
+        user_id=current_user_id(request),
     )
     db.add(experiment)
     db.commit()
@@ -71,8 +73,9 @@ def create_experiment(data: ExperimentCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=list[ExperimentResponse])
-def list_experiments(db: Session = Depends(get_db)):
-    experiments = db.query(Experiment).order_by(Experiment.created_at.desc()).all()
+def list_experiments(request: Request, db: Session = Depends(get_db)):
+    q = scope_query(request, db.query(Experiment), Experiment)
+    experiments = q.order_by(Experiment.created_at.desc()).all()
     # Enrich with dataset names, filter out internal estimate experiments
     result = []
     for exp in experiments:
@@ -87,19 +90,21 @@ def list_experiments(db: Session = Depends(get_db)):
 
 
 @router.get("/{experiment_id}", response_model=ExperimentResponse)
-def get_experiment(experiment_id: int, db: Session = Depends(get_db)):
+def get_experiment(experiment_id: int, request: Request, db: Session = Depends(get_db)):
     exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
+    assert_can_access(request, exp)
     return exp
 
 
 @router.delete("/{experiment_id}")
-def delete_experiment(experiment_id: int, db: Session = Depends(get_db)):
+def delete_experiment(experiment_id: int, request: Request, db: Session = Depends(get_db)):
     """Delete an experiment and all its combinations."""
     exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
+    assert_can_access(request, exp)
     if exp.status == "running":
         raise HTTPException(status_code=400, detail="Cannot delete a running experiment. Stop it first.")
     db.query(ExperimentCombination).filter(
