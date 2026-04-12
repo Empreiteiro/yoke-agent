@@ -24,6 +24,7 @@ import History from "@/components/History";
 import Logs from "@/components/Logs";
 import Glossary from "@/components/Glossary";
 import Collections from "@/components/Collections";
+import Traces from "@/components/Traces";
 import McpSettings from "@/components/McpSettings";
 import WalkthroughOverlay from "@/components/Walkthrough";
 import { useWalkthrough } from "@/contexts/WalkthroughContext";
@@ -57,7 +58,7 @@ type StepId = RagStepId | AgentStepId;
 const ALL_RAG_STEPS = [STEP_CHAT, ...RAG_STEPS] as const;
 const ALL_AGENT_STEPS = [STEP_CHAT, ...AGENT_STEPS] as const;
 
-const VALID_VIEWS = ["history", "logs", "settings", "glossary", "collections", "vectorstores", "mcp", "user-settings"];
+const VALID_VIEWS = ["history", "logs", "settings", "glossary", "collections", "vectorstores", "mcp", "user-settings", "traces"];
 const VALID_STEPS: string[] = [
   STEP_CHAT.id,
   ...RAG_STEPS.map((s) => s.id),
@@ -277,6 +278,7 @@ function HomeContent() {
     logs: <Logs />,
     glossary: <Glossary />,
     collections: <Collections />,
+    traces: <Traces />,
     mcp: <McpSettings />,
     "user-settings": <SettingsUser />,
   };

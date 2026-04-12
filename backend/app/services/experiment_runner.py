@@ -29,6 +29,7 @@ from app.services.failure_categorizer import (
     summarize_categories,
 )
 from app.services.custom_metrics import run_custom_metrics
+from app.services.tracing import Tracer
 
 
 async def run_single_combination(
@@ -74,13 +75,22 @@ async def run_single_combination(
                 combination_id=combination.id,
             )
 
-        # Evaluate with RAGAS
+        # Evaluate with RAGAS — wrapped in a trace span when tracing is enabled
+        _eval_tracer = Tracer(
+            "ragas_evaluation",
+            source="rag_pipeline",
+            experiment_id=combination.experiment_id,
+            combination_id=combination.id,
+            metadata={"num_questions": len(questions)},
+        )
+        _eval_tracer.__enter__()
         eval_results = await evaluate_rag_results(
             rag_results=rag_results,
             ground_truths=ground_truths,
             optional_metrics=optional_metrics,
             db=db,
         )
+        _eval_tracer.__exit__(None, None, None)
 
         # Update combination with results
         scores = eval_results["scores"]

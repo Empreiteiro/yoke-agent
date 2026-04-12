@@ -20,6 +20,7 @@ from app.models.agent import (
 )
 from app.services.llm_factory import get_llm, resolve_provider
 from app.services.token_tracker import log_llm_response
+from app.services.tracing import Tracer
 
 import subprocess as _subprocess
 
@@ -301,6 +302,17 @@ async def run_simulation(
 
     logger.info(f"Combo {combination.id}: starting {len(simulation_tasks)} simulations ({len(items)} items, max_turns={max_turns})")
 
+    # Production tracing (issue #179)
+    _sim_tracer = Tracer(
+        "agent_simulation",
+        source="agent_simulation",
+        experiment_id=experiment.id if experiment else None,
+        agent_experiment_id=experiment.id if experiment else None,
+        combination_id=combination.id if combination else None,
+        metadata={"model": model, "max_turns": max_turns, "total_simulations": len(simulation_tasks)},
+    )
+    _sim_tracer.__enter__()
+
     # Concurrency: run up to N simulations in parallel
     # Each simulation uses subprocess — Claude CLI handles up to ~8 concurrent calls fine
     MAX_CONCURRENCY = 4
@@ -397,6 +409,8 @@ async def run_simulation(
     combination.total_cost = round(est_cost, 6)
     db.commit()
     logger.info(f"Combo {combination.id}: finished — {completed_count[0]} completed, {failed_count[0]} failed, {total_tokens} tokens, ${est_cost:.4f}")
+
+    _sim_tracer.__exit__(None, None, None)
 
 
 async def _run_single_conversation(

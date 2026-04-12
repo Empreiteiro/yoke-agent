@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.services.llm_factory import get_llm, get_embeddings, _resolve_provider
 from app.services.vectorstore_factory import create_vectorstore_backend
 from app.services.token_tracker import log_llm_response, log_embedding_usage
+from app.services.tracing import Tracer, get_current_trace_id
 
 DEFAULT_PROMPT_TEMPLATE = """Based on the following context, answer the question.
 If the answer cannot be found in the context, say "I cannot find the answer in the provided context."{lang_instruction}
@@ -122,6 +123,18 @@ async def run_rag_pipeline(
     chunking_strategy = params.get("chunking_strategy", "recursive")
     answer_language = params.get("answer_language", "auto")
 
+    # Production tracing (issue #179) — create a trace for this pipeline run.
+    # The Tracer is a noop when tracing is disabled, so this is zero-cost.
+    _tracer = Tracer(
+        "rag_pipeline",
+        source="rag_pipeline",
+        experiment_id=experiment_id,
+        combination_id=combination_id,
+        metadata={"search_type": search_type, "chunk_size": chunk_size, "top_k": top_k,
+                  "embedding_model": embedding_model, "vectorstore_type": vectorstore_type},
+    )
+    _tracer.__enter__()
+
     # Resolve provider info for token logging
     llm_provider = _resolve_provider(db, llm_provider_id, capability="llm")
 
@@ -159,6 +172,7 @@ async def run_rag_pipeline(
                 "generation_ms": gen_ms,
                 "total_latency_ms": gen_ms,
             })
+        _tracer.__exit__(None, None, None)
         return results
 
     # --- Standard pipeline: chunk, embed, index ---
@@ -168,7 +182,9 @@ async def run_rag_pipeline(
     embeddings = get_embeddings(db, provider_id=embedding_provider_id, model=embedding_model, dimensions=embedding_dimensions)
 
     # 2. Chunk documents
-    chunks = chunk_documents(documents, chunk_size, chunk_overlap, chunking_strategy, embeddings=embeddings)
+    with _tracer.span("chunk_documents", attributes={"chunk_size": chunk_size, "strategy": chunking_strategy, "num_docs": len(documents)}):
+        chunks = chunk_documents(documents, chunk_size, chunk_overlap, chunking_strategy, embeddings=embeddings)
+        _tracer.add_span_attributes({"num_chunks": len(chunks)})
 
     # 3. Create vector store and index
     dim_suffix = f"_{embedding_dimensions}" if embedding_dimensions else ""
@@ -192,7 +208,8 @@ async def run_rag_pipeline(
             combination_id=combination_id,
         )
 
-    backend.create_collection(collection_name, chunks, embeddings, distance_metric=distance_metric)
+    with _tracer.span("embed_and_index", attributes={"collection": collection_name, "distance_metric": distance_metric, "num_chunks": len(chunks)}):
+        backend.create_collection(collection_name, chunks, embeddings, distance_metric=distance_metric)
 
     # Log embedding token usage
     chunk_texts = [c.page_content for c in chunks]
@@ -214,8 +231,10 @@ async def run_rag_pipeline(
     llm = get_llm(db, provider_id=llm_provider_id, temperature=0)
 
     results = []
-    for question in questions:
+    for qi, question in enumerate(questions):
         # Retrieve relevant documents based on search type
+        _ret_span = _tracer.span("retrieve", attributes={"search_type": search_type, "top_k": top_k, "question_index": qi, "question": question[:100]})
+        _ret_span.__enter__()
         retrieval_start = time.perf_counter()
         if search_type == "hyde":
             from app.services.hyde_retriever import hyde_retrieve
@@ -294,6 +313,8 @@ async def run_rag_pipeline(
             )
 
         retrieval_ms = (time.perf_counter() - retrieval_start) * 1000.0
+        _tracer.add_span_attributes({"retrieval_ms": round(retrieval_ms, 2), "num_retrieved": len(retrieved_docs)})
+        _ret_span.__exit__(None, None, None)
 
         # Build context from retrieved docs
         context_texts = [doc.page_content for doc in retrieved_docs]
@@ -301,9 +322,11 @@ async def run_rag_pipeline(
 
         # Generate answer using prompt template
         prompt = _build_prompt(prompt_template, combined_context, question, answer_language)
-        gen_start = time.perf_counter()
-        response = await llm.ainvoke(prompt)
-        generation_ms = (time.perf_counter() - gen_start) * 1000.0
+        with _tracer.span("llm_generate", kind="client", attributes={"question_index": qi, "context_size": len(combined_context)}):
+            gen_start = time.perf_counter()
+            response = await llm.ainvoke(prompt)
+            generation_ms = (time.perf_counter() - gen_start) * 1000.0
+            _tracer.add_span_attributes({"generation_ms": round(generation_ms, 2), "answer_length": len(response.content)})
 
         # Log LLM token usage per question
         try:
@@ -335,4 +358,5 @@ async def run_rag_pipeline(
     except Exception:
         pass
 
+    _tracer.__exit__(None, None, None)
     return results
