@@ -30,6 +30,8 @@ def _run_migrations(engine):
         ("experiment_combinations", "p95_latency_ms", "REAL"),
         ("experiment_combinations", "avg_retrieval_ms", "REAL"),
         ("experiment_combinations", "avg_generation_ms", "REAL"),
+        # Failure categorization (issue #117)
+        ("experiment_combinations", "failure_summary", "TEXT"),
         ("datasets", "is_benchmark", "INTEGER DEFAULT 0"),
         # Agent pipeline: scenarios refactor (input_message → objective)
         ("scenarios", "objective", "TEXT"),

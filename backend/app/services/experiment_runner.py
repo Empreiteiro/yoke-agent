@@ -24,6 +24,10 @@ from app.services.document_loader import load_documents
 from app.services.rag_pipeline import run_rag_pipeline, chunk_documents
 from app.services.ragas_evaluator import evaluate_rag_results
 from app.services.llm_factory import get_embeddings
+from app.services.failure_categorizer import (
+    categorize_detailed_results,
+    summarize_categories,
+)
 
 
 async def run_single_combination(
@@ -95,7 +99,13 @@ async def run_single_combination(
         ]
         available = [v for v in fixed if v is not None]
         combination.overall_score = sum(available) / len(available) if available else scores.get("overall_score")
-        combination.detailed_results = eval_results.get("detailed_results")
+
+        # Failure categorization (issue #117): tag each row with a category
+        # and aggregate counts at the combination level.
+        raw_details = eval_results.get("detailed_results") or []
+        categorized = categorize_detailed_results(raw_details)
+        combination.detailed_results = categorized
+        combination.failure_summary = summarize_categories(categorized)
         combination.status = "completed"
 
         # Aggregate token usage for this combination

@@ -33,6 +33,8 @@ export default function StepResults({ experimentId }: StepResultsProps) {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [expandedComboId, setExpandedComboId] = useState<number | null>(null);
   const [expandedQuestionIdx, setExpandedQuestionIdx] = useState<number | null>(null);
+  // Failure filter (issue #117): when set, only show Q&A pairs matching this category
+  const [failureFilter, setFailureFilter] = useState<string | null>(null);
   // Human ratings (issue #118): Map<combinationId, Map<questionIndex, rating>>
   const [ratingsByCombo, setRatingsByCombo] = useState<Record<number, Record<number, any>>>({});
   const [correlation, setCorrelation] = useState<any>(null);
@@ -147,6 +149,24 @@ export default function StepResults({ experimentId }: StepResultsProps) {
     faithfulness: ((c.faithfulness ?? 0) * 100).toFixed(1),
     relevancy: ((c.answer_relevancy ?? 0) * 100).toFixed(1),
   }));
+
+  // Failure summary aggregated across all completed combinations (issue #117)
+  const FAILURE_LABELS: Record<string, { label: string; color: string }> = {
+    hallucination: { label: "Hallucination", color: "text-red-400 bg-red-500/10" },
+    missing_context: { label: "Missing context", color: "text-amber-400 bg-amber-500/10" },
+    irrelevant_retrieval: { label: "Irrelevant retrieval", color: "text-orange-400 bg-orange-500/10" },
+    incomplete_answer: { label: "Incomplete answer", color: "text-yellow-400 bg-yellow-500/10" },
+    ok: { label: "OK", color: "text-emerald-400 bg-emerald-500/10" },
+    unknown: { label: "Unknown", color: "text-t-secondary bg-surface-200/30" },
+  };
+  const aggregateFailures: Record<string, number> = {};
+  for (const c of completed) {
+    const fs = (c as any).failure_summary || {};
+    for (const [k, v] of Object.entries(fs)) {
+      aggregateFailures[k] = (aggregateFailures[k] || 0) + (v as number);
+    }
+  }
+  const totalFailureCount = Object.values(aggregateFailures).reduce((a, b) => a + (b || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -304,6 +324,60 @@ export default function StepResults({ experimentId }: StepResultsProps) {
         </div>
       )}
 
+      {/* Failure distribution (issue #117) */}
+      {totalFailureCount > 0 && (
+        <div className="bg-surface-100 rounded-2xl border border-visible p-8">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-lg font-semibold text-primary">Failure analysis</h3>
+              <p className="text-xs text-t-secondary">
+                Distribution across {completed.length} completed combination{completed.length === 1 ? "" : "s"}. Click a category to filter the expanded Q&amp;A view.
+              </p>
+            </div>
+            {experimentId && (
+              <a
+                href={api.exportExperimentFailuresCSV(experimentId)}
+                download
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg hover:bg-red-500/20 transition-colors"
+              >
+                <Download className="w-3 h-3" />
+                Failures CSV
+              </a>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(aggregateFailures)
+              .filter(([, count]) => (count as number) > 0)
+              .sort(([a], [b]) => (a === "ok" ? 1 : b === "ok" ? -1 : 0))
+              .map(([cat, count]) => {
+                const meta = FAILURE_LABELS[cat] || { label: cat, color: "text-t-secondary bg-surface-200/30" };
+                const isActive = failureFilter === cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setFailureFilter(isActive ? null : cat)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${meta.color} ${
+                      isActive ? "border-accent ring-1 ring-accent/40" : "border-visible"
+                    }`}
+                    title={`Click to ${isActive ? "clear filter" : "show only this category"}`}
+                  >
+                    <span>{meta.label}</span>
+                    <span className="font-semibold">{count as number}</span>
+                  </button>
+                );
+              })}
+            {failureFilter && (
+              <button
+                onClick={() => setFailureFilter(null)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-visible text-t-secondary hover:text-primary"
+              >
+                Clear filter
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Detailed table */}
       <div className="bg-surface-100 rounded-2xl border border-visible p-8" data-walkthrough="results-table">
         <div className="flex items-center justify-between mb-6">
@@ -435,15 +509,29 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                       </td>
                     </tr>
                     {/* Per-question detail */}
-                    {isExpanded && details.length > 0 && (
+                    {isExpanded && details.length > 0 && (() => {
+                      const visibleIndexes = details
+                        .map((_q: any, qi: number) => qi)
+                        .filter((qi: number) => {
+                          if (!failureFilter) return true;
+                          const cat = (details[qi] as any)?.failure_category || "unknown";
+                          return cat === failureFilter;
+                        });
+                      return (
                       <tr>
                         <td colSpan={19} className="p-0">
                           <div className="bg-surface-50 border-y border-visible px-6 py-4">
                             <h4 className="text-xs font-semibold text-t-secondary uppercase mb-3">
-                              Per-Question Results ({details.length} questions)
+                              Per-Question Results ({visibleIndexes.length} {failureFilter ? `of ${details.length} (filtered)` : "questions"})
                             </h4>
+                            {visibleIndexes.length === 0 && (
+                              <p className="text-sm text-t-secondary text-center py-4">
+                                No questions match the selected failure filter.
+                              </p>
+                            )}
                             <div className="space-y-2">
-                              {details.map((q: any, qi: number) => {
+                              {visibleIndexes.map((qi: number) => {
+                                const q: any = details[qi];
                                 const qExpanded = expandedQuestionIdx === qi;
                                 const faith = q.faithfulness;
                                 const relev = q.answer_relevancy;
@@ -482,6 +570,15 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                                       />
                                       <div className="flex-1 min-w-0">
                                         <p className="text-sm text-primary line-clamp-1">{questionText || "—"}</p>
+                                        {(q.failure_category && q.failure_category !== "ok") && (
+                                          <span
+                                            className={`inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                                              FAILURE_LABELS[q.failure_category]?.color || "bg-surface-200/30 text-t-secondary"
+                                            }`}
+                                          >
+                                            {FAILURE_LABELS[q.failure_category]?.label || q.failure_category}
+                                          </span>
+                                        )}
                                       </div>
                                       <div className="flex items-center gap-3 flex-shrink-0 text-xs">
                                         <span className={faith >= 0.8 ? "text-emerald-400" : faith >= 0.5 ? "text-amber-400" : "text-red-400"}>
@@ -562,7 +659,8 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                           </div>
                         </td>
                       </tr>
-                    )}
+                      );
+                    })()}
                     {isExpanded && details.length === 0 && (
                       <tr>
                         <td colSpan={19} className="px-6 py-4 text-center text-sm text-muted bg-surface-50">

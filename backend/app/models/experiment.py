@@ -45,6 +45,8 @@ class ExperimentCombination(Base):
     p95_latency_ms = Column(Float)
     avg_retrieval_ms = Column(Float)
     avg_generation_ms = Column(Float)
+    # Failure categorization summary (issue #117) — {category: count}
+    failure_summary = Column(JSON)
     created_at = Column(DateTime, server_default=func.now())
     completed_at = Column(DateTime)
     experiment = relationship("Experiment", back_populates="combinations")
