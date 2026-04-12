@@ -340,7 +340,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-visible">
-                {["Rank", "Type", "Chunk", "Overlap", "Chunking", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Overall", "Tokens", "Cost"].map(
+                {["Rank", "Type", "Chunk", "Overlap", "Chunking", "Embedding", "Dims", "K", "Search", "Dist.", "Faith.", "Relev.", "Prec.", "Recall", "Overall", "Tokens", "Cost", "Avg Lat.", "p95 Lat."].map(
                   (header) => (
                     <th
                       key={header}
@@ -427,11 +427,17 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                       <td className="px-3 py-3 text-amber-400 text-xs">
                         {combo.total_cost ? `$${combo.total_cost < 0.01 ? combo.total_cost.toFixed(4) : combo.total_cost.toFixed(2)}` : "-"}
                       </td>
+                      <td className="px-3 py-3 text-t-secondary text-xs">
+                        {combo.avg_latency_ms != null ? (combo.avg_latency_ms >= 1000 ? `${(combo.avg_latency_ms / 1000).toFixed(2)}s` : `${Math.round(combo.avg_latency_ms)}ms`) : "-"}
+                      </td>
+                      <td className="px-3 py-3 text-t-secondary text-xs">
+                        {combo.p95_latency_ms != null ? (combo.p95_latency_ms >= 1000 ? `${(combo.p95_latency_ms / 1000).toFixed(2)}s` : `${Math.round(combo.p95_latency_ms)}ms`) : "-"}
+                      </td>
                     </tr>
                     {/* Per-question detail */}
                     {isExpanded && details.length > 0 && (
                       <tr>
-                        <td colSpan={17} className="p-0">
+                        <td colSpan={19} className="p-0">
                           <div className="bg-surface-50 border-y border-visible px-6 py-4">
                             <h4 className="text-xs font-semibold text-t-secondary uppercase mb-3">
                               Per-Question Results ({details.length} questions)
@@ -559,7 +565,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                     )}
                     {isExpanded && details.length === 0 && (
                       <tr>
-                        <td colSpan={17} className="px-6 py-4 text-center text-sm text-muted bg-surface-50">
+                        <td colSpan={19} className="px-6 py-4 text-center text-sm text-muted bg-surface-50">
                           No per-question details available for this combination.
                         </td>
                       </tr>

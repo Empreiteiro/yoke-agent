@@ -1,5 +1,6 @@
 """RAG pipeline execution with configurable hyperparameters."""
 
+import time
 from typing import List, Dict, Any, Optional
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter, TokenTextSplitter
@@ -137,7 +138,9 @@ async def run_rag_pipeline(
         results = []
         for question in questions:
             prompt = _build_prompt(prompt_template, full_text, question, answer_language)
+            gen_start = time.perf_counter()
             response = await llm.ainvoke(prompt)
+            gen_ms = (time.perf_counter() - gen_start) * 1000.0
             try:
                 log_llm_response(
                     db=db, response=response, operation="rag_pipeline",
@@ -152,6 +155,9 @@ async def run_rag_pipeline(
                 "question": question,
                 "answer": response.content,
                 "contexts": [full_text[:2000]],  # Truncated context for RAGAS
+                "retrieval_ms": 0.0,
+                "generation_ms": gen_ms,
+                "total_latency_ms": gen_ms,
             })
         return results
 
@@ -210,6 +216,7 @@ async def run_rag_pipeline(
     results = []
     for question in questions:
         # Retrieve relevant documents based on search type
+        retrieval_start = time.perf_counter()
         if search_type == "hyde":
             from app.services.hyde_retriever import hyde_retrieve
             retrieved_docs = await hyde_retrieve(
@@ -270,13 +277,17 @@ async def run_rag_pipeline(
         else:
             retrieved_docs = backend.similarity_search(question, k=top_k)
 
+        retrieval_ms = (time.perf_counter() - retrieval_start) * 1000.0
+
         # Build context from retrieved docs
         context_texts = [doc.page_content for doc in retrieved_docs]
         combined_context = "\n\n".join(context_texts)
 
         # Generate answer using prompt template
         prompt = _build_prompt(prompt_template, combined_context, question, answer_language)
+        gen_start = time.perf_counter()
         response = await llm.ainvoke(prompt)
+        generation_ms = (time.perf_counter() - gen_start) * 1000.0
 
         # Log LLM token usage per question
         try:
@@ -297,6 +308,9 @@ async def run_rag_pipeline(
             "question": question,
             "answer": response.content,
             "contexts": context_texts,
+            "retrieval_ms": retrieval_ms,
+            "generation_ms": generation_ms,
+            "total_latency_ms": retrieval_ms + generation_ms,
         })
 
     # Cleanup

@@ -83,6 +83,10 @@ class CombinationResponse(BaseModel):
     duration_seconds: Optional[float] = None
     total_tokens: Optional[int] = 0
     total_cost: Optional[float] = 0.0
+    avg_latency_ms: Optional[float] = None
+    p95_latency_ms: Optional[float] = None
+    avg_retrieval_ms: Optional[float] = None
+    avg_generation_ms: Optional[float] = None
     detailed_results: Optional[Any] = None
     error_message: Optional[str] = None
     created_at: datetime

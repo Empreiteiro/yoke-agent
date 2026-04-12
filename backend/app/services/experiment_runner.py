@@ -113,6 +113,36 @@ async def run_single_combination(
         except Exception:
             pass
 
+        # Aggregate latency metrics (issue #112) — merge into detailed_results items
+        try:
+            latencies = [r.get("total_latency_ms") for r in rag_results if r.get("total_latency_ms") is not None]
+            retrievals = [r.get("retrieval_ms") for r in rag_results if r.get("retrieval_ms") is not None]
+            generations = [r.get("generation_ms") for r in rag_results if r.get("generation_ms") is not None]
+            if latencies:
+                ordered = sorted(latencies)
+                p95_idx = max(0, int(round(0.95 * (len(ordered) - 1))))
+                combination.avg_latency_ms = sum(latencies) / len(latencies)
+                combination.p95_latency_ms = ordered[p95_idx]
+            if retrievals:
+                combination.avg_retrieval_ms = sum(retrievals) / len(retrievals)
+            if generations:
+                combination.avg_generation_ms = sum(generations) / len(generations)
+
+            # Merge per-Q&A latency into detailed_results so the UI can display it
+            details = combination.detailed_results
+            if isinstance(details, list) and len(details) == len(rag_results):
+                merged = []
+                for det, rag in zip(details, rag_results):
+                    if isinstance(det, dict):
+                        det = dict(det)
+                        det["retrieval_ms"] = rag.get("retrieval_ms")
+                        det["generation_ms"] = rag.get("generation_ms")
+                        det["total_latency_ms"] = rag.get("total_latency_ms")
+                    merged.append(det)
+                combination.detailed_results = merged
+        except Exception as e:
+            logger.warning(f"Failed to aggregate latency for combination {combination.id}: {e}")
+
     except Exception as e:
         logger.error(f"Combination {combination.id} failed: {e}\n{traceback.format_exc()}")
         combination.status = "failed"
