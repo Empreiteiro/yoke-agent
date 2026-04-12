@@ -410,10 +410,27 @@ def configure_grid(
         # Prompt templates: empty list = default prompt only (None in params)
         prompt_list = config.prompt_templates if config.prompt_templates else [None]
 
+        # Reranker axis (issue #116). Always contains at least "none" so the
+        # matrix has a baseline. rerank_top_ns is only applied when reranker != none.
+        reranker_list = config.rerankers if config.rerankers else ["none"]
+        rerank_top_n_list = config.rerank_top_ns if config.rerank_top_ns else [None]
+
         def _add_combo(params_dict):
             nonlocal combo_count
-            db.add(ExperimentCombination(experiment_id=experiment_id, params=params_dict))
-            combo_count += 1
+            for rr in reranker_list:
+                if rr == "none":
+                    db.add(ExperimentCombination(
+                        experiment_id=experiment_id,
+                        params={**params_dict, "reranker": "none"},
+                    ))
+                    combo_count += 1
+                else:
+                    for rt in rerank_top_n_list:
+                        p = {**params_dict, "reranker": rr}
+                        if rt is not None:
+                            p["rerank_top_n"] = rt
+                        db.add(ExperimentCombination(experiment_id=experiment_id, params=p))
+                        combo_count += 1
 
         # Base parameter lists (without search_type, which is handled separately)
         base_lists = list(

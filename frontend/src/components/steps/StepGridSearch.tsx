@@ -35,7 +35,16 @@ const DEFAULT_CONFIG = {
   raptor_clustering: ["kmeans"] as string[],
   raptor_retrieval_modes: ["collapsed"] as string[],
   prompt_templates: [] as string[],
+  // Reranker (issue #116)
+  rerankers: ["none"] as string[],
+  rerank_top_ns: [] as number[],
 };
+
+const RERANKER_TYPES = [
+  { id: "none", label: "None", description: "Use the retrieved order as-is" },
+  { id: "cohere", label: "Cohere Rerank", description: "rerank-english-v3.0 via Cohere API (requires COHERE_API_KEY)", cost: "amber" },
+  { id: "cross_encoder", label: "Cross-Encoder", description: "Local ms-marco-MiniLM (requires sentence-transformers)" },
+];
 
 const SEARCH_TYPES = [
   { id: "vector", label: "Vector", description: "Semantic similarity search" },
@@ -156,7 +165,17 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
     : 0;
 
   const promptMultiplier = Math.max(config.prompt_templates.length, 1);
-  const totalCombinations = (ragCombinations + graphragCombinations) * promptMultiplier;
+  // Reranker multiplier: "none" counts as 1; real rerankers fan out by rerank_top_ns (default 1 if empty)
+  const rerankerMultiplier = (() => {
+    const selected = config.rerankers.length > 0 ? config.rerankers : ["none"];
+    let mult = 0;
+    for (const rr of selected) {
+      if (rr === "none") mult += 1;
+      else mult += Math.max(config.rerank_top_ns.length, 1);
+    }
+    return Math.max(mult, 1);
+  })();
+  const totalCombinations = (ragCombinations + graphragCombinations) * promptMultiplier * rerankerMultiplier;
 
   const addToArray = (
     field: keyof typeof config,
@@ -657,6 +676,77 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
                 </div>
               </div>
             )}
+        </div>
+
+        {/* Reranker (issue #116) */}
+        <div className="rounded-xl border border-visible p-4">
+          <label className="block text-sm font-medium text-t-hover mb-1">Post-retrieval Reranker</label>
+          <p className="text-xs text-muted mb-3">
+            Re-scores candidates after retrieval for better relevance. Each selected reranker adds one combination per base config.
+          </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            {RERANKER_TYPES.map((rr) => (
+              <label
+                key={rr.id}
+                className="flex items-center gap-2 cursor-pointer"
+                title={rr.description}
+              >
+                <input
+                  type="checkbox"
+                  checked={config.rerankers.includes(rr.id)}
+                  onChange={() => {
+                    if (config.rerankers.includes(rr.id)) {
+                      setConfig((prev) => ({
+                        ...prev,
+                        rerankers: prev.rerankers.filter((r) => r !== rr.id),
+                      }));
+                    } else {
+                      setConfig((prev) => ({
+                        ...prev,
+                        rerankers: [...prev.rerankers, rr.id],
+                      }));
+                    }
+                  }}
+                  className="rounded border-visible bg-surface-50 text-accent focus:ring-accent/25"
+                />
+                <span className="text-sm text-t-hover">{rr.label}</span>
+                {rr.cost === "amber" && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-amber-500/15 text-amber-400">$$</span>
+                )}
+              </label>
+            ))}
+          </div>
+
+          {/* rerank_top_n sub-parameter — only relevant when a real reranker is on */}
+          {config.rerankers.some((r) => r !== "none") && (
+            <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500">
+              <label className="block text-xs font-medium text-t-secondary mb-2">
+                Top-N after rerank (empty = keep top_k)
+              </label>
+              <div className="flex gap-2">
+                {[3, 5, 10].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => {
+                      setConfig((prev) => ({
+                        ...prev,
+                        rerank_top_ns: prev.rerank_top_ns.includes(n)
+                          ? prev.rerank_top_ns.filter((v) => v !== n)
+                          : [...prev.rerank_top_ns, n].sort((a, b) => a - b),
+                      }));
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                      config.rerank_top_ns.includes(n)
+                        ? "chip-amber border"
+                        : "bg-surface-50 text-muted border border-surface-200/50"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         </>)}
 
