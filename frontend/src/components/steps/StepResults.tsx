@@ -168,6 +168,14 @@ export default function StepResults({ experimentId }: StepResultsProps) {
   }
   const totalFailureCount = Object.values(aggregateFailures).reduce((a, b) => a + (b || 0), 0);
 
+  // Custom metrics (issue #124) — union of metric names across completed combinations
+  const customMetricNames: string[] = Array.from(
+    new Set<string>(
+      completed
+        .flatMap((c: any) => (c.custom_metrics ? Object.keys(c.custom_metrics) : []) as string[])
+    )
+  ).sort();
+
   return (
     <div className="space-y-6">
       {/* Best combination */}
@@ -374,6 +382,51 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                 Clear filter
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Custom metrics (issue #124) */}
+      {customMetricNames.length > 0 && (
+        <div className="bg-surface-100 rounded-2xl border border-visible p-8">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-primary">Custom metrics</h3>
+            <p className="text-xs text-t-secondary">
+              Averages from user-registered metrics ({customMetricNames.length}) per combination.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-visible">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Rank</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Config</th>
+                  {customMetricNames.map((name) => (
+                    <th key={name} className="px-3 py-2 text-right text-xs font-medium text-t-secondary uppercase tracking-wider">
+                      {name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-200/30">
+                {sorted.slice(0, 10).map((c: any, i: number) => (
+                  <tr key={c.id} className="hover:bg-surface-50 transition-colors">
+                    <td className="px-3 py-2 text-t-hover">#{i + 1}</td>
+                    <td className="px-3 py-2 text-xs text-t-secondary">
+                      {c.params?.chunk_size}/{c.params?.chunk_overlap}% · {c.params?.embedding_model} · k={c.params?.top_k}
+                    </td>
+                    {customMetricNames.map((name) => {
+                      const v = c.custom_metrics?.[name];
+                      return (
+                        <td key={name} className="px-3 py-2 text-right text-primary">
+                          {v != null ? `${(Number(v) * 100).toFixed(1)}%` : "—"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

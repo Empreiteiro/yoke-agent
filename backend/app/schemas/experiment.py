@@ -94,6 +94,7 @@ class CombinationResponse(BaseModel):
     avg_retrieval_ms: Optional[float] = None
     avg_generation_ms: Optional[float] = None
     failure_summary: Optional[dict] = None
+    custom_metrics: Optional[dict] = None
     detailed_results: Optional[Any] = None
     error_message: Optional[str] = None
     created_at: datetime

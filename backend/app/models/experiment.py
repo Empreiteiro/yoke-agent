@@ -47,6 +47,8 @@ class ExperimentCombination(Base):
     avg_generation_ms = Column(Float)
     # Failure categorization summary (issue #117) — {category: count}
     failure_summary = Column(JSON)
+    # Custom metrics (issue #124) — {metric_name: average_score}
+    custom_metrics = Column(JSON)
     created_at = Column(DateTime, server_default=func.now())
     completed_at = Column(DateTime)
     experiment = relationship("Experiment", back_populates="combinations")

@@ -1,0 +1,18 @@
+"""Example custom metric: penalise answers that are too short or too long.
+
+Rename to ``answer_length.py`` (drop the ``.template`` suffix) to enable it.
+"""
+
+
+def answer_length(row):
+    """Score 1.0 when the answer is ~150 characters, fall off in both directions."""
+    ans = row.get("answer") or ""
+    n = len(ans)
+    if n == 0:
+        return 0.0
+    ideal = 150
+    distance = abs(n - ideal) / ideal
+    return max(0.0, 1.0 - distance)
+
+
+metrics = {"answer_length": answer_length}

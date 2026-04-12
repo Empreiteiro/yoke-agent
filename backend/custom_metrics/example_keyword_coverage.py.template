@@ -1,0 +1,26 @@
+"""Example custom metric: keyword coverage from the ground truth.
+
+Measures what fraction of the ground-truth's distinct words (≥4 chars) the
+generated answer contains. Handy as a lightweight recall proxy when you
+don't want a full LLM-based judge.
+
+Rename to ``keyword_coverage.py`` (drop the ``.template`` suffix) to enable it.
+"""
+
+import re
+
+
+def _tokens(text):
+    return {w for w in re.findall(r"[A-Za-z0-9]{4,}", (text or "").lower())}
+
+
+def keyword_coverage(row):
+    gt = _tokens(row.get("ground_truth"))
+    if not gt:
+        return None
+    ans = _tokens(row.get("answer"))
+    hit = len(gt & ans)
+    return hit / len(gt)
+
+
+metrics = {"keyword_coverage": keyword_coverage}
