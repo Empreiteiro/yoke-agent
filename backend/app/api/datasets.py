@@ -5,12 +5,13 @@ import logging
 import uuid
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import json
 
 from app.core.database import get_db, SessionLocal
+from app.core.tenancy import assert_can_access, current_user_id, scope_query
 from app.models.document import Document
 from app.models.dataset import Dataset, DatasetItem
 from app.schemas.dataset import (
@@ -161,12 +162,13 @@ async def _generate_dataset_task(dataset_id: int, options: Optional[dict] = None
 
 
 @router.post("/", response_model=DatasetResponse)
-def create_dataset(data: DatasetCreate, db: Session = Depends(get_db)):
+def create_dataset(data: DatasetCreate, request: Request, db: Session = Depends(get_db)):
     dataset = Dataset(
         name=data.name or f"dataset-{uuid.uuid4().hex[:8]}",
         description=data.description,
         document_ids=data.document_ids,
         status="draft",
+        user_id=current_user_id(request),
     )
     db.add(dataset)
     db.commit()
@@ -175,25 +177,44 @@ def create_dataset(data: DatasetCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=list[DatasetResponse])
-def list_datasets(db: Session = Depends(get_db)):
-    return db.query(Dataset).order_by(Dataset.created_at.desc()).all()
+def list_datasets(request: Request, db: Session = Depends(get_db)):
+    """List datasets visible to the caller. Benchmark datasets are shared
+    with everyone; regular datasets are scoped to the owning user."""
+    from sqlalchemy import or_
+    from app.models.user import ROLE_ADMIN
+
+    user_id = current_user_id(request)
+    role = getattr(request.state, "user_role", None)
+    q = db.query(Dataset)
+    if user_id is not None and role != ROLE_ADMIN:
+        q = q.filter(
+            or_(
+                Dataset.is_benchmark == 1,
+                Dataset.user_id == user_id,
+                Dataset.user_id.is_(None),
+            )
+        )
+    return q.order_by(Dataset.created_at.desc()).all()
 
 
 @router.get("/{dataset_id}", response_model=DatasetResponse)
-def get_dataset(dataset_id: int, db: Session = Depends(get_db)):
+def get_dataset(dataset_id: int, request: Request, db: Session = Depends(get_db)):
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+    if not dataset.is_benchmark:
+        assert_can_access(request, dataset)
     return dataset
 
 
 @router.delete("/{dataset_id}")
-def delete_dataset(dataset_id: int, db: Session = Depends(get_db)):
+def delete_dataset(dataset_id: int, request: Request, db: Session = Depends(get_db)):
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
     if dataset.is_benchmark:
         raise HTTPException(status_code=403, detail="Benchmark datasets cannot be deleted")
+    assert_can_access(request, dataset)
     db.delete(dataset)
     db.commit()
     return {"detail": "Dataset deleted", "dataset_id": dataset_id}

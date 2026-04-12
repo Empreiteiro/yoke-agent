@@ -186,6 +186,7 @@ class AgentExperiment(Base):
     __tablename__ = "agent_experiments"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
     agent_config_id = Column(Integer, ForeignKey("agent_configs.id"), nullable=False)

@@ -55,3 +55,6 @@ aiofiles>=24.1.0
 httpx>=0.27.0
 numpy>=1.26.4
 pandas>=2.2.3
+
+# Auth / multi-tenancy (issue #123)
+PyJWT>=2.8.0

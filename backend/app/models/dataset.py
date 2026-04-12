@@ -7,6 +7,7 @@ class Dataset(Base):
     __tablename__ = "datasets"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text)
     status = Column(String(50), default="draft")  # draft, generating, generated, error, approved

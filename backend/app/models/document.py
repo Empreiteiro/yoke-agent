@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, func
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, func
 from app.core.database import Base
 
 
@@ -6,6 +6,7 @@ class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     filename = Column(String(255), nullable=False)
     filepath = Column(String(500), nullable=False)
     file_type = Column(String(50))

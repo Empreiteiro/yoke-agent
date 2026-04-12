@@ -8,10 +8,12 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.api import documents, datasets, experiments, vectorstores, providers, token_usage, collections, auth, mcp_config, chat
 from app.api import agent_configs, agent_experiments
+from app.api import users
 from app.models import saved_collection  # noqa: F401 — ensure table creation
 from app.models import vectorstore_config  # noqa: F401 — ensure table creation
 from app.models import api_key  # noqa: F401 — ensure table creation
 from app.models import agent  # noqa: F401 — ensure agent pipeline tables
+from app.models import user  # noqa: F401 — ensure users / audit_logs tables
 from app.core.auth import ApiKeyAuthMiddleware
 
 logger = logging.getLogger(__name__)
@@ -34,6 +36,12 @@ def _run_migrations(engine):
         ("experiment_combinations", "failure_summary", "TEXT"),
         # Custom metrics (issue #124)
         ("experiment_combinations", "custom_metrics", "TEXT"),
+        # Multi-tenancy user ownership (issue #123)
+        ("datasets", "user_id", "INTEGER"),
+        ("experiments", "user_id", "INTEGER"),
+        ("documents", "user_id", "INTEGER"),
+        ("agent_experiments", "user_id", "INTEGER"),
+        ("api_keys", "user_id", "INTEGER"),
         ("datasets", "is_benchmark", "INTEGER DEFAULT 0"),
         # Agent pipeline: scenarios refactor (input_message → objective)
         ("scenarios", "objective", "TEXT"),
@@ -112,6 +120,7 @@ app.add_middleware(
 app.add_middleware(ApiKeyAuthMiddleware)
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(mcp_config.router, prefix="/api/mcp", tags=["mcp"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(datasets.router, prefix="/api/datasets", tags=["datasets"])
