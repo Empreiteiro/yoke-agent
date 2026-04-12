@@ -531,6 +531,9 @@ def create_agent_config(
     http_endpoint: str = "",
     http_auth_header: str = "",
     http_timeout_seconds: int = 60,
+    http_body_template: str = "",
+    http_response_path: str = "",
+    http_tool_calls_path: str = "",
 ) -> dict:
     """Create a new agent configuration.
 
@@ -547,6 +550,18 @@ def create_agent_config(
         http_auth_header: Optional auth header for the HTTP endpoint — either
             "Bearer <token>" or a full "Header-Name: value" pair.
         http_timeout_seconds: Per-turn timeout for HTTP agents (1-600). Default 60.
+        http_body_template: Optional JSON template with {{var}} placeholders — lets
+            you customize the request body shape. Variables: {{user_message}},
+            {{messages}}, {{session_id}}, {{turn}}, {{scenario_name}},
+            {{scenario_objective}}, {{persona_name}}, {{persona_traits}},
+            {{variant_name}}, and more. Use `"{{var}}"` for string interpolation
+            or bare `{{var}}` for JSON-value injection. When empty, falls back
+            to the Yoke native request shape.
+        http_response_path: Optional dotted JSON path to the agent's reply text
+            in the response (e.g. "choices[0].message.content", "data.answer").
+            When empty, Yoke auto-detects native/OpenAI/common shapes.
+        http_tool_calls_path: Optional dotted path to a tool_calls array in the
+            response. Accepts both Yoke native and OpenAI function-call shapes.
     """
     return _yoke.create_agent_config(
         name=name,
@@ -558,6 +573,9 @@ def create_agent_config(
         http_endpoint=http_endpoint or None,
         http_auth_header=http_auth_header or None,
         http_timeout_seconds=http_timeout_seconds,
+        http_body_template=http_body_template or None,
+        http_response_path=http_response_path or None,
+        http_tool_calls_path=http_tool_calls_path or None,
     )
 
 
@@ -573,6 +591,9 @@ def update_agent_config(
     http_endpoint: str = "",
     http_auth_header: str = "",
     http_timeout_seconds: int = 0,
+    http_body_template: str = "",
+    http_response_path: str = "",
+    http_tool_calls_path: str = "",
 ) -> dict:
     """Update an agent configuration. Only non-empty / non-None fields
     are sent.
@@ -583,6 +604,9 @@ def update_agent_config(
         http_endpoint: Optional — update the external HTTP endpoint.
         http_auth_header: Optional — update the auth header.
         http_timeout_seconds: Optional — update the per-turn timeout. 0 = keep current.
+        http_body_template: Optional — update the request body template.
+        http_response_path: Optional — update the content JSON path.
+        http_tool_calls_path: Optional — update the tool_calls JSON path.
     """
     return _yoke.update_agent_config(
         config_id,
@@ -595,6 +619,9 @@ def update_agent_config(
         http_endpoint=http_endpoint or None,
         http_auth_header=http_auth_header or None,
         http_timeout_seconds=http_timeout_seconds if http_timeout_seconds > 0 else None,
+        http_body_template=http_body_template or None,
+        http_response_path=http_response_path or None,
+        http_tool_calls_path=http_tool_calls_path or None,
     )
 
 
@@ -614,13 +641,17 @@ def test_http_agent_endpoint(
     http_auth_header: str = "",
     http_timeout_seconds: int = 30,
     sample_message: str = "Hello, this is a connection test from Yoke Agent.",
+    http_body_template: str = "",
+    http_response_path: str = "",
+    http_tool_calls_path: str = "",
 ) -> dict:
     """Test connectivity to an external HTTP agent endpoint (issue #169).
 
     Fires a single POST and reports status, latency, detected response
-    format ("native", "openai", or "text"), and how many tool_calls were
-    detected. Use this before creating an HTTP agent config so you can
-    validate the endpoint and auth first.
+    format ("template" | "native" | "openai" | "text"), tool_calls
+    detected, and the rendered body that was sent. Use this before
+    creating an HTTP agent config so you can validate endpoint + auth +
+    body template without persisting anything.
 
     Args:
         http_endpoint: POST URL to hit (must start with http:// or https://).
@@ -628,12 +659,18 @@ def test_http_agent_endpoint(
             "Header-Name: value".
         http_timeout_seconds: Timeout in seconds (1-300). Default 30.
         sample_message: Test user message sent to the endpoint.
+        http_body_template: Optional JSON template with {{var}} placeholders.
+        http_response_path: Optional dotted path to the content field.
+        http_tool_calls_path: Optional dotted path to the tool_calls array.
     """
     return _yoke.test_http_agent_endpoint(
         http_endpoint=http_endpoint,
         http_auth_header=http_auth_header or None,
         http_timeout_seconds=http_timeout_seconds,
         sample_message=sample_message,
+        http_body_template=http_body_template or None,
+        http_response_path=http_response_path or None,
+        http_tool_calls_path=http_tool_calls_path or None,
     )
 
 

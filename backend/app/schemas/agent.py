@@ -30,6 +30,12 @@ class AgentConfigCreate(BaseModel):
     http_endpoint: Optional[str] = None
     http_auth_header: Optional[str] = None
     http_timeout_seconds: int = Field(60, ge=1, le=600)
+    # Request body template (raw JSON with {{var}} placeholders) and response
+    # paths — all optional. When empty, the adapter falls back to the Yoke
+    # native request shape and auto-detects response format.
+    http_body_template: Optional[str] = None
+    http_response_path: Optional[str] = None
+    http_tool_calls_path: Optional[str] = None
 
     @model_validator(mode="after")
     def _validate_agent_type(self):
@@ -56,6 +62,9 @@ class AgentConfigUpdate(BaseModel):
     http_endpoint: Optional[str] = None
     http_auth_header: Optional[str] = None
     http_timeout_seconds: Optional[int] = Field(None, ge=1, le=600)
+    http_body_template: Optional[str] = None
+    http_response_path: Optional[str] = None
+    http_tool_calls_path: Optional[str] = None
 
 
 class AgentConfigResponse(BaseModel):
@@ -71,6 +80,9 @@ class AgentConfigResponse(BaseModel):
     http_endpoint: Optional[str] = None
     http_auth_header: Optional[str] = None  # returned so UI can show it (consider masking upstream)
     http_timeout_seconds: Optional[int] = None
+    http_body_template: Optional[str] = None
+    http_response_path: Optional[str] = None
+    http_tool_calls_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     prompt_variant_count: int = 0
@@ -90,16 +102,20 @@ class TestHttpAgentRequest(BaseModel):
     http_auth_header: Optional[str] = None
     http_timeout_seconds: int = Field(30, ge=1, le=300)
     sample_message: str = "Hello, this is a connection test from Yoke Agent."
+    http_body_template: Optional[str] = None
+    http_response_path: Optional[str] = None
+    http_tool_calls_path: Optional[str] = None
 
 
 class TestHttpAgentResponse(BaseModel):
     ok: bool
     status_code: Optional[int] = None
     response_preview: Optional[str] = None
-    detected_format: Optional[str] = None  # "native" | "openai" | "text"
+    detected_format: Optional[str] = None  # "native" | "openai" | "text" | "template"
     tool_calls_detected: int = 0
     latency_ms: Optional[int] = None
     error: Optional[str] = None
+    rendered_body: Optional[str] = None  # what was actually POSTed (so the UI can show it)
 
 
 # ── Prompt Variants ───────────────────────────────────────────────────
