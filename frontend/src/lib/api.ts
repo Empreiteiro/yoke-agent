@@ -67,6 +67,8 @@ export const api = {
   listDatasets: () => request<any[]>("/datasets/"),
   getDataset: (id: number) => request<any>(`/datasets/${id}`),
   deleteDataset: (id: number) => request<any>(`/datasets/${id}`, { method: "DELETE" }),
+  bulkDeleteDatasets: (ids: number[]) =>
+    request<any>("/datasets/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) }),
   duplicateDataset: (id: number) => request<any>(`/datasets/${id}/duplicate`, { method: "POST" }),
   generateDataset: (id: number, options?: { reading_mode?: string; max_pages?: number; num_questions?: number }) =>
     request<any>(`/datasets/${id}/generate`, {
@@ -104,6 +106,8 @@ export const api = {
   listExperiments: () => request<any[]>("/experiments/"),
   getExperiment: (id: number) => request<any>(`/experiments/${id}`),
   deleteExperiment: (id: number) => request<any>(`/experiments/${id}`, { method: "DELETE" }),
+  bulkDeleteExperiments: (ids: number[]) =>
+    request<any>("/experiments/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) }),
   proposeGridSearch: (id: number) =>
     request<any>(`/experiments/${id}/propose-grid`, { method: "POST" }),
   configureGrid: (id: number, config: any) =>
@@ -356,6 +360,11 @@ export const api = {
   getAgentExperiment: (id: number) => request<any>(`/agent/experiments/${id}`),
   deleteAgentExperiment: (id: number) =>
     request<any>(`/agent/experiments/${id}`, { method: "DELETE" }),
+  bulkDeleteAgentExperiments: (ids: number[]) =>
+    request<any>("/agent/experiments/bulk-delete", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
   getAgentExperimentCombinations: (id: number) =>
     request<any[]>(`/agent/experiments/${id}/combinations`),
   runAgentExperiment: (id: number) =>

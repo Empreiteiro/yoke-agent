@@ -2,6 +2,7 @@
 import itertools
 import logging
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sqlfunc
 
@@ -396,6 +397,32 @@ def delete_experiment(exp_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Experiment not found")
     db.delete(e)
     db.commit()
+
+
+class _BulkDeleteRequest(BaseModel):
+    ids: list[int]
+
+
+@router.post("/experiments/bulk-delete")
+def bulk_delete_experiments(payload: _BulkDeleteRequest, db: Session = Depends(get_db)):
+    """Delete multiple agent experiments at once (issue #115)."""
+    if not payload.ids:
+        return {"deleted": [], "skipped": [], "not_found": []}
+
+    exps = db.query(AgentExperiment).filter(AgentExperiment.id.in_(payload.ids)).all()
+    existing_ids = {e.id for e in exps}
+    not_found = [i for i in payload.ids if i not in existing_ids]
+
+    deleted: list[int] = []
+    skipped: list[dict] = []
+    for exp in exps:
+        if exp.status == "running":
+            skipped.append({"id": exp.id, "reason": "running"})
+            continue
+        db.delete(exp)
+        deleted.append(exp.id)
+    db.commit()
+    return {"deleted": deleted, "skipped": skipped, "not_found": not_found}
 
 
 @router.get("/experiments/{exp_id}/combinations", response_model=list[AgentCombinationResponse])
