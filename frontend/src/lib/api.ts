@@ -129,6 +129,8 @@ export const api = {
     `${API_BASE}/experiments/${id}/export?format=csv`,
   exportRatedQuestionsCSV: (id: number) =>
     `${API_BASE}/experiments/${id}/export-rated`,
+  exportExperimentFailuresCSV: (id: number) =>
+    `${API_BASE}/experiments/${id}/failures/export`,
 
   // Human ratings (issue #118)
   listCombinationRatings: (combinationId: number) =>

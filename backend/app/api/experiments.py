@@ -729,6 +729,8 @@ def export_experiment(experiment_id: int, format: str = "csv", db: Session = Dep
         "answer_similarity", "answer_correctness", "overall_score", "duration_seconds",
         "total_tokens", "total_cost",
         "avg_latency_ms", "p95_latency_ms", "avg_retrieval_ms", "avg_generation_ms",
+        "failures_hallucination", "failures_missing_context",
+        "failures_irrelevant_retrieval", "failures_incomplete_answer",
     ]
 
     output = io.StringIO()
@@ -766,10 +768,66 @@ def export_experiment(experiment_id: int, format: str = "csv", db: Session = Dep
             c.p95_latency_ms,
             c.avg_retrieval_ms,
             c.avg_generation_ms,
+            (c.failure_summary or {}).get("hallucination", 0),
+            (c.failure_summary or {}).get("missing_context", 0),
+            (c.failure_summary or {}).get("irrelevant_retrieval", 0),
+            (c.failure_summary or {}).get("incomplete_answer", 0),
         ])
 
     output.seek(0)
     filename = f"{exp.name or 'experiment'}-results.csv"
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get("/{experiment_id}/failures/export")
+def export_experiment_failures(experiment_id: int, db: Session = Depends(get_db)):
+    """Export per-Q&A failure analysis as CSV (issue #117). One row per failed item."""
+    exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+
+    headers = [
+        "combination_id", "rank", "chunk_size", "chunk_overlap",
+        "embedding_model", "top_k", "search_type",
+        "question_index", "failure_category",
+        "faithfulness", "answer_relevancy", "context_precision", "context_recall",
+        "question", "answer", "ground_truth",
+    ]
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+
+    completed = [c for c in exp.combinations if c.status == "completed"]
+    completed.sort(key=lambda c: c.overall_score or 0, reverse=True)
+
+    for rank, c in enumerate(completed, start=1):
+        details = c.detailed_results if isinstance(c.detailed_results, list) else []
+        for qi, q in enumerate(details):
+            if not isinstance(q, dict):
+                continue
+            category = q.get("failure_category") or "unknown"
+            if category == "ok":
+                continue
+            p = c.params or {}
+            writer.writerow([
+                c.id, rank,
+                p.get("chunk_size", ""), p.get("chunk_overlap", ""),
+                p.get("embedding_model", ""), p.get("top_k", ""),
+                p.get("search_type", ""),
+                qi, category,
+                q.get("faithfulness"), q.get("answer_relevancy"),
+                q.get("context_precision"), q.get("context_recall"),
+                q.get("user_input") or q.get("question") or "",
+                q.get("response") or q.get("answer") or "",
+                q.get("reference") or q.get("ground_truth") or "",
+            ])
+
+    output.seek(0)
+    filename = f"{exp.name or 'experiment'}-failures.csv"
     return StreamingResponse(
         output,
         media_type="text/csv",

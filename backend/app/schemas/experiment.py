@@ -93,6 +93,7 @@ class CombinationResponse(BaseModel):
     p95_latency_ms: Optional[float] = None
     avg_retrieval_ms: Optional[float] = None
     avg_generation_ms: Optional[float] = None
+    failure_summary: Optional[dict] = None
     detailed_results: Optional[Any] = None
     error_message: Optional[str] = None
     created_at: datetime
