@@ -25,6 +25,11 @@ def _run_migrations(engine):
         ("experiment_combinations", "error_message", "TEXT"),
         ("experiment_combinations", "total_tokens", "INTEGER DEFAULT 0"),
         ("experiment_combinations", "total_cost", "REAL DEFAULT 0.0"),
+        # Latency metrics (issue #112)
+        ("experiment_combinations", "avg_latency_ms", "REAL"),
+        ("experiment_combinations", "p95_latency_ms", "REAL"),
+        ("experiment_combinations", "avg_retrieval_ms", "REAL"),
+        ("experiment_combinations", "avg_generation_ms", "REAL"),
         ("datasets", "is_benchmark", "INTEGER DEFAULT 0"),
         # Agent pipeline: scenarios refactor (input_message → objective)
         ("scenarios", "objective", "TEXT"),

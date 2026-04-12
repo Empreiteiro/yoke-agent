@@ -40,6 +40,11 @@ class ExperimentCombination(Base):
     # Token usage aggregates
     total_tokens = Column(Integer, default=0)
     total_cost = Column(Float, default=0.0)
+    # Latency aggregates (issue #112) — milliseconds per Q&A pair
+    avg_latency_ms = Column(Float)
+    p95_latency_ms = Column(Float)
+    avg_retrieval_ms = Column(Float)
+    avg_generation_ms = Column(Float)
     created_at = Column(DateTime, server_default=func.now())
     completed_at = Column(DateTime)
     experiment = relationship("Experiment", back_populates="combinations")
