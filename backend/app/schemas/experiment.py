@@ -25,6 +25,9 @@ class RAGParams(BaseModel):
     raptor_clustering: Optional[str] = Field(None, description="RAPTOR clustering method: kmeans, gmm")
     raptor_retrieval_mode: Optional[str] = Field(None, description="RAPTOR retrieval: collapsed, tree_traversal, level_specific")
     prompt_template: Optional[str] = Field(None, description="Custom answer generation prompt (must contain {context} and {question})")
+    reranker: Optional[str] = Field(None, description="Post-retrieval reranker: none, cohere, cross_encoder")
+    rerank_top_n: Optional[int] = Field(None, description="Number of documents to keep after reranking (defaults to top_k)")
+    reranker_model: Optional[str] = Field(None, description="Override reranker model identifier")
 
 
 class ExperimentCreate(BaseModel):
@@ -61,6 +64,9 @@ class GridSearchConfig(BaseModel):
     raptor_retrieval_modes: list[str] = ["collapsed"]  # collapsed, tree_traversal, level_specific
     # Prompt templates (grid-searchable: test different prompts in the same experiment)
     prompt_templates: list[str] = []  # Empty = use default prompt. Each entry is a full prompt with {context} and {question} placeholders.
+    # Reranker (issue #116): "none", "cohere", "cross_encoder". Defaults to none.
+    rerankers: list[str] = ["none"]
+    rerank_top_ns: list[int] = []  # Empty = keep top_k after rerank
     # GraphRAG settings
     pipeline_types: list[str] = ["rag"]  # rag, graphrag
     entity_extraction_models: list[str] = []  # LLM models for entity extraction

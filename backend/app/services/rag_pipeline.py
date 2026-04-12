@@ -277,6 +277,22 @@ async def run_rag_pipeline(
         else:
             retrieved_docs = backend.similarity_search(question, k=top_k)
 
+        # Optional post-retrieval reranking (issue #116)
+        reranker = params.get("reranker")
+        if reranker and reranker != "none":
+            from app.services.reranker import rerank_documents
+
+            retrieved_docs = rerank_documents(
+                question=question,
+                documents=retrieved_docs,
+                reranker=reranker,
+                top_n=params.get("rerank_top_n", top_k),
+                model=params.get("reranker_model"),
+                db=db,
+                experiment_id=experiment_id,
+                combination_id=combination_id,
+            )
+
         retrieval_ms = (time.perf_counter() - retrieval_start) * 1000.0
 
         # Build context from retrieved docs
