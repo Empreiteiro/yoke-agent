@@ -23,6 +23,7 @@ import {
   Search,
   FlaskRound,
   User,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
@@ -62,6 +63,7 @@ const HISTORY_ITEMS = [
   { id: "logs", label: "Logs", icon: FileText },
   { id: "history", label: "Results", icon: Clock },
   { id: "collections", label: "Collections", icon: MessageSquare },
+  { id: "traces", label: "Traces", icon: Activity },
 ];
 
 const SETTINGS_ITEMS = [

@@ -272,6 +272,24 @@ export const api = {
   listAuditLogs: (limit = 200) =>
     request<any[]>(`/users/audit-logs?limit=${limit}`),
 
+  // Traces (issue #179)
+  listTraces: (params?: {
+    source?: string; status?: string; experiment_id?: number;
+    agent_experiment_id?: number; days?: number; limit?: number; offset?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) qs.set(k, String(v));
+      });
+    }
+    const q = qs.toString();
+    return request<any[]>(`/traces/${q ? `?${q}` : ""}`);
+  },
+  getTrace: (traceId: string) => request<any>(`/traces/${traceId}`),
+  deleteTrace: (traceId: string) => request<any>(`/traces/${traceId}`, { method: "DELETE" }),
+  getTraceSummary: (days = 7) => request<any>(`/traces/summary?days=${days}`),
+
   // MCP
   listMcpTools: () => request<any>("/mcp/tools"),
   updateMcpTools: (disabledTools: string[]) =>

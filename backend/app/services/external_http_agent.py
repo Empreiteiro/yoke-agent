@@ -466,6 +466,24 @@ async def invoke_http_agent(
 
     headers = _build_headers(config.http_auth_header)
 
+    # Production tracing (issue #179) — trace the HTTP call so it shows up
+    # in the waterfall alongside agent turns.
+    from app.services.tracing import Tracer, _is_enabled, _trace_ctx
+    _span_ctx = None
+    _span_obj = None
+    _active_ctx = _trace_ctx.get() if _is_enabled() else None
+    if _active_ctx:
+        # If we're inside an existing trace (e.g. agent_simulation), create a span
+        # on a dummy tracer that shares the context.
+        class _SpanOnly:
+            """Minimal helper to add a span to an existing trace context."""
+            def __init__(self): pass
+            span = Tracer.span  # reuse the span CM from Tracer
+            add_span_attributes = Tracer.add_span_attributes
+            _current_span_attrs = {}
+            _current_span_events = []
+        _span_obj = _SpanOnly()
+
     started = time.time()
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -504,6 +522,35 @@ async def invoke_http_agent(
             tool_calls = _parse_tool_calls(content)
         except Exception:
             pass
+
+    # Record HTTP agent call as a span in the active trace (if any)
+    if _active_ctx:
+        import os as _os
+        from datetime import datetime, timezone
+        span_id = _os.urandom(8).hex()
+        parent_id = _active_ctx._span_stack[-1] if _active_ctx._span_stack else None
+        _active_ctx.spans.append({
+            "id": span_id,
+            "trace_id": _active_ctx.trace_id,
+            "parent_span_id": parent_id,
+            "name": "http_agent_call",
+            "kind": "client",
+            "status": "ok" if resp.status_code < 400 else "error",
+            "start_time": datetime.fromtimestamp(started, tz=timezone.utc),
+            "end_time": datetime.now(timezone.utc),
+            "duration_ms": float(latency_ms),
+            "attributes": {
+                "http.method": "POST",
+                "http.url": endpoint,
+                "http.status_code": resp.status_code,
+                "response_format": fmt,
+                "tool_calls_count": len(tool_calls),
+                "latency_ms": latency_ms,
+                "turn": turn,
+            },
+            "events": None,
+            "error_message": None,
+        })
 
     return {
         "content": content or "",

@@ -8,13 +8,15 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.api import documents, datasets, experiments, vectorstores, providers, token_usage, collections, auth, mcp_config, chat
 from app.api import agent_configs, agent_experiments
-from app.api import users
+from app.api import users, traces
 from app.models import saved_collection  # noqa: F401 — ensure table creation
 from app.models import vectorstore_config  # noqa: F401 — ensure table creation
 from app.models import api_key  # noqa: F401 — ensure table creation
 from app.models import agent  # noqa: F401 — ensure agent pipeline tables
 from app.models import user  # noqa: F401 — ensure users / audit_logs tables
+from app.models import trace  # noqa: F401 — ensure traces / trace_spans tables
 from app.core.auth import ApiKeyAuthMiddleware
+from app.middleware.tracing import TracingMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +120,7 @@ app.add_middleware(
 )
 
 app.add_middleware(ApiKeyAuthMiddleware)
+app.add_middleware(TracingMiddleware)
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
@@ -132,6 +135,7 @@ app.include_router(collections.router, prefix="/api/collections", tags=["collect
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(agent_configs.router, prefix="/api/agent/configs", tags=["agent-configs"])
 app.include_router(agent_experiments.router, prefix="/api/agent", tags=["agent-experiments"])
+app.include_router(traces.router, prefix="/api/traces", tags=["traces"])
 
 
 @app.get("/api/health")

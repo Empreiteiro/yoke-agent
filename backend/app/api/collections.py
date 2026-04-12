@@ -18,6 +18,7 @@ from app.schemas.collection import (
     CollectionQueryResponse,
 )
 from app.services.llm_factory import get_llm, get_embeddings, _resolve_provider
+from app.services.tracing import Tracer
 from app.services.token_tracker import log_llm_response
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,13 @@ async def query_collection(
     if not os.path.exists(col.persist_path):
         raise HTTPException(status_code=410, detail="Collection files no longer exist on disk")
 
+    _tracer = Tracer(
+        "collection_query",
+        source="collection_query",
+        metadata={"collection_id": collection_id, "question": req.question[:100]},
+    )
+    _tracer.__enter__()
+
     # Recreate embeddings with same model/dimensions
     embeddings = get_embeddings(db, model=col.embedding_model, dimensions=col.embedding_dimensions)
 
@@ -88,10 +96,12 @@ async def query_collection(
 
     # Retrieve
     top_k = req.top_k or col.top_k
-    if col.search_type == "mmr":
-        docs = vectorstore.max_marginal_relevance_search(req.question, k=top_k)
-    else:
-        docs = vectorstore.similarity_search(req.question, k=top_k)
+    with _tracer.span("retrieve", attributes={"top_k": top_k, "search_type": col.search_type}):
+        if col.search_type == "mmr":
+            docs = vectorstore.max_marginal_relevance_search(req.question, k=top_k)
+        else:
+            docs = vectorstore.similarity_search(req.question, k=top_k)
+        _tracer.add_span_attributes({"num_retrieved": len(docs)})
 
     contexts = [doc.page_content for doc in docs]
     combined_context = "\n\n".join(contexts)
@@ -108,7 +118,9 @@ Question: {req.question}
 
 Answer:"""
 
-    response = await llm.ainvoke(prompt)
+    with _tracer.span("llm_generate", kind="client", attributes={"context_size": len(combined_context)}):
+        response = await llm.ainvoke(prompt)
+        _tracer.add_span_attributes({"answer_length": len(response.content)})
 
     # Log token usage
     token_usage = {}
@@ -127,6 +139,7 @@ Answer:"""
     except Exception:
         pass
 
+    _tracer.__exit__(None, None, None)
     return CollectionQueryResponse(
         answer=response.content,
         contexts=contexts,
