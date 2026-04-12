@@ -32,6 +32,8 @@ def _run_migrations(engine):
         ("experiment_combinations", "avg_generation_ms", "REAL"),
         # Failure categorization (issue #117)
         ("experiment_combinations", "failure_summary", "TEXT"),
+        # Custom metrics (issue #124)
+        ("experiment_combinations", "custom_metrics", "TEXT"),
         ("datasets", "is_benchmark", "INTEGER DEFAULT 0"),
         # Agent pipeline: scenarios refactor (input_message → objective)
         ("scenarios", "objective", "TEXT"),

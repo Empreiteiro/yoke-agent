@@ -28,6 +28,7 @@ from app.services.failure_categorizer import (
     categorize_detailed_results,
     summarize_categories,
 )
+from app.services.custom_metrics import run_custom_metrics
 
 
 async def run_single_combination(
@@ -104,6 +105,25 @@ async def run_single_combination(
         # and aggregate counts at the combination level.
         raw_details = eval_results.get("detailed_results") or []
         categorized = categorize_detailed_results(raw_details)
+
+        # Custom metrics (issue #124): run every user-registered metric against
+        # the pipeline results and merge scores back onto the per-question rows.
+        try:
+            custom_results = run_custom_metrics(rag_results, ground_truths=ground_truths)
+        except Exception as e:
+            logger.warning(f"Custom metrics failed for combination {combination.id}: {e}")
+            custom_results = {}
+
+        if custom_results:
+            averages = {name: data.get("average") for name, data in custom_results.items()}
+            combination.custom_metrics = averages
+            for idx, row in enumerate(categorized):
+                if not isinstance(row, dict):
+                    continue
+                for name, data in custom_results.items():
+                    scores = data.get("scores") or []
+                    row[f"custom_{name}"] = scores[idx] if idx < len(scores) else None
+
         combination.detailed_results = categorized
         combination.failure_summary = summarize_categories(categorized)
         combination.status = "completed"

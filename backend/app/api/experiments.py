@@ -721,6 +721,15 @@ def export_experiment(experiment_id: int, format: str = "csv", db: Session = Dep
     completed = [c for c in exp.combinations if c.status == "completed"]
     completed.sort(key=lambda c: c.overall_score or 0, reverse=True)
 
+    # Collect the union of custom metric names across completed combinations so
+    # the CSV has one column per metric.
+    custom_metric_names: list[str] = sorted({
+        name
+        for c in completed
+        if isinstance(c.custom_metrics, dict)
+        for name in c.custom_metrics.keys()
+    })
+
     headers = [
         "rank", "pipeline_type", "chunk_size", "chunk_overlap", "chunking_strategy",
         "embedding_model", "embedding_dimensions", "top_k", "search_type", "distance_metric",
@@ -731,6 +740,7 @@ def export_experiment(experiment_id: int, format: str = "csv", db: Session = Dep
         "avg_latency_ms", "p95_latency_ms", "avg_retrieval_ms", "avg_generation_ms",
         "failures_hallucination", "failures_missing_context",
         "failures_irrelevant_retrieval", "failures_incomplete_answer",
+        *[f"custom_{name}" for name in custom_metric_names],
     ]
 
     output = io.StringIO()
@@ -772,6 +782,10 @@ def export_experiment(experiment_id: int, format: str = "csv", db: Session = Dep
             (c.failure_summary or {}).get("missing_context", 0),
             (c.failure_summary or {}).get("irrelevant_retrieval", 0),
             (c.failure_summary or {}).get("incomplete_answer", 0),
+            *[
+                (c.custom_metrics or {}).get(name) if isinstance(c.custom_metrics, dict) else None
+                for name in custom_metric_names
+            ],
         ])
 
     output.seek(0)
@@ -781,6 +795,20 @@ def export_experiment(experiment_id: int, format: str = "csv", db: Session = Dep
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@router.get("/custom-metrics/registered")
+def list_registered_custom_metrics():
+    """List custom metrics currently picked up by the loader (issue #124).
+
+    Used by the frontend to tell the user which metrics will run on the next
+    evaluation. Reloads from disk on every call so you can tweak files and
+    hit refresh without restarting the server.
+    """
+    from app.services.custom_metrics import load_custom_metrics
+
+    registered = load_custom_metrics()
+    return {"metrics": sorted(registered.keys())}
 
 
 @router.get("/{experiment_id}/failures/export")
