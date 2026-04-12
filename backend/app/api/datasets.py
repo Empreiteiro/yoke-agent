@@ -6,6 +6,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import json
 
@@ -196,6 +197,34 @@ def delete_dataset(dataset_id: int, db: Session = Depends(get_db)):
     db.delete(dataset)
     db.commit()
     return {"detail": "Dataset deleted", "dataset_id": dataset_id}
+
+
+class _DatasetBulkDeleteRequest(BaseModel):
+    ids: list[int]
+
+
+@router.post("/bulk-delete")
+def bulk_delete_datasets(
+    payload: _DatasetBulkDeleteRequest, db: Session = Depends(get_db)
+):
+    """Delete multiple datasets at once (issue #115). Benchmarks are skipped."""
+    if not payload.ids:
+        return {"deleted": [], "skipped": [], "not_found": []}
+
+    datasets = db.query(Dataset).filter(Dataset.id.in_(payload.ids)).all()
+    existing_ids = {d.id for d in datasets}
+    not_found = [i for i in payload.ids if i not in existing_ids]
+
+    deleted: list[int] = []
+    skipped: list[dict] = []
+    for ds in datasets:
+        if ds.is_benchmark:
+            skipped.append({"id": ds.id, "reason": "benchmark"})
+            continue
+        db.delete(ds)
+        deleted.append(ds.id)
+    db.commit()
+    return {"deleted": deleted, "skipped": skipped, "not_found": not_found}
 
 
 @router.post("/seed-benchmarks")

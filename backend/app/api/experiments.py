@@ -9,6 +9,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db, SessionLocal
@@ -107,6 +108,41 @@ def delete_experiment(experiment_id: int, db: Session = Depends(get_db)):
     db.delete(exp)
     db.commit()
     return {"detail": "Experiment deleted", "experiment_id": experiment_id}
+
+
+class BulkDeleteRequest(BaseModel):
+    ids: list[int]
+
+
+@router.post("/bulk-delete")
+def bulk_delete_experiments(
+    payload: BulkDeleteRequest, db: Session = Depends(get_db)
+):
+    """Delete multiple experiments at once (issue #115).
+
+    Running experiments are skipped and reported in the response so the
+    caller can show the user which ones need to be stopped first.
+    """
+    if not payload.ids:
+        return {"deleted": [], "skipped": [], "not_found": []}
+
+    exps = db.query(Experiment).filter(Experiment.id.in_(payload.ids)).all()
+    existing_ids = {e.id for e in exps}
+    not_found = [i for i in payload.ids if i not in existing_ids]
+
+    deleted: list[int] = []
+    skipped: list[dict] = []
+    for exp in exps:
+        if exp.status == "running":
+            skipped.append({"id": exp.id, "reason": "running"})
+            continue
+        db.query(ExperimentCombination).filter(
+            ExperimentCombination.experiment_id == exp.id
+        ).delete()
+        db.delete(exp)
+        deleted.append(exp.id)
+    db.commit()
+    return {"deleted": deleted, "skipped": skipped, "not_found": not_found}
 
 
 @router.post("/{experiment_id}/propose-grid")

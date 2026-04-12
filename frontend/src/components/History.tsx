@@ -69,6 +69,62 @@ export default function History({
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [stoppingId, setStoppingId] = useState<number | null>(null);
   const [savingCollectionId, setSavingCollectionId] = useState<number | null>(null);
+  // Bulk selection (issue #115)
+  const [selectedRagIds, setSelectedRagIds] = useState<Set<number>>(new Set());
+  const [selectedAgentIds, setSelectedAgentIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+
+  const toggleSelect = (id: number, kind: "rag" | "agent") => {
+    const setter = kind === "rag" ? setSelectedRagIds : setSelectedAgentIds;
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectableExperiments = (list: any[]) =>
+    list.filter((e) => e.status !== "running");
+
+  const toggleSelectAll = (kind: "rag" | "agent") => {
+    if (kind === "rag") {
+      const eligible = selectableExperiments(experiments).map((e) => e.id);
+      setSelectedRagIds((prev) =>
+        prev.size === eligible.length ? new Set() : new Set(eligible)
+      );
+    } else {
+      const eligible = selectableExperiments(agentExperiments).map((e) => e.id);
+      setSelectedAgentIds((prev) =>
+        prev.size === eligible.length ? new Set() : new Set(eligible)
+      );
+    }
+  };
+
+  const bulkDelete = async () => {
+    setBulkDeleting(true);
+    try {
+      if (activeTab === "rag" && selectedRagIds.size > 0) {
+        const ids = Array.from(selectedRagIds);
+        await api.bulkDeleteExperiments(ids);
+        setExperiments((prev) => prev.filter((e) => !selectedRagIds.has(e.id)));
+        setSelectedRagIds(new Set());
+      } else if (activeTab === "agent" && selectedAgentIds.size > 0) {
+        const ids = Array.from(selectedAgentIds);
+        await api.bulkDeleteAgentExperiments(ids);
+        setAgentExperiments((prev) =>
+          prev.filter((e) => !selectedAgentIds.has(e.id))
+        );
+        setSelectedAgentIds(new Set());
+      }
+    } catch (err) {
+      console.error("Bulk delete failed:", err);
+    } finally {
+      setBulkDeleting(false);
+      setShowBulkConfirm(false);
+    }
+  };
 
   useEffect(() => {
     loadExperiments();
@@ -221,12 +277,81 @@ export default function History({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-primary">Experiment History</h2>
-        <p className="text-sm text-t-secondary mt-1">
-          {experiments.length + agentExperiments.length} experiment{(experiments.length + agentExperiments.length) !== 1 ? "s" : ""} recorded
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-primary">Experiment History</h2>
+          <p className="text-sm text-t-secondary mt-1">
+            {experiments.length + agentExperiments.length} experiment{(experiments.length + agentExperiments.length) !== 1 ? "s" : ""} recorded
+          </p>
+        </div>
+
+        {/* Bulk action toolbar (issue #115) */}
+        {(() => {
+          const selectedCount =
+            activeTab === "rag" ? selectedRagIds.size : selectedAgentIds.size;
+          const eligibleList =
+            activeTab === "rag"
+              ? selectableExperiments(experiments)
+              : selectableExperiments(agentExperiments);
+          if (eligibleList.length === 0) return null;
+          return (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleSelectAll(activeTab)}
+                className="px-3 py-1.5 text-xs font-medium text-t-secondary border border-visible rounded-lg hover:bg-surface-100 transition-colors"
+              >
+                {selectedCount === eligibleList.length
+                  ? "Deselect all"
+                  : "Select all"}
+              </button>
+              {selectedCount > 0 && (
+                <button
+                  onClick={() => setShowBulkConfirm(true)}
+                  disabled={bulkDeleting}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-300 bg-red-500/10 border border-red-500/40 rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Delete {selectedCount}
+                </button>
+              )}
+            </div>
+          );
+        })()}
       </div>
+
+      {/* Bulk delete confirmation */}
+      {showBulkConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-surface-100 rounded-2xl border border-visible p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-red-500/15 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-primary">
+                  Delete {activeTab === "rag" ? selectedRagIds.size : selectedAgentIds.size} experiment(s)?
+                </h3>
+                <p className="text-xs text-t-secondary">This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowBulkConfirm(false)}
+                className="px-4 py-2 text-sm font-medium text-t-secondary hover:text-primary transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={bulkDelete}
+                disabled={bulkDeleting}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {bulkDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pipeline tabs */}
       <div className="flex gap-2">
@@ -286,6 +411,16 @@ export default function History({
                 className="bg-surface-100 rounded-2xl border border-visible overflow-hidden"
               >
                 <div className="flex items-center gap-4 p-5">
+                  {!isRunning && (
+                    <input
+                      type="checkbox"
+                      checked={selectedAgentIds.has(exp.id)}
+                      onChange={() => toggleSelect(exp.id, "agent")}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-4 h-4 accent-accent flex-shrink-0 cursor-pointer"
+                      aria-label="Select experiment"
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
                       <h3 className="text-primary font-semibold truncate">{exp.name}</h3>
@@ -427,9 +562,22 @@ export default function History({
                 className="bg-surface-100 rounded-2xl border border-visible overflow-hidden"
               >
                 {/* Summary row */}
+                <div className="flex items-stretch">
+                  {exp.status !== "running" && (
+                    <div className="flex items-center pl-5">
+                      <input
+                        type="checkbox"
+                        checked={selectedRagIds.has(exp.id)}
+                        onChange={() => toggleSelect(exp.id, "rag")}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4 accent-accent cursor-pointer"
+                        aria-label="Select experiment"
+                      />
+                    </div>
+                  )}
                 <button
                   onClick={() => toggleExpand(exp.id)}
-                  className="w-full flex items-center gap-4 p-5 hover:bg-surface-50 transition-colors text-left"
+                  className="flex-1 flex items-center gap-4 p-5 hover:bg-surface-50 transition-colors text-left"
                 >
                   <div className="flex-shrink-0">
                     {isExpanded ? (
@@ -602,6 +750,7 @@ export default function History({
                     );
                   })()}
                 </button>
+                </div>
 
                 {/* Expanded details */}
                 {isExpanded && (
