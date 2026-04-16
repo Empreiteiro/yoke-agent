@@ -99,9 +99,32 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         seed_benchmarks(db)
+        # Seed default admin account if configured and no users exist yet
+        _seed_default_admin(db)
     finally:
         db.close()
     yield
+
+
+def _seed_default_admin(db):
+    """Create the default admin user from env vars on first startup."""
+    email = settings.default_admin_email
+    password = settings.default_admin_password
+    if not email or not password:
+        return
+    from app.models.user import User, ROLE_ADMIN
+    from app.core.security import hash_password
+    existing = db.query(User).first()
+    if existing:
+        return  # users already exist — don't overwrite
+    user = User(
+        email=email.lower(),
+        password_hash=hash_password(password),
+        role=ROLE_ADMIN,
+    )
+    db.add(user)
+    db.commit()
+    logger.info(f"Created default admin user: {email}")
 
 
 app = FastAPI(
