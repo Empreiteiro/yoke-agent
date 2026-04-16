@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     default_embedding_model: str = "text-embedding-3-small"
     max_upload_size_mb: int = 50
     experiment_max_workers: int = 1
+    # Default admin account (created on first startup if no users exist)
+    default_admin_email: str = ""
+    default_admin_password: str = ""
     # Tracing (issue #179)
     tracing_enabled: bool = False
     otlp_endpoint: str = ""  # e.g. http://localhost:4318/v1/traces

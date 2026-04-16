@@ -47,7 +47,7 @@ fastmcp>=2.0.0
 
 # GraphRAG
 networkx>=3.0
-graspologic>=3.0
+# graspologic>=3.0  # GraphRAG community detection — requires Python <3.13
 
 # Utilities
 python-dotenv>=1.0.1
