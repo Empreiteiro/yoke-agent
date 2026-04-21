@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Play, Loader2, CheckCircle, XCircle, Clock, AlertCircle, Square, RotateCcw } from "lucide-react";
+import { Play, Loader2, CheckCircle, XCircle, Clock, AlertCircle, Square, StopCircle, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StepAgentExecutionProps {
@@ -18,6 +18,7 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
   const [stopping, setStopping] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedError, setExpandedError] = useState<number | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -56,20 +57,16 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
         }
         setRunning(false);
         setStopping(false);
-        if (s.status === "completed" || s.status === "completed_with_errors") {
-          onComplete?.();
-        }
       }
     } catch (err: any) {
       setError(err.message || "Failed to load status");
     }
-  }, [selectedExpId, onComplete]);
+  }, [selectedExpId]);
 
   useEffect(() => {
     if (selectedExpId) loadStatus();
   }, [selectedExpId, loadStatus]);
 
-  // Cleanup poll on unmount
   useEffect(() => {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -120,24 +117,23 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
     }
   };
 
-  const completedCount = combinations.filter((c) => c.status === "completed").length;
-  const failedCount = combinations.filter((c) => c.status === "failed" || c.status === "error").length;
-  const runningCount = combinations.filter((c) => c.status === "running").length;
-  const totalCount = combinations.length;
-  const progress = totalCount > 0 ? ((completedCount + failedCount) / totalCount) * 100 : 0;
+  const completed = combinations.filter((c) => c.status === "completed").length;
+  const failed = combinations.filter((c) => c.status === "failed" || c.status === "error").length;
+  const pending = combinations.filter((c) => c.status === "pending" || !c.status).length;
+  const stopped = combinations.filter((c) => c.status === "stopped").length;
+  const total = combinations.length;
+  const progress = total > 0 ? ((completed + failed) / total) * 100 : 0;
 
-  const statusIcon = (s: string) => {
-    switch (s) {
-      case "completed":
-        return <CheckCircle className="w-4 h-4 text-green-400" />;
-      case "running":
-        return <Loader2 className="w-4 h-4 text-accent animate-spin" />;
-      case "failed":
-      case "error":
-        return <XCircle className="w-4 h-4 text-red-400" />;
-      default:
-        return <Clock className="w-4 h-4 text-t-secondary" />;
-    }
+  const isDone = (status?.status === "completed" || status?.status === "completed_with_errors") && failed === 0;
+  const isStopped = status?.status === "stopped";
+  const isFailed = status?.status === "failed" || status?.status === "completed_with_errors";
+  const canResume = (isStopped || isFailed || (failed + stopped) > 0) && status?.status !== "running" && !running;
+
+  const firstError = combinations.find((c: any) => c.status === "failed" || c.status === "error");
+  const errorMessage = firstError?.error_message || firstError?.detailed_results?.error;
+
+  const getErrorText = (combo: any) => {
+    return combo.error_message || combo.detailed_results?.error || "Unknown error";
   };
 
   if (loading) {
@@ -151,18 +147,7 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
-          <Play className="w-5 h-5 text-accent" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-primary">Experiment Execution</h2>
-          <p className="text-sm text-t-secondary">Run simulated conversations across all combinations</p>
-        </div>
-      </div>
-
-      {/* Experiment selector */}
+      {/* Experiment selector — only when no prop provided */}
       {!experimentId && experiments.length > 0 && (
         <div className="bg-surface-100 rounded-xl border border-surface-200/50 p-4">
           <label className="block text-sm font-medium text-t-secondary mb-2">Select Experiment</label>
@@ -187,56 +172,170 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
         </div>
       ) : (
         <>
-          {/* Status summary */}
-          {status && (
-            <div className="bg-surface-100 rounded-xl border border-surface-200/50 p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-sm text-t-secondary">Status</span>
-                  <p className="text-lg font-semibold text-primary capitalize">{status.status || "pending"}</p>
-                </div>
-                <div className="text-right text-sm text-t-secondary">
-                  <p>{completedCount} / {totalCount} completed</p>
-                  {failedCount > 0 && <p className="text-red-400">{failedCount} failed</p>}
-                  {runningCount > 0 && <p className="text-accent">{runningCount} running</p>}
-                </div>
-              </div>
+          <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
+            {/* Top controls */}
+            <div className="flex items-center justify-end gap-3 mb-6">
+              {running ? (
+                <button
+                  onClick={handleStop}
+                  disabled={stopping}
+                  className="px-6 py-3 bg-red-500/10 border border-red-500/30 text-red-400 font-medium rounded-xl hover:bg-red-500/20 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {stopping ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Square className="w-4 h-4" />
+                  )}
+                  {stopping ? "Stopping..." : "Stop Execution"}
+                </button>
+              ) : canResume ? (
+                <>
+                  {failed > 0 && (
+                    <button
+                      onClick={() => handleResume(true)}
+                      className="px-5 py-3 bg-orange-500/10 border border-orange-500/30 text-orange-400 font-medium rounded-xl hover:bg-orange-500/20 flex items-center gap-2 text-sm"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Resume &amp; Retry Failed ({failed + stopped})
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleResume(false)}
+                    className="px-5 py-3 bg-accent/10 border border-accent/30 text-accent font-medium rounded-xl hover:bg-accent/20 flex items-center gap-2 text-sm"
+                  >
+                    <Play className="w-4 h-4" />
+                    {stopped > 0 ? `Resume (${stopped} remaining)` : `Retry Failed (${failed})`}
+                  </button>
+                </>
+              ) : null}
+            </div>
 
-              {/* Progress bar */}
-              <div className="w-full h-3 bg-surface-200/50 rounded-full overflow-hidden">
+            {/* Progress */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="text-t-secondary">Progress</span>
+                <span className="text-primary">
+                  {completed + failed}/{total}
+                </span>
+              </div>
+              <div className="w-full h-2 bg-surface-200 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-accent to-secondary rounded-full transition-all duration-500"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <p className="text-xs text-t-secondary text-right">{progress.toFixed(0)}%</p>
+              <div className="flex items-center gap-4 mt-3 text-xs">
+                <span className="flex items-center gap-1 text-emerald-400">
+                  <CheckCircle className="w-3 h-3" /> {completed} completed
+                </span>
+                <span className="flex items-center gap-1 text-red-400">
+                  <XCircle className="w-3 h-3" /> {failed} failed
+                </span>
+                <span className="flex items-center gap-1 text-t-secondary">
+                  <Clock className="w-3 h-3" /> {pending} pending
+                </span>
+                {stopped > 0 && (
+                  <span className="flex items-center gap-1 text-orange-400">
+                    <StopCircle className="w-3 h-3" /> {stopped} stopped
+                  </span>
+                )}
+              </div>
             </div>
-          )}
 
-          {/* Controls */}
-          <div className="flex items-center gap-3">
-            {running && !stopping && (
-              <button
-                onClick={handleStop}
-                className="flex items-center gap-2 px-6 py-2.5 bg-red-500/20 text-red-400 font-medium rounded-xl hover:bg-red-500/30 transition-colors"
-              >
-                <Square className="w-4 h-4" />
-                Stop
-              </button>
-            )}
-            {stopping && (
-              <div className="flex items-center gap-2 px-6 py-2.5 text-t-secondary text-sm">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Stopping...
+            {/* Error summary when all failed */}
+            {failed > 0 && completed === 0 && !running && errorMessage && (
+              <div className="mb-6 flex items-start gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm text-red-400 font-medium">All {failed} combinations failed</p>
+                  <p className="text-sm text-red-400/80 mt-1 break-words">{errorMessage}</p>
+                </div>
               </div>
             )}
-            <button
-              onClick={loadStatus}
-              className="flex items-center gap-2 px-4 py-2.5 bg-surface-200/50 text-t-secondary rounded-xl hover:text-primary transition-colors text-sm"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Refresh
-            </button>
+
+            {/* Combination list */}
+            <div className="space-y-2">
+              {combinations.map((combo: any, index: number) => {
+                const isError = combo.status === "failed" || combo.status === "error";
+                return (
+                  <div key={combo.id}>
+                    <div
+                      className={`flex items-center justify-between px-4 py-3 bg-surface-50 border border-surface-200/50 ${
+                        isError ? "cursor-pointer hover:bg-surface-100" : ""
+                      } ${expandedError === combo.id ? "rounded-t-xl" : "rounded-xl"}`}
+                      onClick={() => {
+                        if (isError) {
+                          setExpandedError(expandedError === combo.id ? null : combo.id);
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-mono text-muted">#{index + 1}</span>
+                        <div className="flex items-center gap-2 text-xs">
+                          {combo.params?.model && (
+                            <span className="px-2 py-0.5 bg-accent/10 text-accent rounded">
+                              {combo.params.model}
+                            </span>
+                          )}
+                          {combo.params?.temperature != null && (
+                            <span className="px-2 py-0.5 bg-secondary/10 text-secondary rounded">
+                              T={combo.params.temperature}
+                            </span>
+                          )}
+                          {combo.params?.max_turns != null && (
+                            <span className="px-2 py-0.5 bg-surface-200 text-t-hover rounded">
+                              turns={combo.params.max_turns}
+                            </span>
+                          )}
+                          {combo.params?.variant_label && (
+                            <span className="px-2 py-0.5 bg-surface-200 text-t-hover rounded">
+                              {combo.params.variant_label}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {combo.total_simulations > 0 && combo.status !== "pending" && (
+                          <span className="text-xs text-t-secondary">
+                            {combo.completed_simulations ?? 0}/{combo.total_simulations}
+                          </span>
+                        )}
+                        {combo.overall_score != null && (
+                          <span className="text-sm font-medium text-primary">
+                            {(combo.overall_score * 100).toFixed(1)}%
+                          </span>
+                        )}
+                        {combo.status === "completed" ? (
+                          <CheckCircle className="w-4 h-4 text-emerald-400" />
+                        ) : isError ? (
+                          <div className="flex items-center gap-1">
+                            <XCircle className="w-4 h-4 text-red-400" />
+                            {expandedError === combo.id ? (
+                              <ChevronUp className="w-3 h-3 text-red-400" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3 text-red-400" />
+                            )}
+                          </div>
+                        ) : combo.status === "running" ? (
+                          <Loader2 className="w-4 h-4 text-accent animate-spin" />
+                        ) : combo.status === "stopped" ? (
+                          <StopCircle className="w-4 h-4 text-orange-400" />
+                        ) : (
+                          <Clock className="w-4 h-4 text-muted" />
+                        )}
+                      </div>
+                    </div>
+                    {expandedError === combo.id && isError && (
+                      <div className="px-4 py-3 bg-red-500/5 border border-red-500/20 border-t-0 rounded-b-xl">
+                        <p className="text-xs text-red-400 font-mono break-words whitespace-pre-wrap">
+                          {getErrorText(combo)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Error */}
@@ -247,53 +346,23 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
             </div>
           )}
 
-          {/* Combination status grid */}
-          {combinations.length > 0 && (
-            <div className="bg-surface-100 rounded-xl border border-surface-200/50 p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">
-                Combinations ({combinations.length})
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {combinations.map((c) => (
-                  <div
-                    key={c.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                      c.status === "completed"
-                        ? "border-green-500/30 bg-green-500/5"
-                        : c.status === "failed" || c.status === "error"
-                        ? "border-red-500/30 bg-red-500/5"
-                        : c.status === "running"
-                        ? "border-accent/30 bg-accent/5"
-                        : "border-surface-200/50 bg-surface-100"
-                    }`}
-                  >
-                    {statusIcon(c.status)}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-primary truncate">
-                        {c.params?.model || `Combo #${c.id}`}
-                      </p>
-                      <p className="text-xs text-t-secondary truncate">
-                        T={c.params?.temperature ?? "?"} | Turns={c.params?.max_turns ?? "?"}
-                      </p>
-                      {c.error_message && (
-                        <p className="text-[10px] text-red-400 mt-0.5 truncate" title={c.error_message}>
-                          {c.error_message.slice(0, 80)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs text-t-secondary capitalize">{c.status || "pending"}</span>
-                      {c.completed_simulations > 0 && (
-                        <p className="text-[10px] text-t-secondary">{c.completed_simulations}/{c.total_simulations}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+          {canResume && (
+            <div className="flex items-start gap-3 p-4 bg-orange-500/5 border border-orange-500/20 rounded-xl">
+              <StopCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-orange-400">
+                <p>
+                  {isStopped ? "Experiment stopped." : "Experiment finished with errors."}{" "}
+                  {completed > 0 && `${completed} completed`}
+                  {failed > 0 && `${completed > 0 ? ", " : ""}${failed} failed`}
+                  {stopped > 0 && `${completed > 0 || failed > 0 ? ", " : ""}${stopped} stopped`}.
+                </p>
+                <p className="mt-1 text-orange-400/70">Use the buttons above to resume or retry.</p>
               </div>
             </div>
           )}
-          {/* CTA — Start / Resume / Retry / Results */}
-          {!running && (!status?.status || status?.status === "configured" || status?.status === "pending") && (
+
+          {/* Start Execution CTA */}
+          {!isDone && !running && !canResume && (!status?.status || status?.status === "configured" || status?.status === "pending") && (
             <button
               onClick={handleRun}
               className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
@@ -302,47 +371,12 @@ export default function StepAgentExecution({ experimentId, onComplete }: StepAge
               Start Execution
             </button>
           )}
-          {!running && (status?.status === "stopped" || status?.status === "failed") && (
-            <div className="space-y-2">
-              <button
-                onClick={() => handleResume(false)}
-                className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                <Play className="w-4 h-4" />
-                Resume Pending Combinations
-              </button>
-              {(status?.failed ?? 0) > 0 && (
-                <button
-                  onClick={() => handleResume(true)}
-                  className="w-full py-3 px-6 border-2 border-accent text-accent font-medium rounded-xl hover:bg-accent/10 transition-colors flex items-center justify-center gap-2"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Retry {status?.failed} Failed Combination{(status?.failed ?? 0) !== 1 ? "s" : ""}
-                </button>
-              )}
-            </div>
-          )}
-          {!running && status?.status === "completed" && (status?.failed ?? 0) > 0 && (
-            <div className="space-y-2">
-              <button
-                onClick={() => handleResume(true)}
-                className="w-full py-3 px-6 border-2 border-accent text-accent font-medium rounded-xl hover:bg-accent/10 transition-colors flex items-center justify-center gap-2"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Retry {status?.failed} Failed Combination{(status?.failed ?? 0) !== 1 ? "s" : ""}
-              </button>
-              <button
-                onClick={() => onComplete?.()}
-                className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
-              >
-                View Results Report
-              </button>
-            </div>
-          )}
-          {!running && status?.status === "completed" && (status?.failed ?? 0) === 0 && (
+
+          {/* View Results CTA */}
+          {(isDone || (isStopped && completed > 0)) && (
             <button
               onClick={() => onComplete?.()}
-              className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
               View Results Report
             </button>
