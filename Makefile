@@ -133,10 +133,15 @@ test-backend: ## Run backend tests
 
 # --- Database ---
 
-db-reset: ## Reset the SQLite database
-	@echo "$(CYAN)Resetting database...$(RESET)"
-	rm -f $(BACKEND_DIR)/rag_pipeline.db
-	@echo "$(GREEN)Database reset. It will be recreated on next server start.$(RESET)"
+db-reset: ## Reset the local SQLite database (no-op when DATABASE_URL points at Postgres)
+	@DB_URL=$$(grep -E '^DATABASE_URL=' $(BACKEND_DIR)/.env 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '"'); \
+	if [ -n "$$DB_URL" ] && ! echo "$$DB_URL" | grep -q '^sqlite:'; then \
+		echo "$(YELLOW)DATABASE_URL=$$DB_URL is not SQLite — drop/recreate your Postgres DB manually.$(RESET)"; \
+	else \
+		echo "$(CYAN)Resetting database...$(RESET)"; \
+		rm -f $(BACKEND_DIR)/rag_pipeline.db; \
+		echo "$(GREEN)Database reset. It will be recreated on next server start.$(RESET)"; \
+	fi
 
 # --- Cleanup ---
 
