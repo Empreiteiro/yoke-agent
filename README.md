@@ -201,7 +201,7 @@ Open http://localhost:4000 → Settings → Providers → **Add Provider**, pick
 | `make start` | Start both servers in production mode |
 | `make lint` | Run linters (ruff + eslint) |
 | `make test` | Run backend tests |
-| `make db-reset` | Reset the SQLite database |
+| `make db-reset` | Reset the local SQLite database (no-op when `DATABASE_URL` points at Postgres) |
 | `make clean` | Remove all generated files |
 | `make help` | Show all available commands |
 
@@ -213,7 +213,7 @@ Backend configuration lives in `backend/.env`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `sqlite:///./rag_pipeline.db` | SQLAlchemy database URL |
+| `DATABASE_URL` | `sqlite:///./rag_pipeline.db` | SQLAlchemy database URL. Set to `postgresql://user:pass@host:5432/db` to use Postgres instead of SQLite. |
 | `UPLOAD_DIR` | `uploads` | Directory for uploaded files |
 | `DEFAULT_VECTORSTORE` | `chromadb` | Default vector store provider |
 | `CORS_ORIGINS` | `http://localhost:4000` | Allowed CORS origins |
