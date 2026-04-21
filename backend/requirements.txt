@@ -8,6 +8,8 @@ pydantic-settings>=2.5.0
 # Database
 sqlalchemy>=2.0.35
 alembic>=1.13.0
+# Postgres driver (optional — only required when DATABASE_URL points at Postgres)
+psycopg2-binary>=2.9.9
 
 # LangChain core
 langchain>=0.3.1
