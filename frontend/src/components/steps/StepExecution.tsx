@@ -221,12 +221,15 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
               >
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-mono text-muted">#{index + 1}</span>
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex items-center gap-2 text-xs flex-wrap">
                     {combo.params.pipeline_type === "graphrag" && (
                       <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded text-xs">GraphRAG</span>
                     )}
                     <span className="px-2 py-0.5 bg-accent/10 text-accent rounded">
                       {combo.params.chunk_size}t
+                    </span>
+                    <span className="px-2 py-0.5 bg-surface-200 text-t-hover rounded">
+                      {combo.params.chunking_strategy || "recursive"}
                     </span>
                     <span className="px-2 py-0.5 bg-secondary/10 text-secondary rounded">
                       {combo.params.chunk_overlap}%
@@ -237,6 +240,16 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
                     <span className="px-2 py-0.5 bg-surface-200 text-t-hover rounded">
                       {combo.params.pipeline_type === "graphrag" ? (combo.params.search_mode || "local") : combo.params.search_type}
                     </span>
+                    {combo.params.pipeline_type !== "graphrag" && (
+                      <span className="px-2 py-0.5 bg-surface-200 text-t-hover rounded">
+                        {combo.params.distance_metric || "cosine"}
+                      </span>
+                    )}
+                    {combo.params.reranker && combo.params.reranker !== "none" && (
+                      <span className="px-2 py-0.5 bg-surface-200 text-t-hover rounded">
+                        {combo.params.reranker}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
