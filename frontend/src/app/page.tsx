@@ -91,12 +91,18 @@ function HomeContent() {
     experimentId: number | null;
     agentConfigId: number | null;
     agentExperimentId: number | null;
+    gridSearchConfig: any | null;
+    gridSearchName: string;
+    gridSearchVectorStoreType: string;
   }>({
     documentIds: [],
     datasetId: null,
     experimentId: null,
     agentConfigId: null,
     agentExperimentId: null,
+    gridSearchConfig: null,
+    gridSearchName: "",
+    gridSearchVectorStoreType: "chromadb",
   });
 
   const navigate = useCallback((path: string) => {
@@ -186,8 +192,16 @@ function HomeContent() {
         return (
           <StepGridSearch
             datasetId={pipelineData.datasetId}
-            onComplete={(experimentId) =>
-              handleStepComplete("grid-search", { experimentId })
+            initialConfig={pipelineData.gridSearchConfig}
+            initialName={pipelineData.gridSearchName}
+            initialVectorStoreType={pipelineData.gridSearchVectorStoreType}
+            onComplete={(experimentId, snapshot) =>
+              handleStepComplete("grid-search", {
+                experimentId,
+                gridSearchConfig: snapshot.config,
+                gridSearchName: snapshot.name,
+                gridSearchVectorStoreType: snapshot.vectorStoreType,
+              })
             }
           />
         );

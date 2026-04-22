@@ -5,9 +5,20 @@ import { Grid3X3, Plus, X, Loader2, AlertCircle, DollarSign, Scissors, Cpu, Sear
 import { api } from "@/lib/api";
 import { useWalkthrough } from "@/contexts/WalkthroughContext";
 
+type GridSearchConfig = typeof DEFAULT_CONFIG;
+
+interface GridSearchSnapshot {
+  config: GridSearchConfig;
+  name: string;
+  vectorStoreType: string;
+}
+
 interface StepGridSearchProps {
   datasetId: number | null;
-  onComplete: (experimentId: number) => void;
+  initialConfig?: GridSearchConfig | null;
+  initialName?: string;
+  initialVectorStoreType?: string;
+  onComplete: (experimentId: number, snapshot: GridSearchSnapshot) => void;
 }
 
 const DEFAULT_CONFIG = {
@@ -76,12 +87,20 @@ const AVAILABLE_METRICS = [
   { id: "answer_correctness", label: "Answer Correctness", description: "Factual correctness of the generated answer" },
 ];
 
-export default function StepGridSearch({ datasetId, onComplete }: StepGridSearchProps) {
+export default function StepGridSearch({
+  datasetId,
+  initialConfig,
+  initialName,
+  initialVectorStoreType,
+  onComplete,
+}: StepGridSearchProps) {
   const { startIfNew } = useWalkthrough();
   useEffect(() => { startIfNew("grid-search"); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [config, setConfig] = useState(DEFAULT_CONFIG);
-  const [experimentName, setExperimentName] = useState("");
-  const [vectorStoreType, setVectorStoreType] = useState("chromadb");
+  const [config, setConfig] = useState<GridSearchConfig>(() =>
+    initialConfig ? { ...DEFAULT_CONFIG, ...initialConfig } : DEFAULT_CONFIG,
+  );
+  const [experimentName, setExperimentName] = useState(initialName ?? "");
+  const [vectorStoreType, setVectorStoreType] = useState(initialVectorStoreType ?? "chromadb");
   const [loading, setLoading] = useState(false);
   const [newChunkSize, setNewChunkSize] = useState("");
   const [newTopK, setNewTopK] = useState("");
@@ -250,7 +269,7 @@ export default function StepGridSearch({ datasetId, onComplete }: StepGridSearch
         expId = exp.id;
       }
       await api.configureGrid(expId, config);
-      onComplete(expId);
+      onComplete(expId, { config, name: experimentName, vectorStoreType });
     } catch (err) {
       console.error("Failed to configure grid search:", err);
     } finally {
