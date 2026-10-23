@@ -9,12 +9,14 @@ from app.core.database import engine, Base
 from app.api import documents, datasets, experiments, vectorstores, providers, token_usage, collections, auth, mcp_config, chat
 from app.api import agent_configs, agent_experiments
 from app.api import users, traces
+from app.api import decision
 from app.models import saved_collection  # noqa: F401 — ensure table creation
 from app.models import vectorstore_config  # noqa: F401 — ensure table creation
 from app.models import api_key  # noqa: F401 — ensure table creation
 from app.models import agent  # noqa: F401 — ensure agent pipeline tables
 from app.models import user  # noqa: F401 — ensure users / audit_logs tables
 from app.models import trace  # noqa: F401 — ensure traces / trace_spans tables
+from app.models import decision as decision_models  # noqa: F401 — ensure model comparison tables
 from app.core.auth import ApiKeyAuthMiddleware
 from app.middleware.tracing import TracingMiddleware
 
@@ -106,9 +108,13 @@ async def lifespan(app: FastAPI):
     # Seed built-in benchmark datasets
     from app.api.datasets import seed_benchmarks
     from app.core.database import SessionLocal
+    from app.services.decision_datasets import seed_builtin_datasets
+    from app.services.decision_comparison import recover_interrupted
     db = SessionLocal()
     try:
         seed_benchmarks(db)
+        seed_builtin_datasets(db)
+        recover_interrupted(db)
         # Seed default admin account if configured and no users exist yet
         _seed_default_admin(db)
     finally:
@@ -169,6 +175,7 @@ app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(agent_configs.router, prefix="/api/agent/configs", tags=["agent-configs"])
 app.include_router(agent_experiments.router, prefix="/api/agent", tags=["agent-experiments"])
 app.include_router(traces.router, prefix="/api/traces", tags=["traces"])
+app.include_router(decision.router, prefix="/api/decision", tags=["model-comparison"])
 
 
 @app.get("/api/health")
