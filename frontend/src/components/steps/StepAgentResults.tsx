@@ -246,9 +246,9 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
 
   const scoreColor = (val: number | null | undefined) => {
     if (val == null) return "text-t-secondary";
-    if (val >= 0.8) return "text-emerald-400";
-    if (val >= 0.6) return "text-amber-400";
-    return "text-red-400";
+    if (val >= 0.8) return "text-success";
+    if (val >= 0.6) return "text-warning";
+    return "text-danger";
   };
 
   return (
@@ -266,7 +266,7 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+        <div className="flex items-center gap-2 p-3 bg-danger/10 border border-danger/30 rounded-lg text-danger text-sm">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           {error}
         </div>
@@ -274,7 +274,7 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
 
       {/* Best combination */}
       {best && (
-        <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-2xl border border-surface-200/50 p-6">
+        <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-2xl border border-themed p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
               <Trophy className="w-5 h-5 text-primary" />
@@ -353,7 +353,7 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                   <th className="px-2 py-3 text-left text-xs font-medium text-t-secondary uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-surface-200/30">
+              <tbody className="divide-y divide-themed-subtle">
                 {sorted.map((c: any, idx: number) => {
                   const p = c.params || {};
                   const metrics = c.aggregated_metrics || c.metrics || {};
@@ -371,7 +371,7 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                       <td className="px-3 py-3 text-t-hover">
                         <div className="flex items-center gap-1">
                           {idx === 0 ? (
-                            <Trophy className="w-4 h-4 text-amber-400" />
+                            <Trophy className="w-4 h-4 text-warning" />
                           ) : (
                             `#${idx + 1}`
                           )}
@@ -395,7 +395,7 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                       </td>
                       <td className="px-2 py-3 text-t-secondary text-xs font-mono">{sims}</td>
                       <td className="px-2 py-3 text-t-secondary text-xs font-mono">{renderRawValue(c.total_tokens, "tokens")}</td>
-                      <td className="px-2 py-3 text-amber-400 text-xs font-mono">{renderRawValue(c.total_cost, "currency")}</td>
+                      <td className="px-2 py-3 text-warning text-xs font-mono">{renderRawValue(c.total_cost, "currency")}</td>
                       <td className="px-2 py-3 capitalize text-t-secondary text-xs">{c.status || "—"}</td>
                     </tr>
                   );
@@ -427,7 +427,7 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
               <button
                 onClick={handleGenerateReport}
                 disabled={generatingReport}
-                className="w-full flex items-center justify-center gap-2 px-6 py-2.5 bg-accent text-white font-medium rounded-xl hover:bg-accent/90 transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 px-6 py-2.5 bg-accent text-accent-foreground font-medium rounded-xl hover:bg-accent/90 transition-colors disabled:opacity-50"
               >
                 {generatingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                 {generatingReport ? "Generating..." : "Generate Improvement Report"}
@@ -516,7 +516,7 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                             {...props}
                           />
                         ),
-                        hr: () => <hr className="border-surface-200/50 my-6" />,
+                        hr: () => <hr className="border-themed my-6" />,
                         code: ({ node, inline, className, children, ...props }: any) =>
                           inline ? (
                             <code
@@ -539,7 +539,7 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                         table: ({ node, ...props }) => (
                           <div className="my-4 overflow-x-auto">
                             <table
-                              className="w-full text-xs border-collapse border border-surface-200/50"
+                              className="w-full text-xs border-collapse border border-themed"
                               {...props}
                             />
                           </div>
@@ -549,12 +549,12 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                         ),
                         th: ({ node, ...props }) => (
                           <th
-                            className="border border-surface-200/50 px-3 py-2 text-left text-primary font-semibold"
+                            className="border border-themed px-3 py-2 text-left text-primary font-semibold"
                             {...props}
                           />
                         ),
                         td: ({ node, ...props }) => (
-                          <td className="border border-surface-200/50 px-3 py-2 align-top" {...props} />
+                          <td className="border border-themed px-3 py-2 align-top" {...props} />
                         ),
                       }}
                     >
@@ -571,7 +571,7 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
       {/* ── Block 3: Transcripts Modal ──────────────────────────────────── */}
       {modalCombo && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay)] backdrop-blur-[7px]"
           onClick={() => setModalCombo(null)}
         >
           <div
@@ -650,7 +650,7 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                 ) : (
                   <div className="space-y-2">
                     {transcripts.map((t) => (
-                      <div key={t.id} className="border border-surface-200/50 rounded-lg overflow-hidden">
+                      <div key={t.id} className="border border-themed rounded-lg overflow-hidden">
                         <button
                           onClick={() => loadTranscriptDetail(t.id)}
                           className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-200/20 transition-colors text-left"
@@ -670,7 +670,7 @@ export default function StepAgentResults({ experimentId }: StepAgentResultsProps
                           )}
                         </button>
                         {expandedTranscript === t.id && (
-                          <div className="px-4 pb-4 border-t border-surface-200/50">
+                          <div className="px-4 pb-4 border-t border-themed">
                             {loadingTranscriptDetail ? (
                               <div className="flex items-center justify-center py-6 text-t-secondary text-sm">
                                 <Loader2 className="w-4 h-4 animate-spin mr-2" />

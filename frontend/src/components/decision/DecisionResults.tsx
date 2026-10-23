@@ -115,7 +115,7 @@ function ComparisonList() {
         </div>
         <button
           onClick={() => router.push("/?view=decision-compare")}
-          className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
           New comparison
@@ -135,7 +135,7 @@ function ComparisonList() {
           <p className="text-xs text-t-secondary mt-1">Run decision models and LLMs on the same dataset to see who wins — and at what cost.</p>
           <button
             onClick={() => router.push("/?view=decision-compare")}
-            className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent/90"
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-lg text-sm font-medium hover:bg-accent/90"
           >
             <Play className="w-4 h-4" /> Start a comparison
           </button>
@@ -202,10 +202,10 @@ function ComparisonList() {
                           e.stopPropagation();
                           remove(r.id);
                         }}
-                        className="p-1.5 rounded-md hover:bg-red-500/10"
+                        className="p-1.5 rounded-md hover:bg-danger/10"
                         aria-label="Delete comparison"
                       >
-                        <Trash2 className="w-4 h-4 text-muted hover:text-red-500" />
+                        <Trash2 className="w-4 h-4 text-muted hover:text-danger" />
                       </button>
                     )}
                   </td>
@@ -221,7 +221,7 @@ function ComparisonList() {
 
 function Banner({ message, onClose }: { message: string; onClose?: () => void }) {
   return (
-    <div className="flex items-start gap-2 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm">
+    <div className="flex items-start gap-2 px-4 py-3 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm">
       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
       <span className="flex-1">{message}</span>
       {onClose && (
@@ -429,7 +429,7 @@ function ActionButton({
       disabled={disabled}
       className={cn(
         "flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-visible rounded-lg transition-colors disabled:opacity-50",
-        danger ? "text-red-500 hover:bg-red-500/10" : "text-t-secondary hover:text-primary hover:bg-surface-200/50"
+        danger ? "text-danger hover:bg-danger/10" : "text-t-secondary hover:text-primary hover:bg-surface-200/50"
       )}
     >
       <Icon className="w-3.5 h-3.5" />
@@ -550,7 +550,7 @@ function Leaderboard({ models }: { models: any[] }) {
                     {m.status !== "completed" && <StatusPill status={m.status} />}
                   </div>
                   <p className="text-[11px] text-muted ml-[18px]">{m.provider_name}</p>
-                  {m.error_message && <p className="text-[11px] text-red-500 ml-[18px] mt-0.5 max-w-md">{m.error_message}</p>}
+                  {m.error_message && <p className="text-[11px] text-danger ml-[18px] mt-0.5 max-w-md">{m.error_message}</p>}
                 </td>
                 <td className="px-2.5 py-3 text-right tabular-nums text-t-hover">{formatInt(m.evaluated)}</td>
                 <td className="px-2.5 py-3 text-right tabular-nums">
@@ -573,7 +573,7 @@ function Leaderboard({ models }: { models: any[] }) {
                 <td className="px-2.5 py-3 text-right tabular-nums text-primary font-medium">
                   {formatCost(m.total_cost)}
                   {m.tokens_estimated && <p className="text-[10px] text-muted font-normal">tokens estimated</p>}
-                  {!m.pricing_known && <p className="text-[10px] text-amber-500 font-normal">no price set</p>}
+                  {!m.pricing_known && <p className="text-[10px] text-warning font-normal">no price set</p>}
                 </td>
                 <td className="px-2.5 py-3 text-right tabular-nums text-t-hover">{formatCost(m.cost_per_1k)}</td>
                 <td className="px-2.5 py-3 text-right tabular-nums text-t-hover">
@@ -697,7 +697,7 @@ function CostChart({ models }: { models: any[] }) {
         </div>
       )}
       {unpriced.length > 0 && (
-        <p className="text-[11px] text-amber-500 mt-2">
+        <p className="text-[11px] text-warning mt-2">
           Not shown (no price): {unpriced.map((m) => m.model_name).join(", ")}
         </p>
       )}
@@ -1137,13 +1137,13 @@ function PredictionsExplorer({
                   <td className="py-2 pr-3">
                     {p.status === "ok" ? (
                       <span className="inline-flex items-center gap-1">
-                        <span aria-hidden className={p.is_correct ? "text-emerald-500" : "text-red-500"}>
+                        <span aria-hidden className={p.is_correct ? "text-success" : "text-danger"}>
                           {p.is_correct ? "✓" : "✗"}
                         </span>
                         <code className="text-primary">{p.predicted_label}</code>
                       </span>
                     ) : (
-                      <span className="text-amber-500" title={p.raw_output || ""}>
+                      <span className="text-warning" title={p.raw_output || ""}>
                         ⚠ {p.status === "error" ? "error" : "no valid label"}
                         {p.error && <span className="block text-[10px] text-muted max-w-[220px] truncate">{p.error}</span>}
                       </span>

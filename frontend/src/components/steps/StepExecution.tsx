@@ -125,13 +125,13 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
 
   return (
     <div className="space-y-6">
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
+      <div className="bg-surface-100 rounded-2xl border border-themed p-8">
         <div className="flex items-center justify-end gap-3 mb-6" data-walkthrough="execution-controls">
           {running ? (
             <button
               onClick={handleStop}
               disabled={stopping}
-              className="px-6 py-3 bg-red-500/10 border border-red-500/30 text-red-400 font-medium rounded-xl hover:bg-red-500/20 disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-3 bg-danger/10 border border-danger/30 text-danger font-medium rounded-xl hover:bg-danger/20 disabled:opacity-50 flex items-center gap-2"
             >
               {stopping ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -177,10 +177,10 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
             />
           </div>
           <div className="flex items-center gap-4 mt-3 text-xs">
-            <span className="flex items-center gap-1 text-emerald-400">
+            <span className="flex items-center gap-1 text-success">
               <CheckCircle className="w-3 h-3" /> {completed} completed
             </span>
-            <span className="flex items-center gap-1 text-red-400">
+            <span className="flex items-center gap-1 text-danger">
               <XCircle className="w-3 h-3" /> {failed} failed
             </span>
             <span className="flex items-center gap-1 text-t-secondary">
@@ -196,11 +196,11 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
 
         {/* Error summary when all failed */}
         {failed > 0 && completed === 0 && !running && errorMessage && (
-          <div className="mb-6 flex items-start gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
-            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="mb-6 flex items-start gap-3 p-4 bg-danger/5 border border-danger/20 rounded-xl">
+            <AlertCircle className="w-5 h-5 text-danger flex-shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <p className="text-sm text-red-400 font-medium">All {failed} combinations failed</p>
-              <p className="text-sm text-red-400/80 mt-1 break-words">{errorMessage}</p>
+              <p className="text-sm text-danger font-medium">All {failed} combinations failed</p>
+              <p className="text-sm text-danger/80 mt-1 break-words">{errorMessage}</p>
             </div>
           </div>
         )}
@@ -210,7 +210,7 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
           {combinations.map((combo: any, index: number) => (
             <div key={combo.id}>
               <div
-                className={`flex items-center justify-between px-4 py-3 bg-surface-50 border border-surface-200/50 ${
+                className={`flex items-center justify-between px-4 py-3 bg-surface-50 border border-themed ${
                   combo.status === "failed" ? "cursor-pointer hover:bg-surface-100" : ""
                 } ${expandedError === combo.id ? "rounded-t-xl" : "rounded-xl"}`}
                 onClick={() => {
@@ -259,14 +259,14 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
                     </span>
                   )}
                   {combo.status === "completed" ? (
-                    <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    <CheckCircle className="w-4 h-4 text-success" />
                   ) : combo.status === "failed" ? (
                     <div className="flex items-center gap-1">
-                      <XCircle className="w-4 h-4 text-red-400" />
+                      <XCircle className="w-4 h-4 text-danger" />
                       {expandedError === combo.id ? (
-                        <ChevronUp className="w-3 h-3 text-red-400" />
+                        <ChevronUp className="w-3 h-3 text-danger" />
                       ) : (
-                        <ChevronDown className="w-3 h-3 text-red-400" />
+                        <ChevronDown className="w-3 h-3 text-danger" />
                       )}
                     </div>
                   ) : combo.status === "running" ? (
@@ -280,8 +280,8 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
               </div>
               {/* Expanded error detail */}
               {expandedError === combo.id && combo.status === "failed" && (
-                <div className="px-4 py-3 bg-red-500/5 border border-red-500/20 border-t-0 rounded-b-xl">
-                  <p className="text-xs text-red-400 font-mono break-words whitespace-pre-wrap">
+                <div className="px-4 py-3 bg-danger/5 border border-danger/20 border-t-0 rounded-b-xl">
+                  <p className="text-xs text-danger font-mono break-words whitespace-pre-wrap">
                     {getErrorText(combo)}
                   </p>
                 </div>
@@ -311,7 +311,7 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
         <button
           onClick={handleRun}
           data-walkthrough="execution-start"
-          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3 px-6 bg-accent shadow-resting text-accent-foreground font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <Play className="w-4 h-4" />
           Start Execution
@@ -322,7 +322,7 @@ export default function StepExecution({ experimentId, onComplete }: StepExecutio
       {(isDone || (isStopped && completed > 0)) && (
         <button
           onClick={onComplete}
-          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3 px-6 bg-accent shadow-resting text-accent-foreground font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           View Results Report
         </button>

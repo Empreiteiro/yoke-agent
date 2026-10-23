@@ -213,21 +213,21 @@ export default function McpSettings() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-500/5 border border-red-500/20 rounded-xl text-sm text-red-400">
+        <div className="flex items-center gap-2 p-3 bg-danger/5 border border-danger/20 rounded-xl text-sm text-danger">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           {error}
-          <button onClick={() => setError(null)} className="ml-auto text-red-400/60 hover:text-red-400">x</button>
+          <button onClick={() => setError(null)} className="ml-auto text-danger/60 hover:text-danger">x</button>
         </div>
       )}
 
       {/* ─── Section 1: API Keys ─── */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+      <div className="bg-surface-100 rounded-2xl border border-themed p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-accent" />
             <h3 className="text-sm font-semibold text-primary">API Keys</h3>
             {bootstrapMode && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/10 text-warning">
                 No auth — create a key to protect your API
               </span>
             )}
@@ -235,7 +235,7 @@ export default function McpSettings() {
           {!showCreateForm && (
             <button
               onClick={() => setShowCreateForm(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg hover:opacity-90"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-accent-foreground text-xs font-medium rounded-lg hover:opacity-90"
             >
               <Plus className="w-3.5 h-3.5" /> New Key
             </button>
@@ -244,19 +244,19 @@ export default function McpSettings() {
 
         {/* Create form */}
         {showCreateForm && (
-          <div className="mb-4 p-4 bg-surface-50 rounded-xl border border-surface-200/50">
+          <div className="mb-4 p-4 bg-surface-50 rounded-xl border border-themed">
             <label className="block text-xs text-t-secondary mb-1.5">Key Name</label>
             <div className="flex gap-2">
               <input
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
                 placeholder="e.g., Development, CI/CD, Claude Code"
-                className="flex-1 px-3 py-2 bg-surface border border-surface-200/50 rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50"
+                className="flex-1 px-3 py-2 bg-surface border border-themed rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50"
                 onKeyDown={(e) => e.key === "Enter" && handleCreateKey()}
               />
               <button
                 onClick={handleCreateKey}
-                className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:opacity-90"
+                className="px-4 py-2 bg-accent text-accent-foreground text-sm font-medium rounded-lg hover:opacity-90"
               >
                 Generate
               </button>
@@ -272,9 +272,9 @@ export default function McpSettings() {
 
         {/* Just created key display */}
         {justCreatedKey && (
-          <div className="mb-4 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+          <div className="mb-4 p-4 bg-success/5 border border-success/20 rounded-xl">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-emerald-400">
+              <span className="text-xs font-medium text-success">
                 Key created! Copy it now — it won't be shown again.
               </span>
               <button
@@ -290,7 +290,7 @@ export default function McpSettings() {
               </code>
               <button
                 onClick={() => copyToClipboard(justCreatedKey, "key")}
-                className="flex-shrink-0 p-2 bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500/20"
+                className="flex-shrink-0 p-2 bg-success/10 text-success rounded-lg hover:bg-success/20"
               >
                 {copied === "key" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               </button>
@@ -318,7 +318,7 @@ export default function McpSettings() {
             {keys.map((k) => (
               <div
                 key={k.id}
-                className="flex items-center justify-between px-4 py-3 bg-surface-50 rounded-xl border border-surface-200/50"
+                className="flex items-center justify-between px-4 py-3 bg-surface-50 rounded-xl border border-themed"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <Key className="w-4 h-4 text-muted flex-shrink-0" />
@@ -332,7 +332,7 @@ export default function McpSettings() {
                 </div>
                 <button
                   onClick={() => handleDeleteKey(k.id)}
-                  className="p-1.5 text-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                  className="p-1.5 text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
                   title="Delete key"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -344,7 +344,7 @@ export default function McpSettings() {
       </div>
 
       {/* ─── Section 2: Connect to Platform ─── */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+      <div className="bg-surface-100 rounded-2xl border border-themed p-6">
         <div className="flex items-center gap-2 mb-4">
           <Cable className="w-4 h-4 text-accent" />
           <h3 className="text-sm font-semibold text-primary">Connect to Platform</h3>
@@ -359,7 +359,7 @@ export default function McpSettings() {
               className={`px-2 py-2 text-xs font-medium rounded-lg transition-colors text-center ${
                 platform === p.key
                   ? "bg-accent/15 text-accent border border-accent"
-                  : "bg-surface-50 text-t-secondary border border-surface-200/50 hover:border-surface-300"
+                  : "bg-surface-50 text-t-secondary border border-themed hover:border-surface-300"
               }`}
             >
               {p.label}
@@ -374,7 +374,7 @@ export default function McpSettings() {
 
         {/* Payload */}
         <div className="relative">
-          <pre className="p-4 bg-surface-50 rounded-xl border border-surface-200/50 text-xs font-mono text-primary overflow-x-auto whitespace-pre">
+          <pre className="p-4 bg-surface-50 rounded-xl border border-themed text-xs font-mono text-primary overflow-x-auto whitespace-pre">
             {buildPayload(platform, serverPath, justCreatedKey || "")}
           </pre>
           <button
@@ -388,7 +388,7 @@ export default function McpSettings() {
             title="Copy JSON"
           >
             {copied === "payload" ? (
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              <Check className="w-3.5 h-3.5 text-success" />
             ) : (
               <Copy className="w-3.5 h-3.5 text-muted" />
             )}
@@ -398,7 +398,7 @@ export default function McpSettings() {
       </div>
 
       {/* ─── Section 3: MCP Tool Toggles ─── */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+      <div className="bg-surface-100 rounded-2xl border border-themed p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <ToggleRight className="w-4 h-4 text-accent" />
@@ -411,7 +411,7 @@ export default function McpSettings() {
             <button
               onClick={handleSaveTools}
               disabled={savingTools}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-accent-foreground text-xs font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
             >
               {savingTools ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               Save Changes
@@ -430,7 +430,7 @@ export default function McpSettings() {
                 <h4 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">
                   {group}
                 </h4>
-                <div className="rounded-xl bg-surface-50 border border-surface-200/30 overflow-hidden">
+                <div className="rounded-xl bg-surface-50 border border-themed-subtle overflow-hidden">
                   {groupTools.map((tool) => (
                     <div
                       key={tool.name}
@@ -461,7 +461,7 @@ export default function McpSettings() {
         )}
 
         {toolsDirty && (
-          <p className="mt-3 text-xs text-amber-400">
+          <p className="mt-3 text-xs text-warning">
             Restart the MCP server after saving for changes to take effect.
           </p>
         )}

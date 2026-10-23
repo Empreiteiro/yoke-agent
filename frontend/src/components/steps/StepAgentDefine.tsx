@@ -399,7 +399,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
 
       {/* Existing configs selector */}
       {configs.length > 0 && (
-        <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+        <div className="bg-surface-100 rounded-2xl border border-themed p-6">
           <label className="block text-sm font-medium text-t-hover mb-1">Load Existing Config</label>
           <p className="text-xs text-muted mb-3">Pick a saved agent to edit, or start fresh with &quot;New Agent&quot;.</p>
           <div className="flex flex-wrap gap-2">
@@ -428,7 +428,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
       ) : (
         <>
           {/* ════ Main form card ════ */}
-          <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8 space-y-6">
+          <div className="bg-surface-100 rounded-2xl border border-themed p-8 space-y-6">
 
             {/* Name */}
             <div className="rounded-xl border border-visible p-4">
@@ -439,7 +439,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., Support Triage Agent"
-                className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
+                className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
               />
             </div>
 
@@ -463,7 +463,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="What does this agent do?"
-                className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
+                className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
               />
             </div>
 
@@ -521,7 +521,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                         value={httpEndpoint}
                         onChange={(e) => { setHttpEndpoint(e.target.value); setHttpTestResult(null); }}
                         placeholder="https://api.example.com/agent/chat"
-                        className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
+                        className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
                       />
                     </div>
                     <div>
@@ -534,7 +534,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                         value={httpAuthHeader}
                         onChange={(e) => { setHttpAuthHeader(e.target.value); setHttpTestResult(null); }}
                         placeholder="Bearer sk-..."
-                        className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
+                        className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
                       />
                     </div>
                     <div>
@@ -546,7 +546,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                         max={600}
                         value={httpTimeoutSeconds}
                         onChange={(e) => setHttpTimeoutSeconds(parseInt(e.target.value || "60", 10))}
-                        className="w-32 px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
+                        className="w-32 px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
                       />
                     </div>
 
@@ -598,7 +598,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                         onChange={(e) => { setHttpBodyTemplate(e.target.value); setHttpTestResult(null); }}
                         placeholder={DEFAULT_BODY_TEMPLATE}
                         rows={8}
-                        className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-xs font-mono focus:outline-none focus:border-accent/50 resize-y"
+                        className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary placeholder-muted text-xs font-mono focus:outline-none focus:border-accent/50 resize-y"
                       />
                     </div>
                   </div>
@@ -620,7 +620,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                         value={httpResponsePath}
                         onChange={(e) => { setHttpResponsePath(e.target.value); setHttpTestResult(null); }}
                         placeholder="data.answer"
-                        className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
+                        className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
                       />
                     </div>
                     <div>
@@ -633,7 +633,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                         value={httpToolCallsPath}
                         onChange={(e) => { setHttpToolCallsPath(e.target.value); setHttpTestResult(null); }}
                         placeholder="choices[0].message.tool_calls"
-                        className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
+                        className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary placeholder-muted text-sm font-mono focus:outline-none focus:border-accent/50"
                       />
                     </div>
                   </div>
@@ -660,9 +660,9 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                   </div>
 
                   {httpTestResult && httpTestResult.ok && (
-                    <div className="mt-3 flex items-start gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                      <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
-                      <div className="text-xs text-green-300 space-y-1 min-w-0 flex-1">
+                    <div className="mt-3 flex items-start gap-2 p-3 bg-success/10 border border-success/30 rounded-lg">
+                      <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+                      <div className="text-xs text-success/80 space-y-1 min-w-0 flex-1">
                         <p>
                           <span className="font-medium">Connection OK</span> · status {httpTestResult.status_code ?? "—"} · format:{" "}
                           <span className="font-mono">{httpTestResult.detected_format ?? "unknown"}</span>
@@ -688,9 +688,9 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                     </div>
                   )}
                   {httpTestResult && !httpTestResult.ok && (
-                    <div className="mt-3 flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                      <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                      <div className="text-xs text-red-300 space-y-1 min-w-0 flex-1">
+                    <div className="mt-3 flex items-start gap-2 p-3 bg-danger/10 border border-danger/30 rounded-lg">
+                      <AlertCircle className="w-4 h-4 text-danger flex-shrink-0 mt-0.5" />
+                      <div className="text-xs text-danger/80 space-y-1 min-w-0 flex-1">
                         <p className="font-medium">Connection failed</p>
                         <p className="font-mono break-all">{httpTestResult.error || "Unknown error"}</p>
                       </div>
@@ -727,7 +727,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                 onChange={(e) => setSystemPrompt(e.target.value)}
                 placeholder="You are a helpful assistant that..."
                 rows={8}
-                className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50 resize-y font-mono"
+                className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50 resize-y font-mono"
               />
             </div>
 
@@ -807,7 +807,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                     <div key={idx} className="border border-visible rounded-lg p-4 bg-surface-50 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-muted">Tool #{idx + 1}</span>
-                        <button onClick={() => removeTool(idx)} className="text-red-400 hover:text-red-300">
+                        <button onClick={() => removeTool(idx)} className="text-danger hover:text-danger/80">
                           <X className="w-4 h-4" />
                         </button>
                       </div>
@@ -816,21 +816,21 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                         value={tool.name}
                         onChange={(e) => updateTool(idx, "name", e.target.value)}
                         placeholder="Tool name (snake_case)"
-                        className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50 font-mono"
+                        className="w-full px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50 font-mono"
                       />
                       <input
                         type="text"
                         value={tool.description}
                         onChange={(e) => updateTool(idx, "description", e.target.value)}
                         placeholder="What does this tool do?"
-                        className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50"
+                        className="w-full px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50"
                       />
                       <textarea
                         value={tool.parameters}
                         onChange={(e) => updateTool(idx, "parameters", e.target.value)}
                         placeholder='{"type": "object", "properties": {}}'
                         rows={3}
-                        className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50 resize-y font-mono"
+                        className="w-full px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50 resize-y font-mono"
                       />
                     </div>
                   ))}
@@ -855,7 +855,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                   onChange={(e) => setNewConstraint(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addConstraint()}
                   placeholder="e.g., Never share internal customer data"
-                  className="flex-1 px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50"
+                  className="flex-1 px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50"
                 />
                 <button
                   onClick={addConstraint}
@@ -870,7 +870,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                   {constraints.map((c, idx) => (
                     <div key={idx} className="flex items-center justify-between gap-2 px-3 py-2 bg-surface-50 border border-visible rounded-lg">
                       <span className="text-sm text-t-hover">{c}</span>
-                      <button onClick={() => removeConstraint(idx)} className="text-red-400 hover:text-red-300 flex-shrink-0">
+                      <button onClick={() => removeConstraint(idx)} className="text-danger hover:text-danger/80 flex-shrink-0">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -894,7 +894,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
 
           {/* Error */}
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+            <div className="flex items-center gap-2 p-3 bg-danger/10 border border-danger/30 rounded-lg text-danger text-sm">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               {error}
             </div>
@@ -902,7 +902,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
 
           {/* Prompt Variants */}
           {variants.length > 0 && (
-            <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6 space-y-4">
+            <div className="bg-surface-100 rounded-2xl border border-themed p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">
                   Prompt Variants ({variants.length})
@@ -922,11 +922,11 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-primary">{v.variant_name || v.label || v.name || `Variant #${v.id}`}</span>
                       {v.is_original && (
-                        <span className="px-1.5 py-0.5 text-[10px] bg-green-500/20 text-green-400 rounded-full">Original</span>
+                        <span className="px-1.5 py-0.5 text-[10px] bg-success/20 text-success rounded-full">Original</span>
                       )}
                     </div>
                     {!v.is_original && (
-                      <button onClick={() => handleDeleteVariant(v.id)} className="text-red-400 hover:text-red-300">
+                      <button onClick={() => handleDeleteVariant(v.id)} className="text-danger hover:text-danger/80">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
@@ -943,7 +943,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
           )}
 
           {/* ════ Summary + Save footer ════ */}
-          <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+          <div className="bg-surface-100 rounded-2xl border border-themed p-6">
             {agentType === "builtin" ? (
               <div className="grid grid-cols-3 gap-4 mb-5">
                 <div className="text-center rounded-lg bg-surface-50 py-3">
@@ -994,7 +994,7 @@ export default function StepAgentDefine({ onComplete }: StepAgentDefineProps) {
           <button
             onClick={() => selectedConfigId && onComplete?.(selectedConfigId)}
             disabled={!selectedConfigId}
-            className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3 px-6 bg-accent shadow-resting text-accent-foreground font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Bot className="w-4 h-4" />
             {selectedConfigId ? "Continue to Create Scenarios" : "Save agent to continue"}

@@ -8,13 +8,13 @@ import TraceDetail from "@/components/TraceDetail";
 const SOURCE_COLORS: Record<string, string> = {
   rag_pipeline: "bg-accent/15 text-accent",
   agent_simulation: "bg-purple-500/15 text-purple-400",
-  collection_query: "bg-emerald-500/15 text-emerald-400",
-  http_request: "bg-amber-500/15 text-amber-400",
+  collection_query: "bg-success/15 text-success",
+  http_request: "bg-warning/15 text-warning",
 };
 
 const STATUS_CONFIG: Record<string, { icon: any; color: string }> = {
-  ok: { icon: CheckCircle, color: "text-emerald-400" },
-  error: { icon: AlertCircle, color: "text-red-400" },
+  ok: { icon: CheckCircle, color: "text-success" },
+  error: { icon: AlertCircle, color: "text-danger" },
   unset: { icon: Clock, color: "text-t-secondary" },
 };
 
@@ -163,7 +163,7 @@ export default function Traces() {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-surface-200/30">
+            <tbody className="divide-y divide-themed-subtle">
               {traces.map((t) => {
                 const status = STATUS_CONFIG[t.status] || STATUS_CONFIG.unset;
                 const StatusIcon = status.icon;

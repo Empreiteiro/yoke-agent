@@ -152,11 +152,11 @@ export default function StepResults({ experimentId }: StepResultsProps) {
 
   // Failure summary aggregated across all completed combinations (issue #117)
   const FAILURE_LABELS: Record<string, { label: string; color: string }> = {
-    hallucination: { label: "Hallucination", color: "text-red-400 bg-red-500/10" },
-    missing_context: { label: "Missing context", color: "text-amber-400 bg-amber-500/10" },
+    hallucination: { label: "Hallucination", color: "text-danger bg-danger/10" },
+    missing_context: { label: "Missing context", color: "text-warning bg-warning/10" },
     irrelevant_retrieval: { label: "Irrelevant retrieval", color: "text-orange-400 bg-orange-500/10" },
-    incomplete_answer: { label: "Incomplete answer", color: "text-yellow-400 bg-yellow-500/10" },
-    ok: { label: "OK", color: "text-emerald-400 bg-emerald-500/10" },
+    incomplete_answer: { label: "Incomplete answer", color: "text-warning bg-warning/10" },
+    ok: { label: "OK", color: "text-success bg-success/10" },
     unknown: { label: "Unknown", color: "text-t-secondary bg-surface-200/30" },
   };
   const aggregateFailures: Record<string, number> = {};
@@ -306,12 +306,12 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                 p == null
                   ? "text-t-secondary"
                   : p >= 0.6
-                  ? "text-emerald-400"
+                  ? "text-success"
                   : p >= 0.3
-                  ? "text-amber-400"
+                  ? "text-warning"
                   : p >= 0
                   ? "text-t-secondary"
-                  : "text-red-400";
+                  : "text-danger";
               return (
                 <div
                   key={m.metric}
@@ -346,7 +346,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
               <a
                 href={api.exportExperimentFailuresCSV(experimentId)}
                 download
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg hover:bg-red-500/20 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-danger/80 bg-danger/10 border border-danger/30 rounded-lg hover:bg-danger/20 transition-colors"
               >
                 <Download className="w-3 h-3" />
                 Failures CSV
@@ -408,7 +408,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-surface-200/30">
+              <tbody className="divide-y divide-themed-subtle">
                 {sorted.slice(0, 10).map((c: any, i: number) => (
                   <tr key={c.id} className="hover:bg-surface-50 transition-colors">
                     <td className="px-3 py-2 text-t-hover">#{i + 1}</td>
@@ -479,7 +479,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-surface-200/30">
+            <tbody className="divide-y divide-themed-subtle">
               {sorted.map((combo: any, index: number) => {
                 const isExpanded = expandedComboId === combo.id;
                 const details: any[] = Array.isArray(combo.detailed_results) ? combo.detailed_results : [];
@@ -502,7 +502,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                         <div className="flex items-center gap-1">
                           {isExpanded ? <ChevronDown className="w-3 h-3 text-t-secondary" /> : <ChevronRight className="w-3 h-3 text-t-secondary" />}
                           {index === 0 ? (
-                            <Trophy className="w-4 h-4 text-amber-400" />
+                            <Trophy className="w-4 h-4 text-warning" />
                           ) : (
                             `#${index + 1}`
                           )}
@@ -539,10 +539,10 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                         <span
                           className={`font-semibold ${
                             (combo.overall_score ?? 0) >= 0.8
-                              ? "text-emerald-400"
+                              ? "text-success"
                               : (combo.overall_score ?? 0) >= 0.6
-                              ? "text-amber-400"
-                              : "text-red-400"
+                              ? "text-warning"
+                              : "text-danger"
                           }`}
                         >
                           {combo.overall_score != null ? `${(combo.overall_score * 100).toFixed(1)}%` : "-"}
@@ -551,7 +551,7 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                       <td className="px-3 py-3 text-t-secondary text-xs">
                         {combo.total_tokens ? (combo.total_tokens >= 1000 ? `${(combo.total_tokens / 1000).toFixed(1)}K` : combo.total_tokens) : "-"}
                       </td>
-                      <td className="px-3 py-3 text-amber-400 text-xs">
+                      <td className="px-3 py-3 text-warning text-xs">
                         {combo.total_cost ? `$${combo.total_cost < 0.01 ? combo.total_cost.toFixed(4) : combo.total_cost.toFixed(2)}` : "-"}
                       </td>
                       <td className="px-3 py-3 text-t-secondary text-xs">
@@ -600,11 +600,11 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                                 const ratingSaving = savingRating === ratingKey;
                                 const ratingDot =
                                   currentRating === "correct"
-                                    ? "bg-emerald-400"
+                                    ? "bg-success"
                                     : currentRating === "partial"
-                                    ? "bg-amber-400"
+                                    ? "bg-warning"
                                     : currentRating === "incorrect"
-                                    ? "bg-red-400"
+                                    ? "bg-danger"
                                     : "bg-surface-200";
                                 return (
                                   <div key={qi} className="bg-surface-100 rounded-lg border border-visible overflow-hidden">
@@ -634,16 +634,16 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                                         )}
                                       </div>
                                       <div className="flex items-center gap-3 flex-shrink-0 text-xs">
-                                        <span className={faith >= 0.8 ? "text-emerald-400" : faith >= 0.5 ? "text-amber-400" : "text-red-400"}>
+                                        <span className={faith >= 0.8 ? "text-success" : faith >= 0.5 ? "text-warning" : "text-danger"}>
                                           F:{(faith * 100).toFixed(0)}%
                                         </span>
-                                        <span className={relev >= 0.8 ? "text-emerald-400" : relev >= 0.5 ? "text-amber-400" : "text-red-400"}>
+                                        <span className={relev >= 0.8 ? "text-success" : relev >= 0.5 ? "text-warning" : "text-danger"}>
                                           R:{(relev * 100).toFixed(0)}%
                                         </span>
-                                        <span className={prec >= 0.8 ? "text-emerald-400" : prec >= 0.5 ? "text-amber-400" : "text-red-400"}>
+                                        <span className={prec >= 0.8 ? "text-success" : prec >= 0.5 ? "text-warning" : "text-danger"}>
                                           P:{((prec ?? 0) * 100).toFixed(0)}%
                                         </span>
-                                        <span className={recall >= 0.8 ? "text-emerald-400" : recall >= 0.5 ? "text-amber-400" : "text-red-400"}>
+                                        <span className={recall >= 0.8 ? "text-success" : recall >= 0.5 ? "text-warning" : "text-danger"}>
                                           C:{((recall ?? 0) * 100).toFixed(0)}%
                                         </span>
                                         {qExpanded ? <ChevronDown className="w-3 h-3 text-muted" /> : <ChevronRight className="w-3 h-3 text-muted" />}
@@ -656,9 +656,9 @@ export default function StepResults({ experimentId }: StepResultsProps) {
                                           <span className="text-xs font-medium text-t-secondary">Your rating:</span>
                                           {(
                                             [
-                                              { key: "correct", Icon: Check, label: "Correct", on: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40", off: "text-t-secondary hover:bg-surface-50" },
-                                              { key: "partial", Icon: Minus, label: "Partial", on: "bg-amber-500/20 text-amber-300 border-amber-500/40", off: "text-t-secondary hover:bg-surface-50" },
-                                              { key: "incorrect", Icon: X, label: "Incorrect", on: "bg-red-500/20 text-red-300 border-red-500/40", off: "text-t-secondary hover:bg-surface-50" },
+                                              { key: "correct", Icon: Check, label: "Correct", on: "bg-success/20 text-success/80 border-success/40", off: "text-t-secondary hover:bg-surface-50" },
+                                              { key: "partial", Icon: Minus, label: "Partial", on: "bg-warning/20 text-warning/80 border-warning/40", off: "text-t-secondary hover:bg-surface-50" },
+                                              { key: "incorrect", Icon: X, label: "Incorrect", on: "bg-danger/20 text-danger/80 border-danger/40", off: "text-t-secondary hover:bg-surface-50" },
                                             ] as const
                                           ).map(({ key, Icon, label, on, off }) => {
                                             const active = currentRating === key;

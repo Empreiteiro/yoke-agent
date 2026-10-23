@@ -291,7 +291,7 @@ export default function StepGridSearch({
           {item}
           <button
             onClick={() => removeFromArray(field, index)}
-            className="hover:text-red-400 transition-colors"
+            className="hover:text-danger transition-colors"
           >
             <X className="w-3 h-3" />
           </button>
@@ -303,7 +303,7 @@ export default function StepGridSearch({
   return (
     <div className="space-y-6">
       {/* ════ Main form card ════ */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8 space-y-6">
+      <div className="bg-surface-100 rounded-2xl border border-themed p-8 space-y-6">
 
         {/* Experiment setup */}
         <div className="grid grid-cols-3 gap-5" data-walkthrough="grid-experiment">
@@ -315,7 +315,7 @@ export default function StepGridSearch({
               value={experimentName}
               onChange={(e) => setExperimentName(e.target.value)}
               placeholder="e.g., Documentation RAG v1"
-              className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
+              className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
             />
           </div>
           <div className="rounded-xl border border-visible p-4">
@@ -324,7 +324,7 @@ export default function StepGridSearch({
             <select
               value={vectorStoreType}
               onChange={(e) => setVectorStoreType(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
+              className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
             >
               {availableVectorStores.map((vs) => (
                 <option key={vs.type + vs.name} value={vs.type}>{vs.name}</option>
@@ -337,7 +337,7 @@ export default function StepGridSearch({
             <select
               value={config.answer_language}
               onChange={(e) => setConfig((prev) => ({ ...prev, answer_language: e.target.value }))}
-              className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
+              className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
             >
               <option value="auto">Auto (same as document)</option>
               <option value="English">English</option>
@@ -391,7 +391,7 @@ export default function StepGridSearch({
           <p className="text-xs text-muted mb-3">Number of characters per text fragment. Smaller = more precise retrieval, larger = more surrounding context.</p>
           {renderChips("chunk_sizes", config.chunk_sizes)}
           <div className="flex gap-2 mt-2">
-            <input type="number" value={newChunkSize} onChange={(e) => setNewChunkSize(e.target.value)} placeholder="Add size..." className="px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm w-28 focus:outline-none focus:border-accent/50" />
+            <input type="number" value={newChunkSize} onChange={(e) => setNewChunkSize(e.target.value)} placeholder="Add size..." className="px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary text-sm w-28 focus:outline-none focus:border-accent/50" />
             <button onClick={() => { if (newChunkSize) { addToArray("chunk_sizes", parseInt(newChunkSize)); setNewChunkSize(""); } }} className="p-2 bg-surface-200 rounded-lg hover:bg-surface-300 transition-colors"><Plus className="w-4 h-4 text-t-hover" /></button>
           </div>
         </div>
@@ -428,7 +428,7 @@ export default function StepGridSearch({
           <label className="block text-sm font-medium text-t-hover mb-1">Embedding Models</label>
           <p className="text-xs text-muted mb-3">Neural networks that convert text into vectors for similarity search.</p>
           {noProviders && (
-            <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
+            <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-warning/10 border border-warning/20 rounded-lg text-warning text-xs">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
               No providers configured. Go to Settings &rarr; Providers to add one.
             </div>
@@ -452,7 +452,7 @@ export default function StepGridSearch({
           <p className="text-xs text-muted mb-3">Number of most similar chunks retrieved per query. Higher = more context but more noise.</p>
           {renderChips("top_k_values", config.top_k_values)}
           <div className="flex gap-2 mt-2">
-            <input type="number" value={newTopK} onChange={(e) => setNewTopK(e.target.value)} placeholder="Add..." className="px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary text-sm w-24 focus:outline-none focus:border-accent/50" />
+            <input type="number" value={newTopK} onChange={(e) => setNewTopK(e.target.value)} placeholder="Add..." className="px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary text-sm w-24 focus:outline-none focus:border-accent/50" />
             <button onClick={() => { if (newTopK) { addToArray("top_k_values", parseInt(newTopK)); setNewTopK(""); } }} className="p-2 bg-surface-200 rounded-lg hover:bg-surface-300 transition-colors"><Plus className="w-4 h-4 text-t-hover" /></button>
           </div>
         </div>
@@ -512,8 +512,8 @@ export default function StepGridSearch({
                   {st.cost && (
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
                       st.cost === "red"
-                        ? "bg-red-500/15 text-red-400"
-                        : "bg-amber-500/15 text-amber-400"
+                        ? "bg-danger/15 text-danger"
+                        : "bg-warning/15 text-warning"
                     }`}>
                       {st.cost === "red" ? "$$$$" : "$$"}
                     </span>
@@ -524,7 +524,7 @@ export default function StepGridSearch({
 
             {/* Multi-Query sub-parameter */}
             {config.search_types.includes("multi_query") && (
-              <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500">
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-warning">
                 <label className="block text-xs font-medium text-t-secondary mb-2">
                   Alternative Queries (multi_query_count)
                 </label>
@@ -543,7 +543,7 @@ export default function StepGridSearch({
                       className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.multi_query_counts.includes(n)
                           ? "chip-amber border"
-                          : "bg-surface-50 text-muted border border-surface-200/50"
+                          : "bg-surface-50 text-muted border border-themed"
                       }`}
                     >
                       {n}
@@ -555,7 +555,7 @@ export default function StepGridSearch({
 
             {/* Agentic sub-parameter */}
             {config.search_types.includes("agentic") && (
-              <div className="mt-3 ml-5 pl-3 border-l-2 border-red-500">
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-danger">
                 <label className="block text-xs font-medium text-t-secondary mb-2">
                   Max Agent Steps (agent_max_steps)
                 </label>
@@ -574,7 +574,7 @@ export default function StepGridSearch({
                       className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.agent_max_steps.includes(n)
                           ? "chip-red border"
-                          : "bg-surface-50 text-muted border border-surface-200/50"
+                          : "bg-surface-50 text-muted border border-themed"
                       }`}
                     >
                       {n}
@@ -586,7 +586,7 @@ export default function StepGridSearch({
 
             {/* CRAG sub-parameters */}
             {config.search_types.includes("crag") && (
-              <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500 space-y-3">
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-warning space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-t-secondary mb-2">Relevance Threshold</label>
                   <div className="flex gap-2">
@@ -598,7 +598,7 @@ export default function StepGridSearch({
                       }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.crag_relevance_thresholds.includes(v)
                           ? "chip-amber border"
-                          : "bg-surface-50 text-muted border border-surface-200/50"
+                          : "bg-surface-50 text-muted border border-themed"
                       }`}>{v}</button>
                     ))}
                   </div>
@@ -614,7 +614,7 @@ export default function StepGridSearch({
                       }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.crag_max_retries.includes(v)
                           ? "chip-amber border"
-                          : "bg-surface-50 text-muted border border-surface-200/50"
+                          : "bg-surface-50 text-muted border border-themed"
                       }`}>{v}</button>
                     ))}
                   </div>
@@ -624,7 +624,7 @@ export default function StepGridSearch({
 
             {/* Self-RAG sub-parameter */}
             {config.search_types.includes("self_rag") && (
-              <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500">
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-warning">
                 <label className="block text-xs font-medium text-t-secondary mb-2">Retrieval Threshold</label>
                 <div className="flex gap-2">
                   {[0.3, 0.5, 0.7].map((v) => (
@@ -635,7 +635,7 @@ export default function StepGridSearch({
                     }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                       config.self_rag_retrieval_thresholds.includes(v)
                         ? "chip-amber border"
-                        : "bg-surface-50 text-muted border border-surface-200/50"
+                        : "bg-surface-50 text-muted border border-themed"
                     }`}>{v}</button>
                   ))}
                 </div>
@@ -644,7 +644,7 @@ export default function StepGridSearch({
 
             {/* RAPTOR sub-parameters */}
             {config.search_types.includes("raptor") && (
-              <div className="mt-3 ml-5 pl-3 border-l-2 border-red-500 space-y-3">
+              <div className="mt-3 ml-5 pl-3 border-l-2 border-danger space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-t-secondary mb-2">Max Levels</label>
                   <div className="flex gap-2">
@@ -656,7 +656,7 @@ export default function StepGridSearch({
                       }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.raptor_max_levels.includes(v)
                           ? "chip-red border"
-                          : "bg-surface-50 text-muted border border-surface-200/50"
+                          : "bg-surface-50 text-muted border border-themed"
                       }`}>{v}</button>
                     ))}
                   </div>
@@ -672,7 +672,7 @@ export default function StepGridSearch({
                       }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.raptor_clustering.includes(v)
                           ? "chip-red border"
-                          : "bg-surface-50 text-muted border border-surface-200/50"
+                          : "bg-surface-50 text-muted border border-themed"
                       }`}>{v}</button>
                     ))}
                   </div>
@@ -688,7 +688,7 @@ export default function StepGridSearch({
                       }))} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                         config.raptor_retrieval_modes.includes(v)
                           ? "chip-red border"
-                          : "bg-surface-50 text-muted border border-surface-200/50"
+                          : "bg-surface-50 text-muted border border-themed"
                       }`}>{v.replace("_", " ")}</button>
                     ))}
                   </div>
@@ -730,7 +730,7 @@ export default function StepGridSearch({
                 />
                 <span className="text-sm text-t-hover">{rr.label}</span>
                 {rr.cost === "amber" && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-amber-500/15 text-amber-400">$$</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-warning/15 text-warning">$$</span>
                 )}
               </label>
             ))}
@@ -738,7 +738,7 @@ export default function StepGridSearch({
 
           {/* rerank_top_n sub-parameter — only relevant when a real reranker is on */}
           {config.rerankers.some((r) => r !== "none") && (
-            <div className="mt-3 ml-5 pl-3 border-l-2 border-amber-500">
+            <div className="mt-3 ml-5 pl-3 border-l-2 border-warning">
               <label className="block text-xs font-medium text-t-secondary mb-2">
                 Top-N after rerank (empty = keep top_k)
               </label>
@@ -757,7 +757,7 @@ export default function StepGridSearch({
                     className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                       config.rerank_top_ns.includes(n)
                         ? "chip-amber border"
-                        : "bg-surface-50 text-muted border border-surface-200/50"
+                        : "bg-surface-50 text-muted border border-themed"
                     }`}
                   >
                     {n}
@@ -773,9 +773,9 @@ export default function StepGridSearch({
         {config.pipeline_types.includes("graphrag") && (<>
 
         {/* Divider */}
-        <div className="border-t border-surface-200/30" />
+        <div className="border-t border-themed-subtle" />
 
-        <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
+        <div className="flex items-start gap-2 px-3 py-2 bg-warning/10 border border-warning/20 rounded-lg text-warning text-xs">
           <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           <span>GraphRAG extracts entities via LLM for every chunk — significantly more expensive than standard RAG.</span>
         </div>
@@ -859,7 +859,7 @@ export default function StepGridSearch({
       </div>
 
       {/* RAGAS Metrics */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
+      <div className="bg-surface-100 rounded-2xl border border-themed p-8">
         <h3 className="text-lg font-semibold text-primary mb-2">Evaluation Metrics (RAGAS)</h3>
         <p className="text-sm text-t-secondary mb-6">
           Core metrics are always included. Select additional optional metrics.
@@ -874,12 +874,12 @@ export default function StepGridSearch({
           ].map((metric) => (
             <div
               key={metric.id}
-              className="p-4 bg-surface-50 rounded-xl border border-emerald-500/20"
+              className="p-4 bg-surface-50 rounded-xl border border-success/20"
             >
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                <div className="w-2 h-2 rounded-full bg-success" />
                 <span className="text-sm font-medium text-primary">{metric.label}</span>
-                <span className="text-xs text-emerald-400 ml-auto">Required</span>
+                <span className="text-xs text-success ml-auto">Required</span>
               </div>
               <p className="text-xs text-t-secondary">{metric.desc}</p>
             </div>
@@ -913,14 +913,14 @@ export default function StepGridSearch({
       </div>
 
       {/* Prompt Templates */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+      <div className="bg-surface-100 rounded-2xl border border-themed p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h4 className="text-sm font-semibold text-primary">Prompt Templates</h4>
             <p className="text-xs text-muted mt-0.5">
               Customize the answer generation prompt. Use <code className="text-accent">{"{context}"}</code> and <code className="text-accent">{"{question}"}</code> as placeholders.
               {config.prompt_templates.length > 1 && (
-                <span className="text-amber-400 ml-1">
+                <span className="text-warning ml-1">
                   {config.prompt_templates.length} templates = {config.prompt_templates.length}x more combinations
                 </span>
               )}
@@ -961,7 +961,7 @@ export default function StepGridSearch({
                         prompt_templates: prev.prompt_templates.filter((_, i) => i !== idx),
                       }));
                     }}
-                    className="p-0.5 text-muted hover:text-red-400 transition-colors"
+                    className="p-0.5 text-muted hover:text-danger transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -977,14 +977,14 @@ export default function StepGridSearch({
                     }));
                   }}
                   rows={6}
-                  className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-xs font-mono leading-relaxed focus:outline-none focus:border-accent/50 resize-y"
+                  className="w-full px-4 py-3 bg-surface-50 border border-themed rounded-xl text-primary text-xs font-mono leading-relaxed focus:outline-none focus:border-accent/50 resize-y"
                   placeholder="Write your prompt template here. Use {context} and {question} placeholders."
                 />
                 {!tpl.includes("{context}") && (
-                  <p className="text-[10px] text-red-400 mt-1">Missing {"{context}"} placeholder</p>
+                  <p className="text-[10px] text-danger mt-1">Missing {"{context}"} placeholder</p>
                 )}
                 {!tpl.includes("{question}") && (
-                  <p className="text-[10px] text-red-400 mt-1">Missing {"{question}"} placeholder</p>
+                  <p className="text-[10px] text-danger mt-1">Missing {"{question}"} placeholder</p>
                 )}
               </div>
             ))}
@@ -1015,7 +1015,7 @@ export default function StepGridSearch({
           </div>
           <div className="text-center rounded-lg bg-surface-50 py-3">
             <p className="text-xs text-t-secondary mb-1">Est. Cost</p>
-            <p className="text-2xl font-bold text-amber-400">{costEstimate ? `$${costEstimate.estimated_cost_usd}` : "—"}</p>
+            <p className="text-2xl font-bold text-warning">{costEstimate ? `$${costEstimate.estimated_cost_usd}` : "—"}</p>
           </div>
         </div>
         <p className="text-xs text-muted mb-4 text-center">
@@ -1027,7 +1027,7 @@ export default function StepGridSearch({
           onClick={handleSubmit}
           disabled={loading || totalCombinations === 0}
           data-walkthrough="grid-create"
-          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3 px-6 bg-accent shadow-resting text-accent-foreground font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />

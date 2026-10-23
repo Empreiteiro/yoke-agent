@@ -207,7 +207,7 @@ export default function Glossary() {
         return (
           <div
             key={section.title}
-            className="bg-surface-100 rounded-2xl border border-surface-200/50 p-6"
+            className="bg-surface-100 rounded-2xl border border-themed p-6"
           >
             <div className="flex items-center gap-3 mb-5">
               <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center">

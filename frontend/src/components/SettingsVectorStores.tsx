@@ -124,7 +124,7 @@ export default function SettingsVectorStores() {
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-accent text-primary rounded-xl hover:bg-accent/90 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-xl hover:bg-accent/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
           Add Vector Store
@@ -132,7 +132,7 @@ export default function SettingsVectorStores() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+        <div className="flex items-center gap-2 px-4 py-3 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
           <button onClick={() => setError(null)} className="ml-auto"><X className="w-4 h-4" /></button>
@@ -156,7 +156,7 @@ export default function SettingsVectorStores() {
             <h3 className="font-semibold text-primary">ChromaDB</h3>
             <p className="text-xs text-t-secondary">Embedded vector database — always available, no configuration needed.</p>
           </div>
-          <span className="px-3 py-1 text-xs rounded-full bg-emerald-500/20 text-emerald-400">Default</span>
+          <span className="px-3 py-1 text-xs rounded-full bg-success/20 text-success">Default</span>
         </div>
       </div>
 
@@ -183,9 +183,9 @@ export default function SettingsVectorStores() {
                   {testingId === entry.id ? (
                     <Loader2 className="w-4 h-4 text-accent animate-spin" />
                   ) : testResult[entry.id]?.success === true ? (
-                    <Check className="w-4 h-4 text-emerald-400" />
+                    <Check className="w-4 h-4 text-success" />
                   ) : testResult[entry.id]?.success === false ? (
-                    <AlertCircle className="w-4 h-4 text-red-400" />
+                    <AlertCircle className="w-4 h-4 text-danger" />
                   ) : (
                     <Zap className="w-4 h-4 text-t-secondary" />
                   )}
@@ -193,7 +193,7 @@ export default function SettingsVectorStores() {
                 <button
                   onClick={() => handleToggleActive(entry)}
                   className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                    entry.is_active ? "bg-emerald-500/20 text-emerald-400" : "bg-surface-200 text-muted"
+                    entry.is_active ? "bg-success/20 text-success" : "bg-surface-200 text-muted"
                   }`}
                 >
                   {entry.is_active ? "Active" : "Inactive"}
@@ -207,15 +207,15 @@ export default function SettingsVectorStores() {
                 </button>
                 <button
                   onClick={() => handleDelete(entry.id)}
-                  className="p-2 hover:bg-red-500/10 rounded-lg transition-colors"
+                  className="p-2 hover:bg-danger/10 rounded-lg transition-colors"
                 >
-                  <Trash2 className="w-4 h-4 text-muted hover:text-red-400" />
+                  <Trash2 className="w-4 h-4 text-muted hover:text-danger" />
                 </button>
               </div>
             </div>
 
             {testResult[entry.id] && (
-              <div className={`px-6 py-2 text-xs ${testResult[entry.id].success ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
+              <div className={`px-6 py-2 text-xs ${testResult[entry.id].success ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}>
                 {testResult[entry.id].message}
               </div>
             )}
@@ -338,7 +338,7 @@ function AddVectorStoreForm({
           {entry.config_fields.map((field) => (
             <div key={field.name}>
               <label className="block text-sm font-medium text-t-secondary mb-1">
-                {field.label} {field.required && <span className="text-red-400">*</span>}
+                {field.label} {field.required && <span className="text-danger">*</span>}
               </label>
               <input
                 value={configValues[field.name] || ""}
@@ -349,14 +349,14 @@ function AddVectorStoreForm({
             </div>
           ))}
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button onClick={onCancel} className="px-4 py-2 text-sm text-t-secondary hover:text-primary transition-colors">Cancel</button>
             <button
               onClick={handleSave}
               disabled={saving || !name || !vsType}
-              className="px-6 py-2 bg-accent text-primary rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50"
+              className="px-6 py-2 bg-accent text-accent-foreground rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save"}
             </button>
@@ -418,7 +418,7 @@ function EditVectorStoreForm({
       {catalog?.requires_api_key && (
         <div>
           <label className="block text-xs font-medium text-t-secondary mb-1">
-            API Key {entry.has_api_key && <span className="text-emerald-400">(currently set)</span>}
+            API Key {entry.has_api_key && <span className="text-success">(currently set)</span>}
           </label>
           <div className="relative">
             <input
@@ -447,14 +447,14 @@ function EditVectorStoreForm({
         </div>
       ))}
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
 
       {dirty && (
         <div className="flex justify-end pt-1">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2 bg-accent text-primary rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2 bg-accent text-accent-foreground rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             {saving ? "Saving..." : "Save Changes"}

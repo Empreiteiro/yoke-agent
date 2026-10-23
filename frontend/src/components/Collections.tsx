@@ -139,7 +139,7 @@ export default function Collections() {
           {collections.map((col) => (
             <div
               key={col.id}
-              className="bg-surface-100 rounded-2xl border border-surface-200/50 overflow-hidden"
+              className="bg-surface-100 rounded-2xl border border-themed overflow-hidden"
             >
               <div className="flex items-center gap-4 p-5">
                 {/* Icon */}
@@ -170,10 +170,10 @@ export default function Collections() {
                     <p
                       className={`text-lg font-bold ${
                         col.overall_score >= 0.8
-                          ? "text-emerald-400"
+                          ? "text-success"
                           : col.overall_score >= 0.6
-                          ? "text-amber-400"
-                          : "text-red-400"
+                          ? "text-warning"
+                          : "text-danger"
                       }`}
                     >
                       {(col.overall_score * 100).toFixed(1)}%
@@ -185,7 +185,7 @@ export default function Collections() {
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <button
                     onClick={() => setConfirmDeleteId(col.id)}
-                    className="p-1.5 rounded-lg text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    className="p-1.5 rounded-lg text-muted hover:text-danger hover:bg-danger/10 transition-colors"
                     title="Delete collection"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -206,10 +206,10 @@ export default function Collections() {
 
       {/* Chat modal */}
       {activeCollection && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-surface-100 border border-surface-200/50 rounded-2xl shadow-xl w-full max-w-2xl mx-4 flex flex-col" style={{ height: "75vh" }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] backdrop-blur-[7px]">
+          <div className="bg-surface-100 border border-themed rounded-2xl shadow-xl w-full max-w-2xl mx-4 flex flex-col" style={{ height: "75vh" }}>
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200/50">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-themed">
               <div className="min-w-0">
                 <h3 className="text-base font-semibold text-primary truncate">
                   {activeCollection.name}
@@ -238,13 +238,13 @@ export default function Collections() {
                   <div
                     className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm ${
                       msg.role === "user"
-                        ? "bg-accent text-white rounded-br-sm"
-                        : "bg-surface-50 text-primary border border-surface-200/50 rounded-bl-sm"
+                        ? "bg-accent text-accent-foreground rounded-br-sm"
+                        : "bg-surface-50 text-primary border border-themed rounded-bl-sm"
                     }`}
                   >
                     <p className="whitespace-pre-wrap">{msg.content}</p>
                     {msg.contexts && msg.contexts.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-surface-200/30">
+                      <div className="mt-2 pt-2 border-t border-themed-subtle">
                         <button
                           onClick={() => setExpandedContextIdx(expandedContextIdx === i ? null : i)}
                           className="flex items-center gap-1 text-xs text-t-secondary hover:text-primary transition-colors"
@@ -275,7 +275,7 @@ export default function Collections() {
               ))}
               {sending && (
                 <div className="flex justify-start">
-                  <div className="bg-surface-50 rounded-xl px-4 py-3 border border-surface-200/50">
+                  <div className="bg-surface-50 rounded-xl px-4 py-3 border border-themed">
                     <Loader2 className="w-4 h-4 text-accent animate-spin" />
                   </div>
                 </div>
@@ -284,7 +284,7 @@ export default function Collections() {
             </div>
 
             {/* Input */}
-            <div className="px-6 py-4 border-t border-surface-200/50">
+            <div className="px-6 py-4 border-t border-themed">
               <div className="flex gap-2">
                 <input
                   value={input}
@@ -293,12 +293,12 @@ export default function Collections() {
                   placeholder="Ask a question..."
                   disabled={sending}
                   autoFocus
-                  className="flex-1 px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50 disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 bg-surface-50 border border-themed rounded-xl text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50 disabled:opacity-50"
                 />
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || sending}
-                  className="px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 disabled:opacity-50 transition-colors"
+                  className="px-4 py-2.5 bg-accent text-accent-foreground rounded-xl hover:bg-accent/90 disabled:opacity-50 transition-colors"
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -310,8 +310,8 @@ export default function Collections() {
 
       {/* Delete confirmation modal */}
       {confirmDeleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-surface-100 border border-surface-200/50 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] backdrop-blur-[7px]">
+          <div className="bg-surface-100 border border-themed rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl">
             <h3 className="text-primary font-semibold mb-2">Delete collection?</h3>
             <p className="text-sm text-t-secondary mb-5">
               This will permanently remove the vectorstore files from disk. Experiment history will not be affected.
@@ -325,7 +325,7 @@ export default function Collections() {
               </button>
               <button
                 onClick={() => handleDelete(confirmDeleteId)}
-                className="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm text-danger-foreground bg-danger hover:bg-danger/90 rounded-lg transition-colors"
               >
                 Delete
               </button>

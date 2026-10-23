@@ -194,7 +194,7 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
       </div>
 
       {/* ════ Main form card ════ */}
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8 space-y-6">
+      <div className="bg-surface-100 rounded-2xl border border-themed p-8 space-y-6">
 
         {/* Experiment name */}
         <div className="rounded-xl border border-visible p-4">
@@ -205,7 +205,7 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
             value={experimentName}
             onChange={(e) => setExperimentName(e.target.value)}
             placeholder="e.g., Support agent — tone tuning"
-            className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
+            className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
           />
         </div>
 
@@ -339,7 +339,7 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
                 value={personaGroup}
                 onChange={(e) => setPersonaGroup(e.target.value)}
                 placeholder="Filter by group"
-                className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
+                className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
               />
             </div>
             <div>
@@ -352,7 +352,7 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
                 placeholder="Default"
                 min={1}
                 max={50}
-                className="w-full px-3 py-2 bg-surface-50 border border-surface-200/50 rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
+                className="w-full px-3 py-2 bg-surface-50 border border-themed rounded-lg text-primary placeholder-muted text-sm focus:outline-none focus:border-accent/50"
               />
             </div>
           </div>
@@ -425,7 +425,7 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
               </div>
               <div className="text-center rounded-lg bg-surface-50 py-3">
                 <p className="text-xs text-t-secondary mb-1">Est. Cost</p>
-                <p className="text-2xl font-bold text-amber-400">{hasData ? `$${estimatedCost.toFixed(4)}` : "—"}</p>
+                <p className="text-2xl font-bold text-warning">{hasData ? `$${estimatedCost.toFixed(4)}` : "—"}</p>
               </div>
             </div>
 
@@ -436,13 +436,13 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
             </p>
 
             {totalSimulations > 100 && hasData && (
-              <p className="text-[10px] text-amber-400 text-center mb-3">
+              <p className="text-[10px] text-warning text-center mb-3">
                 ⚠ Large run — {totalSimulations.toLocaleString()} simulations may take significant time with CLI-based providers.
               </p>
             )}
 
             {error && (
-              <div className="flex items-center gap-2 p-3 mb-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+              <div className="flex items-center gap-2 p-3 mb-3 bg-danger/10 border border-danger/30 rounded-lg text-danger text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 {error}
               </div>
@@ -451,7 +451,7 @@ export default function StepAgentGridSearch({ agentConfigId, onComplete }: StepA
             <button
               onClick={handleCreate}
               disabled={creating || !hasData || selectedVariants.length === 0 || selectedModels.length === 0}
-              className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3 px-6 bg-accent shadow-resting text-accent-foreground font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {creating ? (
                 <>

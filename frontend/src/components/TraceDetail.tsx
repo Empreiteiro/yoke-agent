@@ -11,13 +11,13 @@ interface TraceDetailProps {
 
 const KIND_COLORS: Record<string, string> = {
   internal: "bg-blue-500",
-  client: "bg-amber-500",
-  server: "bg-emerald-500",
+  client: "bg-warning",
+  server: "bg-success",
 };
 
 const STATUS_DOT: Record<string, string> = {
-  ok: "bg-emerald-400",
-  error: "bg-red-400",
+  ok: "bg-success",
+  error: "bg-danger",
   unset: "bg-surface-200",
 };
 
@@ -121,7 +121,7 @@ export default function TraceDetail({ traceId, onBack }: TraceDetailProps) {
 
       {/* Error banner */}
       {trace.error_message && (
-        <div className="flex items-start gap-2 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm">
+        <div className="flex items-start gap-2 px-4 py-3 bg-danger/10 border border-danger/30 rounded-xl text-danger/80 text-sm">
           <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <span className="break-all">{trace.error_message}</span>
         </div>
@@ -143,7 +143,7 @@ export default function TraceDetail({ traceId, onBack }: TraceDetailProps) {
                 const widthPct = Math.max(0.5, ((span.duration_ms || 0) / traceDuration) * 100);
                 const isError = span.status === "error";
                 const isSelected = span.id === selectedSpanId;
-                const barColor = isError ? "bg-red-500" : KIND_COLORS[span.kind] || KIND_COLORS.internal;
+                const barColor = isError ? "bg-danger" : KIND_COLORS[span.kind] || KIND_COLORS.internal;
 
                 return (
                   <button
@@ -156,7 +156,7 @@ export default function TraceDetail({ traceId, onBack }: TraceDetailProps) {
                     {/* Name with indent */}
                     <div className="w-40 flex-shrink-0 truncate text-xs" style={{ paddingLeft: `${depth * 16}px` }}>
                       <span className={`w-2 h-2 rounded-full inline-block mr-1.5 ${STATUS_DOT[span.status] || STATUS_DOT.unset}`} />
-                      <span className={isError ? "text-red-400" : "text-primary"}>{span.name}</span>
+                      <span className={isError ? "text-danger" : "text-primary"}>{span.name}</span>
                     </div>
 
                     {/* Bar */}
@@ -180,9 +180,9 @@ export default function TraceDetail({ traceId, onBack }: TraceDetailProps) {
           {/* Legend */}
           <div className="flex items-center gap-4 mt-4 pt-3 border-t border-visible text-[10px] text-t-secondary">
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Internal</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Client (LLM/HTTP)</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Server</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Error</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-warning" /> Client (LLM/HTTP)</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-success" /> Server</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-danger" /> Error</span>
           </div>
         </div>
 
@@ -199,7 +199,7 @@ export default function TraceDetail({ traceId, onBack }: TraceDetailProps) {
               </div>
               <div className="flex justify-between">
                 <span className="text-t-secondary">Status</span>
-                <span className={selectedSpan.status === "error" ? "text-red-400" : "text-emerald-400"}>{selectedSpan.status}</span>
+                <span className={selectedSpan.status === "error" ? "text-danger" : "text-success"}>{selectedSpan.status}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-t-secondary">Duration</span>
@@ -207,7 +207,7 @@ export default function TraceDetail({ traceId, onBack }: TraceDetailProps) {
               </div>
 
               {selectedSpan.error_message && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-2 py-1.5 text-red-300 break-all">
+                <div className="bg-danger/10 border border-danger/20 rounded-lg px-2 py-1.5 text-danger/80 break-all">
                   {selectedSpan.error_message}
                 </div>
               )}

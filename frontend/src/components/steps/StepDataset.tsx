@@ -175,7 +175,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
   };
 
   const modeToggle = (
-    <div className="flex gap-2 p-1 bg-surface-50 rounded-xl border border-surface-200/50 w-fit" data-walkthrough="dataset-mode-toggle">
+    <div className="flex gap-2 p-1 bg-surface-50 rounded-xl border border-themed w-fit" data-walkthrough="dataset-mode-toggle">
       <button
         onClick={() => setMode("new")}
         className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors ${
@@ -206,7 +206,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
       {mode === "new" ? (
         /* Create new dataset */
         <>
-        <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
+        <div className="bg-surface-100 rounded-2xl border border-themed p-8">
           <div className="space-y-4">
             {modeToggle}
             <div>
@@ -219,7 +219,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., Product Documentation QA"
                 disabled={generating}
-                className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary placeholder-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 disabled:opacity-50"
+                className="w-full px-4 py-3 bg-surface-50 border border-themed rounded-xl text-primary placeholder-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 disabled:opacity-50"
               />
             </div>
 
@@ -233,18 +233,18 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                 placeholder="Describe the purpose of this evaluation dataset..."
                 rows={3}
                 disabled={generating}
-                className="w-full px-4 py-3 bg-surface-50 border border-surface-200/50 rounded-xl text-primary placeholder-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 resize-none disabled:opacity-50"
+                className="w-full px-4 py-3 bg-surface-50 border border-themed rounded-xl text-primary placeholder-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 resize-none disabled:opacity-50"
               />
             </div>
 
-            <div className="bg-surface-50 rounded-xl p-4 border border-surface-200/50">
+            <div className="bg-surface-50 rounded-xl p-4 border border-themed">
               <p className="text-sm text-t-secondary">
                 <span className="text-primary font-medium">{documentIds.length}</span> document(s) selected for analysis
               </p>
             </div>
 
             {/* Reading Mode */}
-            <div className="bg-surface-50 rounded-xl p-5 border border-surface-200/50 space-y-4" data-walkthrough="dataset-options">
+            <div className="bg-surface-50 rounded-xl p-5 border border-themed space-y-4" data-walkthrough="dataset-options">
               <div>
                 <label className="block text-sm font-medium text-t-hover mb-3">
                   <BookOpen className="w-4 h-4 inline mr-1.5 -mt-0.5" />
@@ -290,7 +290,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                     onChange={(e) => setMaxPages(Math.max(1, parseInt(e.target.value) || 1))}
                     min={1}
                     disabled={generating}
-                    className="px-3 py-2 bg-surface border border-surface-200/50 rounded-lg text-primary text-sm w-32 focus:outline-none focus:border-accent/50 disabled:opacity-50"
+                    className="px-3 py-2 bg-surface border border-themed rounded-lg text-primary text-sm w-32 focus:outline-none focus:border-accent/50 disabled:opacity-50"
                   />
                 </div>
               )}
@@ -306,7 +306,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                   placeholder="Auto"
                   min={1}
                   disabled={generating}
-                  className="px-3 py-2 bg-surface border border-surface-200/50 rounded-lg text-primary text-sm w-32 placeholder-muted focus:outline-none focus:border-accent/50 disabled:opacity-50"
+                  className="px-3 py-2 bg-surface border border-themed rounded-lg text-primary text-sm w-32 placeholder-muted focus:outline-none focus:border-accent/50 disabled:opacity-50"
                 />
               </div>
 
@@ -326,7 +326,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                       if (match) setSelectedProviderId(String(match.provider_id));
                     }}
                     disabled={generating}
-                    className="flex-1 px-3 py-2 bg-surface border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50 disabled:opacity-50"
+                    className="flex-1 px-3 py-2 bg-surface border border-themed rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50 disabled:opacity-50"
                   >
                     <option value="">Auto (first active provider)</option>
                     {availableLLMs.map((lm) => (
@@ -346,7 +346,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
                   disabled={generating}
-                  className="px-3 py-2 bg-surface border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50 disabled:opacity-50"
+                  className="px-3 py-2 bg-surface border border-themed rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50 disabled:opacity-50"
                 >
                   <option value="auto">Auto (same as document)</option>
                   <option value="English">English</option>
@@ -366,16 +366,16 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                 {generating ? (
                   <Loader2 className="w-5 h-5 text-accent animate-spin flex-shrink-0" />
                 ) : (
-                  <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                  <CheckCircle className="w-5 h-5 text-success flex-shrink-0" />
                 )}
                 <p className="text-sm text-t-hover">{progress}</p>
               </div>
             )}
 
             {error && (
-              <div className="flex items-start gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
-                <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-400">{error}</p>
+              <div className="flex items-start gap-3 p-4 bg-danger/5 border border-danger/20 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-danger flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-danger">{error}</p>
               </div>
             )}
 
@@ -384,7 +384,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
         <button
           onClick={handleCreate}
           disabled={generating}
-          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3 px-6 bg-accent shadow-resting text-accent-foreground font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {generating ? (
             <>
@@ -402,7 +402,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
       ) : (
         /* Use existing dataset */
         <>
-        <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
+        <div className="bg-surface-100 rounded-2xl border border-themed p-8">
           <div className="space-y-4">
             {modeToggle}
             {loadingDatasets ? (
@@ -430,7 +430,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                       {existingDatasets.filter((ds: any) => ds.is_benchmark === 1).map((ds: any) => (
                         <div
                           key={ds.id}
-                          className="w-full text-left px-4 py-4 rounded-xl border bg-surface-50 border-surface-200/50 hover:border-purple-400/40 transition-colors"
+                          className="w-full text-left px-4 py-4 rounded-xl border bg-surface-50 border-themed hover:border-purple-400/40 transition-colors"
                         >
                           <div className="flex items-start justify-between">
                             <div className="min-w-0 flex-1">
@@ -473,7 +473,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                           className={`w-full text-left px-4 py-4 rounded-xl border transition-colors cursor-pointer ${
                             selectedDatasetId === ds.id
                               ? "bg-accent/10 border-accent ring-1 ring-accent/30"
-                              : "bg-surface-50 border-surface-200/50 hover:border-surface-200"
+                              : "bg-surface-50 border-themed hover:border-themed"
                           }`}
                         >
                           <div className="flex items-start justify-between">
@@ -495,7 +495,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                               <span
                                 className={`text-xs px-2 py-0.5 rounded-full ${
                                   ds.status === "approved"
-                                    ? "bg-emerald-500/10 text-emerald-400"
+                                    ? "bg-success/10 text-success"
                                     : "bg-accent/10 text-accent"
                                 }`}
                               >
@@ -510,7 +510,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDeleteDataset(ds.id); }}
-                                className="p-1.5 text-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                className="p-1.5 text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
                                 title="Delete dataset"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -529,7 +529,7 @@ export default function StepDataset({ documentIds, onComplete }: StepDatasetProp
         {selectedDatasetId && (
           <button
             onClick={handleSelectExisting}
-            className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3 px-6 bg-accent shadow-resting text-accent-foreground font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <CheckCircle className="w-4 h-4" />
             Use Selected Dataset
