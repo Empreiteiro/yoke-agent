@@ -26,6 +26,9 @@ import Glossary from "@/components/Glossary";
 import Collections from "@/components/Collections";
 import Traces from "@/components/Traces";
 import McpSettings from "@/components/McpSettings";
+import DecisionCompare from "@/components/decision/DecisionCompare";
+import DecisionResults from "@/components/decision/DecisionResults";
+import DecisionDatasets from "@/components/decision/DecisionDatasets";
 import WalkthroughOverlay from "@/components/Walkthrough";
 import { useWalkthrough } from "@/contexts/WalkthroughContext";
 
@@ -58,7 +61,10 @@ type StepId = RagStepId | AgentStepId;
 const ALL_RAG_STEPS = [STEP_CHAT, ...RAG_STEPS] as const;
 const ALL_AGENT_STEPS = [STEP_CHAT, ...AGENT_STEPS] as const;
 
-const VALID_VIEWS = ["history", "logs", "settings", "glossary", "collections", "vectorstores", "mcp", "user-settings", "traces"];
+const VALID_VIEWS = [
+  "history", "logs", "settings", "glossary", "collections", "vectorstores", "mcp", "user-settings", "traces",
+  "decision-compare", "decision-results", "decision-datasets",
+];
 const VALID_STEPS: string[] = [
   STEP_CHAT.id,
   ...RAG_STEPS.map((s) => s.id),
@@ -295,6 +301,9 @@ function HomeContent() {
     traces: <Traces />,
     mcp: <McpSettings />,
     "user-settings": <SettingsUser />,
+    "decision-compare": <DecisionCompare key={searchParams.get("dataset") || "new"} />,
+    "decision-results": <DecisionResults />,
+    "decision-datasets": <DecisionDatasets />,
   };
 
   return (

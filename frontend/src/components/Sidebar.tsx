@@ -24,6 +24,7 @@ import {
   FlaskRound,
   User,
   Activity,
+  Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
@@ -64,6 +65,12 @@ const HISTORY_ITEMS = [
   { id: "history", label: "Results", icon: Clock },
   { id: "collections", label: "Collections", icon: MessageSquare },
   { id: "traces", label: "Traces", icon: Activity },
+];
+
+const COMPARISON_ITEMS = [
+  { id: "decision-compare", label: "Run Comparison", icon: Play },
+  { id: "decision-results", label: "Results", icon: BarChart3 },
+  { id: "decision-datasets", label: "Datasets", icon: Database },
 ];
 
 const SETTINGS_ITEMS = [
@@ -220,6 +227,7 @@ export default function Sidebar({
   const isAnySpecialView = currentView !== null;
   const isSettingsView = SETTINGS_ITEMS.some((item) => item.id === currentView);
   const isHistoryView = HISTORY_ITEMS.some((item) => item.id === currentView);
+  const isComparisonView = COMPARISON_ITEMS.some((item) => item.id === currentView);
 
   // Determine which pipeline group is active based on current step
   const ragStepIds = new Set(ragSteps.map((s) => s.id));
@@ -234,6 +242,7 @@ export default function Sidebar({
   const [ragOpen, setRagOpen] = useState(isRagActive);
   const [agentOpen, setAgentOpen] = useState(isAgentActive);
   const [historyOpen, setHistoryOpen] = useState(isHistoryView);
+  const [comparisonOpen, setComparisonOpen] = useState(isComparisonView);
   const [settingsOpen, setSettingsOpen] = useState(isSettingsView);
 
   // Mutually exclusive pipeline groups: when the active step actually lives
@@ -251,6 +260,12 @@ export default function Sidebar({
       setRagOpen(false);
     }
   }, [isRagActive, isAgentActive, isAnySpecialView]);
+
+  // In-page links (e.g. "Compare models" on a dataset) land on comparison
+  // views without touching the sidebar — open the group so it matches.
+  useEffect(() => {
+    if (isComparisonView) setComparisonOpen(true);
+  }, [isComparisonView]);
 
   const chatIsActive = currentStep === chatStep.id && !isAnySpecialView;
   const ChatIcon = iconMap[chatStep.icon] || Bot;
@@ -381,6 +396,18 @@ export default function Sidebar({
             </div>
           )}
         </div>
+
+        {/* ── Model Comparison — decision models vs. LLMs ──────── */}
+        <CollapsibleViewGroup
+          label="Model Comparison"
+          icon={Scale}
+          items={COMPARISON_ITEMS}
+          isOpen={comparisonOpen}
+          onToggle={() => setComparisonOpen(!comparisonOpen)}
+          isGroupActive={isComparisonView}
+          currentView={currentView}
+          onNavigate={onNavigate}
+        />
 
         <div className="!my-2 mx-2 border-t border-surface-200/40" />
 
