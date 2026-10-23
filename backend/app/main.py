@@ -61,6 +61,10 @@ def _run_migrations(engine):
         ("agent_configs", "http_body_template", "TEXT"),
         ("agent_configs", "http_response_path", "VARCHAR(255)"),
         ("agent_configs", "http_tool_calls_path", "VARCHAR(255)"),
+        # Decision-model providers (TypeSafe Jev / System One)
+        ("providers", "supports_decision", "BOOLEAN DEFAULT FALSE"),
+        ("providers", "decision_models", "JSON"),
+        ("providers", "default_decision_model", "VARCHAR(100)"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:
@@ -70,6 +74,12 @@ def _run_migrations(engine):
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
                     conn.commit()
                     logger.info(f"Added column {table}.{column}")
+
+        # Backfill decision-model columns on providers created before they existed
+        if "providers" in inspector.get_table_names():
+            conn.execute(text("UPDATE providers SET decision_models = '[]' WHERE decision_models IS NULL"))
+            conn.execute(text("UPDATE providers SET supports_decision = FALSE WHERE supports_decision IS NULL"))
+            conn.commit()
 
         # Data migration: copy input_message → objective for existing scenarios
         if "scenarios" in inspector.get_table_names():
