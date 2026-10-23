@@ -4,10 +4,11 @@
 
 **Yoke Agent** is an AI Quality Studio that applies the Poka-Yoke philosophy to modern AI systems. Instead of hoping you picked the right hyperparameters, prompts, retrieval strategy or agent design, Yoke Agent lets you grid-search every combination, evaluate them with reproducible metrics, and promote only the configuration that objectively wins.
 
-It ships with two complementary workbenches on a single dashboard:
+It ships with three complementary workbenches on a single dashboard:
 
 - **RAG Workbench** — Document ingestion → LLM-generated evaluation dataset → grid search over chunking, embeddings, retrieval strategies and rerankers → [RAGAS](https://docs.ragas.io/) scoring → improvement report.
 - **Agent Workbench** — Agent definition (prompt, tools, MCP servers) → scenario library (tool use, decision paths, response quality, guardrails) → persona-driven simulation → G-Eval LLM-as-judge scoring → ranked leaderboard.
+- **Model Comparison** — Labeled classification dataset (7 built-in sets of 1,200 rows, or your own upload) → the same sample through decision models (TypeSafe Jev and other System One endpoints) and LLM classifiers → accuracy, errors and total cost per model.
 
 ---
 
@@ -24,6 +25,7 @@ It ships with two complementary workbenches on a single dashboard:
 - [Advanced Retrieval Strategies](#advanced-retrieval-strategies)
 - [RAGAS Metrics](#ragas-metrics)
 - [Agent Evaluation Metrics](#agent-evaluation-metrics)
+- [Model Comparison: Decision Models vs LLMs](#model-comparison-decision-models-vs-llms)
 - [Cost Tracking & Flex Tier](#cost-tracking--flex-tier)
 - [API Reference](#api-reference)
 - [Project Structure](#project-structure)
@@ -58,6 +60,13 @@ It ships with two complementary workbenches on a single dashboard:
 - **G-Eval LLM-as-Judge** — Scores transcripts on 14 rubric metrics (tool call accuracy, argument correctness, goal completion, path optimality, faithfulness, coherence, constraint adherence, hallucination, refusal accuracy, etc.) plus cross-cutting metrics (instruction following, persona satisfaction).
 - **Deterministic Overrides** — Tool selection is scored from parsed `TOOL_CALL` invocations, not guessed from prose, so `tool_call_accuracy` is always objective.
 - **Results Dashboard** — All Results table with every metric as a column, collapsible LLM-generated Improvement Report, and per-transcript drill-down.
+
+### Model Comparison (decision models vs LLMs)
+- **Decision-model providers** — TypeSafe's **Jev** (System One API) and any System One-compatible endpoint (gateways such as LiteLLM, or self-hosted open "Jev-style" models), configured in Settings → Providers next to your LLMs.
+- **Built-in datasets** — Seven labeled sets of 1,200 rows each: Guardrails, Support Ticket Classification (English and pt-BR), Banking Intent Routing, Agent Tool Routing, Product Review Sentiment, and Email & SMS Threat Triage. Every set includes hard cases that borrow a neighbouring label's vocabulary.
+- **Custom datasets** — Upload CSV, TSV, JSON or JSONL; columns are auto-detected (or picked in a preview), and label definitions can be edited before import.
+- **Head-to-head runs** — Up to 8 models answer the same stratified sample with the same task question and label definitions, with live progress, stop and resume.
+- **Results** — Total cost per model, accuracy with total / correct / errors (wrong label vs. no valid answer), error rate, cost share and cost per 1k rows, macro-F1, p50/p95 latency, per-label recall, confusion matrix, cost-vs-accuracy chart, a per-prediction explorer, and CSV export.
 
 ---
 
@@ -134,6 +143,8 @@ Configured from Settings → Providers. All credentials are stored in the backen
 | **HuggingFace** | ✓ | ✓ | Endpoint-hosted inference. |
 | **Claude Code CLI** | ✓ | — | Subprocess-based; no API key needed. |
 | **Custom** | ✓ | ✓ | Any OpenAI-compatible endpoint (LM Studio, vLLM, etc.). |
+| **TypeSafe (Jev)** | decision | — | Decision model via the System One API (`/v1/systemone`). Input tokens only, $0.042 / 1M. |
+| **System One-compatible** | decision | — | Any endpoint that speaks the System One API (gateway or self-hosted decision model). |
 
 ---
 
@@ -298,6 +309,66 @@ Aggregated results expose `{mean, median, std, min, max, count}` per metric, and
 
 ---
 
+## Model Comparison: Decision Models vs LLMs
+
+Decision models such as TypeSafe's Jev don't generate text. They receive a piece of **state** and a typed **question**, and return a choice with a calibrated probability for each option. Many production LLM calls are this kind of decision: routing a ticket, screening an input, classifying an intent, or picking a tool. The Model Comparison workbench measures whether a decision model can replace an LLM on *your* task, and at what cost.
+
+**How a run works**
+
+1. Pick a dataset and a sample (stratified by default, so the label mix is preserved).
+2. Pick up to 8 models: decision models and/or LLMs from any configured provider.
+3. Every model gets the **same task question and label definitions**:
+   - Decision models receive them as a System One `choice` question:
+     ```json
+     {"model": "jev-latest", "state": "<row text>",
+      "questions": {"decision": {"type": "choice", "instructions": "<task>",
+                                 "criteria": {"<label>": "<definition>", "...": "..."}}}}
+     ```
+   - LLMs receive the same content as a prompt and must answer `{"label": "...", "confidence": ...}`. An answer that doesn't resolve to exactly one known label counts as **no answer**. The parser never guesses.
+4. Predictions are stored per row, so you can drill into exactly where each model failed.
+
+**Metrics per model**
+
+| Metric | Meaning |
+|---|---|
+| Total / Correct / Errors | Rows evaluated; correct answers; errors split into *wrong label* and *no answer* (API error or an answer outside the label set) |
+| Accuracy, Error rate | Correct ÷ total, Errors ÷ total |
+| Macro-F1, per-label recall & precision | Class-balanced quality; where each model struggles |
+| Total cost, Cost / 1k rows, Cost share, × cheapest | Measured tokens × price per 1M tokens (editable per run), and each model's share of the comparison's spend |
+| Latency p50 / p95 | Per-request latency |
+
+Prices come from the built-in table (`MODEL_PRICING`, flex-tier aware). Ollama and Claude Code are treated as free, and any other model with no known price can be priced per run in the UI (enter 0 for self-hosted). Spend is also logged to **History → Logs** under the `model_comparison` operation.
+
+**Built-in datasets** (`backend/data/decision_datasets/`, seeded on startup)
+
+| Dataset | Labels | Rows |
+|---|---|---|
+| Guardrails — Assistant Input Screening | safe, prompt_injection, jailbreak, pii_exposure, off_topic | 1,200 |
+| Support Ticket Classification | billing, technical_issue, account_access, shipping_delivery, returns_refunds, product_inquiry, cancellation, feature_request | 1,200 |
+| Classificação de Chamados de Suporte (pt-BR) | cobranca, problema_tecnico, acesso_conta, entrega, troca_devolucao, duvida_produto, cancelamento, sugestao | 1,200 |
+| Banking Intent Routing | 10 retail-banking intents | 1,200 |
+| Agent Tool Routing | web_search, calculator, calendar, send_email, weather, database_query, code_execution, no_tool | 1,200 |
+| Product Review Sentiment | positive, negative, neutral, mixed | 1,200 |
+| Email & SMS Threat Triage | legitimate, spam, phishing | 1,200 |
+
+The datasets are synthetic and deterministic. All names, brands, domains and personal data are fictional, and about 20% of each set is tagged `hard`. To regenerate them after editing a spec in `backend/scripts/decision_dataset_specs/`, run:
+
+```bash
+cd backend && python scripts/generate_decision_datasets.py
+```
+
+**Custom datasets**: upload a file with a text column and a label column, for example:
+
+```csv
+text,label
+"I was charged twice for my subscription this month.",billing
+"The app crashes every time I open the reports page.",technical_issue
+```
+
+JSON exports from Yoke (`{"task", "labels": [{"name", "description"}], "items": [{"text", "label"}]}`) can be re-imported as-is. Label definitions matter: both decision models and LLMs are noticeably more accurate when each label has a one-line description.
+
+---
+
 ## Cost Tracking & Flex Tier
 
 Every LLM and embedding call goes through `app.services.token_tracker`, which:
@@ -335,6 +406,14 @@ The backend exposes a RESTful API at `http://localhost:4040`. Interactive docs:
 | `POST` | `/api/agent-experiments/{id}/run` | Start an agent simulation experiment |
 | `GET` | `/api/agent-experiments/{id}/results` | Agent leaderboard + per-transcript metrics |
 | `GET` | `/api/token-usage/summary` | Aggregated spend by provider / model / experiment |
+| `GET` | `/api/decision/datasets` | Built-in and custom comparison datasets |
+| `POST` | `/api/decision/datasets/upload` | Upload a CSV / TSV / JSON / JSONL dataset (`dry_run=true` previews) |
+| `GET` | `/api/decision/models` | Decision models + LLMs available for comparison, with default prices |
+| `POST` | `/api/decision/comparisons/estimate` | Projected tokens and cost per model |
+| `POST` | `/api/decision/comparisons` | Create and start a comparison |
+| `GET` | `/api/decision/comparisons/{id}` | Leaderboard: accuracy, errors, cost, latency, per-label metrics |
+| `GET` | `/api/decision/comparisons/{id}/predictions` | Per-row predictions (filter by model / outcome / label) |
+| `GET` | `/api/decision/comparisons/{id}/export` | CSV with every model's prediction per row |
 
 ---
 
@@ -354,6 +433,7 @@ yoke-agent/
 │   │   │   ├── experiments.py          # RAG experiments
 │   │   │   ├── agent_configs.py
 │   │   │   ├── agent_experiments.py    # Agent simulation experiments
+│   │   │   ├── decision.py             # Model Comparison: datasets, comparisons, results
 │   │   │   ├── mcp_config.py           # MCP server management
 │   │   │   ├── token_usage.py
 │   │   │   └── vectorstores.py
@@ -380,8 +460,15 @@ yoke-agent/
 │   │   │   ├── agent_simulation_engine.py
 │   │   │   ├── agent_generators.py
 │   │   │   ├── agent_evaluator.py      # G-Eval LLM-as-judge
-│   │   │   └── agent_report_generator.py
+│   │   │   ├── agent_report_generator.py
+│   │   │   ├── decision_models.py      # TypeSafe Jev / System One client
+│   │   │   ├── llm_classifier.py       # LLM-as-classifier prompt + answer parser
+│   │   │   ├── decision_comparison.py  # Comparison runner, sampling, metrics, pricing
+│   │   │   └── decision_datasets.py    # Built-in seeding + upload parsing
 │   │   └── main.py
+│   ├── data/decision_datasets/         # 7 built-in comparison datasets (1,200 rows each)
+│   ├── scripts/                        # Deterministic dataset generators
+│   ├── tests/                          # pytest suite
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/
@@ -395,6 +482,7 @@ yoke-agent/
 │   │   │   ├── Glossary.tsx            # Concepts & glossary (incl. Poka-Yoke)
 │   │   │   ├── SettingsProviders.tsx   # Provider catalog UI + flex tier toggle
 │   │   │   ├── Collections.tsx
+│   │   │   ├── decision/               # Model Comparison: datasets, builder, results
 │   │   │   └── steps/
 │   │   │       ├── StepChat.tsx
 │   │   │       ├── StepUpload.tsx

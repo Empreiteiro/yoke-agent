@@ -448,4 +448,102 @@ export const api = {
     request<any[]>(`/agent/experiments/${expId}/transcripts${combinationId ? `?combination_id=${combinationId}` : ""}`),
   getTranscript: (id: number) => request<any>(`/agent/transcripts/${id}`),
   getTranscriptMetrics: (id: number) => request<any>(`/agent/transcripts/${id}/metrics`),
+
+  // Model Comparison — decision models (TypeSafe Jev / System One) vs. LLMs
+  listDecisionDatasets: () => request<any[]>("/decision/datasets"),
+  getDecisionDataset: (id: number) => request<any>(`/decision/datasets/${id}`),
+  listDecisionDatasetItems: (
+    id: number,
+    params: { label?: string; search?: string; offset?: number; limit?: number } = {}
+  ) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== "") qs.set(k, String(v));
+    });
+    return request<{ total: number; items: any[] }>(`/decision/datasets/${id}/items?${qs}`);
+  },
+  uploadDecisionDataset: async (
+    file: File,
+    fields: {
+      name?: string;
+      description?: string;
+      task?: string;
+      text_column?: string;
+      label_column?: string;
+      label_descriptions?: Record<string, string>;
+      dry_run?: boolean;
+    }
+  ) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    Object.entries(fields).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === "") return;
+      formData.append(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+    });
+    const res = await fetch(`${API_BASE}/decision/datasets/upload`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: formData,
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(error.detail || "Upload failed");
+    }
+    return res.json();
+  },
+  updateDecisionDataset: (id: number, data: any) =>
+    request<any>(`/decision/datasets/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  duplicateDecisionDataset: (id: number) =>
+    request<any>(`/decision/datasets/${id}/duplicate`, { method: "POST" }),
+  deleteDecisionDataset: (id: number) =>
+    request<any>(`/decision/datasets/${id}`, { method: "DELETE" }),
+  listComparableModels: () => request<{ decision_models: any[]; llm_models: any[] }>("/decision/models"),
+  estimateComparison: (data: any) =>
+    request<any>("/decision/comparisons/estimate", { method: "POST", body: JSON.stringify(data) }),
+  createComparison: (data: any) =>
+    request<any>("/decision/comparisons", { method: "POST", body: JSON.stringify(data) }),
+  listComparisons: () => request<any[]>("/decision/comparisons"),
+  getComparison: (id: number) => request<any>(`/decision/comparisons/${id}`),
+  listComparisonPredictions: (
+    id: number,
+    params: {
+      model_result_id?: number;
+      outcome?: string;
+      expected_label?: string;
+      predicted_label?: string;
+      search?: string;
+      offset?: number;
+      limit?: number;
+    } = {}
+  ) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== "") qs.set(k, String(v));
+    });
+    return request<{ total: number; items: any[] }>(`/decision/comparisons/${id}/predictions?${qs}`);
+  },
+  stopComparison: (id: number) =>
+    request<any>(`/decision/comparisons/${id}/stop`, { method: "POST" }),
+  resumeComparison: (id: number) =>
+    request<any>(`/decision/comparisons/${id}/resume`, { method: "POST" }),
+  deleteComparison: (id: number) =>
+    request<any>(`/decision/comparisons/${id}`, { method: "DELETE" }),
 };
+
+/** Download an authenticated API response as a file. */
+export async function downloadFile(path: string, filename: string) {
+  const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders() });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(error.detail || "Download failed");
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

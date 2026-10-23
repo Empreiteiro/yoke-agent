@@ -172,6 +172,7 @@ function GroupedLogs({
           <option value="agent_generation">Agent Generation</option>
           <option value="agent_report">Agent Report</option>
           <option value="chat">AI Assistant</option>
+          <option value="model_comparison">Model Comparison</option>
         </select>
         <select
           value={filterModelType}
@@ -181,6 +182,7 @@ function GroupedLogs({
           <option value="">All Types</option>
           <option value="llm">LLM</option>
           <option value="embedding">Embedding</option>
+          <option value="decision">Decision</option>
         </select>
       </div>
 
@@ -291,6 +293,8 @@ function GroupedLogs({
                                 className={`text-xs ${
                                   log.model_type === "llm"
                                     ? "text-purple-400"
+                                    : log.model_type === "decision"
+                                    ? "text-amber-400"
                                     : "text-emerald-400"
                                 }`}
                               >
@@ -702,6 +706,8 @@ export default function Logs() {
                       className={`text-xs px-2 py-0.5 rounded-full ${
                         m.model_type === "llm"
                           ? "bg-purple-500/20 text-purple-400"
+                          : m.model_type === "decision"
+                          ? "bg-amber-500/20 text-amber-400"
                           : "bg-emerald-500/20 text-emerald-400"
                       }`}
                     >

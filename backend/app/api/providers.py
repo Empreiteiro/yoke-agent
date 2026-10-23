@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
@@ -14,6 +16,7 @@ from app.schemas.provider import (
     EMBEDDING_DIMENSIONS,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 EMBEDDING_FAMILIES = {"bert", "nomic-bert"}
@@ -130,6 +133,7 @@ def test_provider(provider_id: int, db: Session = Depends(get_db)):
 
     llm_ok = None
     embedding_ok = None
+    decision_ok = None
     errors = []
 
     if provider.supports_llm and provider.llm_models:
@@ -170,7 +174,17 @@ def test_provider(provider_id: int, db: Session = Depends(get_db)):
             embedding_ok = False
             errors.append(f"Embedding: {str(e)}")
 
-    success = (llm_ok is not False) and (embedding_ok is not False)
+    if provider.supports_decision:
+        try:
+            from app.services.decision_models import test_decision_provider
+            choice = test_decision_provider(provider)
+            decision_ok = True
+            logger.info("Decision provider %s answered test question with %r", provider.name, choice)
+        except Exception as e:
+            decision_ok = False
+            errors.append(f"Decision model: {str(e)}")
+
+    success = (llm_ok is not False) and (embedding_ok is not False) and (decision_ok is not False)
     message = "All tests passed" if success else "; ".join(errors)
 
     return ProviderTestResult(
@@ -178,6 +192,7 @@ def test_provider(provider_id: int, db: Session = Depends(get_db)):
         message=message,
         llm_ok=llm_ok,
         embedding_ok=embedding_ok,
+        decision_ok=decision_ok,
     )
 
 
@@ -188,8 +203,18 @@ def get_available_models(db: Session = Depends(get_db)):
 
     llm_models = []
     embedding_models = []
+    decision_models = []
 
     for p in providers:
+        if p.supports_decision:
+            for model in (p.decision_models or []):
+                decision_models.append({
+                    "provider_id": p.id,
+                    "provider_name": p.name,
+                    "provider_type": p.provider_type,
+                    "model": model,
+                    "is_default": model == p.default_decision_model,
+                })
         if p.supports_llm:
             for model in (p.llm_models or []):
                 llm_models.append({
@@ -212,6 +237,7 @@ def get_available_models(db: Session = Depends(get_db)):
     return AvailableModelsResponse(
         llm_models=llm_models,
         embedding_models=embedding_models,
+        decision_models=decision_models,
     )
 
 

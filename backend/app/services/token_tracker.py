@@ -52,6 +52,10 @@ MODEL_PRICING = {
     "embed-multilingual-v3.0": {"prompt": 0.10, "completion": 0.0},
     # ── Claude Code CLI (local — no direct API cost) ─────────────────
     "claude-code": {"prompt": 0.0, "completion": 0.0},
+    # ── TypeSafe decision models ──────────────────────────────────────
+    # Jev bills input tokens only ($0.042 per 1M); output is free
+    # (vendor-published early-access pricing, Sept 2026).
+    "jev": {"prompt": 0.042, "completion": 0.0},
 }
 
 
@@ -61,6 +65,22 @@ MODEL_PRICING = {
 # (OpenAI: o3*, o4-mini, gpt-4.1*, gpt-5*; Google: gemini-2.5-* and
 # gemini-3.x preview).
 FLEX_DISCOUNT = 0.5
+
+
+def lookup_pricing(model_name: str) -> Optional[Dict[str, float]]:
+    """Return ``{"prompt": usd_per_1m, "completion": usd_per_1m}`` for a
+    model, or None when the price is unknown. Exact match first, then a
+    case-insensitive partial match (``gpt-4o-2024-08-06`` → ``gpt-4o``)."""
+    if not model_name:
+        return None
+    pricing = MODEL_PRICING.get(model_name)
+    if pricing:
+        return pricing
+    lowered = model_name.lower()
+    for key, val in MODEL_PRICING.items():
+        if key in lowered or lowered in key:
+            return val
+    return None
 
 
 def estimate_cost(
@@ -76,13 +96,7 @@ def estimate_cost(
     flex-eligible models — callers should only set the flag when the
     model actually supports it (see ``llm_factory.flex_supported_for``).
     """
-    # Try exact match first, then partial match
-    pricing = MODEL_PRICING.get(model_name)
-    if not pricing:
-        for key, val in MODEL_PRICING.items():
-            if key in model_name.lower() or model_name.lower() in key:
-                pricing = val
-                break
+    pricing = lookup_pricing(model_name)
     if not pricing:
         return None
 

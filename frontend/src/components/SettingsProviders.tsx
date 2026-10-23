@@ -29,10 +29,13 @@ interface Provider {
   is_active: boolean;
   supports_llm: boolean;
   supports_embedding: boolean;
+  supports_decision?: boolean;
   llm_models: string[];
   embedding_models: string[];
+  decision_models?: string[];
   default_llm_model?: string;
   default_embedding_model?: string;
+  default_decision_model?: string;
   extra_config: Record<string, any>;
   has_api_key: boolean;
 }
@@ -41,8 +44,10 @@ interface CatalogEntry {
   label: string;
   supports_llm: boolean;
   supports_embedding: boolean;
+  supports_decision?: boolean;
   llm_models: string[];
   embedding_models: string[];
+  decision_models?: string[];
   requires_api_key: boolean;
   supports_base_url: boolean;
   default_base_url?: string;
@@ -58,6 +63,15 @@ const PROVIDER_ICONS: Record<string, string> = {
   huggingface: "🤗",
   claude_code: "🟠",
   custom: "⚙️",
+  typesafe: "⚡",
+  systemone: "🎯",
+};
+
+const DECISION_HINTS: Record<string, string> = {
+  typesafe:
+    "TypeSafe's Jev is a decision model: it returns a typed choice with calibrated probabilities instead of generated text. Used by Model Comparison. Billed per input token; output is free.",
+  systemone:
+    "Any endpoint that speaks TypeSafe's System One API — a gateway (e.g. LiteLLM at http://proxy:4000/typesafe) or a self-hosted open decision model. Requests go to {Base URL}/v1/systemone.",
 };
 
 export default function SettingsProviders() {
@@ -141,9 +155,9 @@ export default function SettingsProviders() {
         <div className="flex items-center gap-3">
           <Settings className="w-6 h-6 text-accent" />
           <div>
-            <h2 className="text-xl font-bold text-primary">LLM & Embedding Providers</h2>
+            <h2 className="text-xl font-bold text-primary">LLM, Embedding & Decision Providers</h2>
             <p className="text-sm text-t-secondary">
-              Configure AI providers for dataset generation, RAG pipeline, and evaluation
+              Configure AI providers for dataset generation, RAG pipeline, evaluation, and model comparison
             </p>
           </div>
         </div>
@@ -218,6 +232,12 @@ export default function SettingsProviders() {
                       <span className="flex items-center gap-1 text-xs text-secondary font-medium">
                         <Box className="w-3 h-3" />
                         {provider.embedding_models.length} Embedding{provider.embedding_models.length !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {provider.supports_decision && (
+                      <span className="flex items-center gap-1 text-xs text-amber-500 font-medium">
+                        <Zap className="w-3 h-3" />
+                        {(provider.decision_models || []).length} Decision model{(provider.decision_models || []).length !== 1 ? "s" : ""}
                       </span>
                     )}
                   </div>
@@ -327,6 +347,8 @@ function AddProviderForm({
   const [selectedEmbModels, setSelectedEmbModels] = useState<string[]>([]);
   const [customModel, setCustomModel] = useState("");
   const [customEmbModel, setCustomEmbModel] = useState("");
+  const [selectedDecisionModels, setSelectedDecisionModels] = useState<string[]>([]);
+  const [customDecisionModel, setCustomDecisionModel] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [discovering, setDiscovering] = useState(false);
@@ -387,6 +409,7 @@ function AddProviderForm({
       setName(entry.label);
       setSelectedLlmModels(entry.llm_models.slice(0, 3));
       setSelectedEmbModels(entry.embedding_models.slice(0, 2));
+      setSelectedDecisionModels((entry.decision_models || []).slice(0, 3));
       setBaseUrl(entry.default_base_url || "");
     }
   }, [providerType, entry]);
@@ -416,10 +439,13 @@ function AddProviderForm({
         is_active: true,
         supports_llm: entry?.supports_llm ?? true,
         supports_embedding: entry?.supports_embedding ?? false,
-        llm_models: selectedLlmModels,
-        embedding_models: selectedEmbModels,
-        default_llm_model: selectedLlmModels[0] || undefined,
-        default_embedding_model: selectedEmbModels[0] || undefined,
+        supports_decision: entry?.supports_decision ?? false,
+        llm_models: entry?.supports_llm === false ? [] : selectedLlmModels,
+        embedding_models: entry?.supports_embedding === false ? [] : selectedEmbModels,
+        decision_models: entry?.supports_decision ? selectedDecisionModels : [],
+        default_llm_model: entry?.supports_llm === false ? undefined : selectedLlmModels[0] || undefined,
+        default_embedding_model: entry?.supports_embedding === false ? undefined : selectedEmbModels[0] || undefined,
+        default_decision_model: entry?.supports_decision ? selectedDecisionModels[0] || undefined : undefined,
         extra_config: supportsFlex && flexTier ? { flex_tier: true } : {},
       });
       onCreated(provider);
@@ -745,6 +771,50 @@ function AddProviderForm({
             </div>
           )}
 
+          {/* Decision Models */}
+          {entry.supports_decision && (
+            <div>
+              <label className="block text-sm font-medium text-t-secondary mb-2">
+                <Zap className="w-4 h-4 inline mr-1 text-amber-500" />
+                Decision Models
+              </label>
+              {DECISION_HINTS[providerType] && (
+                <p className="text-xs text-muted mb-2">{DECISION_HINTS[providerType]}</p>
+              )}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {Array.from(new Set([...(entry.decision_models || []), ...selectedDecisionModels])).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => toggleModel(m, selectedDecisionModels, setSelectedDecisionModels)}
+                    className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                      selectedDecisionModels.includes(m)
+                        ? "bg-amber-500/15 text-amber-500 border border-visible"
+                        : "bg-surface-50 text-muted border border-dashed border-surface-300 hover:border-visible hover:text-amber-500"
+                    }`}
+                  >
+                    {m}
+                    {selectedDecisionModels.includes(m) && !(entry.decision_models || []).includes(m) && " ✕"}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={customDecisionModel}
+                  onChange={(e) => setCustomDecisionModel(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addCustomModel(customDecisionModel, selectedDecisionModels, setSelectedDecisionModels, setCustomDecisionModel)}
+                  placeholder={providerType === "typesafe" ? "Add a pinned version, e.g. jev-1.13.0" : "Add model name..."}
+                  className="flex-1 px-3 py-1.5 bg-surface-50 border border-visible rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
+                />
+                <button
+                  onClick={() => addCustomModel(customDecisionModel, selectedDecisionModels, setSelectedDecisionModels, setCustomDecisionModel)}
+                  className="px-3 py-1.5 bg-surface-200 text-t-hover rounded-lg text-xs hover:bg-surface-300"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
+
           {error && (
             <p className="text-sm text-red-400">{error}</p>
           )}
@@ -792,6 +862,9 @@ function ProviderDetails({
   const [defaultEmb, setDefaultEmb] = useState(provider.default_embedding_model || "");
   const [customLlm, setCustomLlm] = useState("");
   const [customEmb, setCustomEmb] = useState("");
+  const [decisionModels, setDecisionModels] = useState<string[]>(provider.decision_models || []);
+  const [defaultDecision, setDefaultDecision] = useState(provider.default_decision_model || "");
+  const [customDecision, setCustomDecision] = useState("");
   const [flexTier, setFlexTier] = useState<boolean>(
     Boolean(provider.extra_config?.flex_tier)
   );
@@ -834,6 +907,11 @@ function ProviderDetails({
         default_llm_model: defaultLlm || (llmModels[0] ?? undefined),
         default_embedding_model: defaultEmb || (embModels[0] ?? undefined),
       };
+      if (provider.supports_decision) {
+        payload.decision_models = decisionModels;
+        payload.default_decision_model =
+          (decisionModels.includes(defaultDecision) ? defaultDecision : decisionModels[0]) || undefined;
+      }
       if (apiKey) payload.api_key = apiKey;
       if (supportsFlex) {
         payload.extra_config = {
@@ -854,6 +932,7 @@ function ProviderDetails({
 
   const catalogModels = catalog?.llm_models || [];
   const catalogEmbModels = catalog?.embedding_models || [];
+  const catalogDecisionModels = catalog?.decision_models || [];
 
   return (
     <div className="px-6 pb-5 pt-3 border-t border-visible space-y-5">
@@ -1045,6 +1124,65 @@ function ProviderDetails({
             />
             <button
               onClick={() => addModel(customEmb, embModels, setEmbModels, setCustomEmb)}
+              className="px-3 py-1.5 bg-surface-200 text-t-hover rounded-lg text-xs hover:bg-surface-300"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Decision Models */}
+      {provider.supports_decision && (
+        <div>
+          <label className="block text-xs font-medium text-t-secondary mb-2">
+            <Zap className="w-3.5 h-3.5 inline mr-1 text-amber-500" />
+            Decision Models
+            {defaultDecision && <span className="text-muted ml-2">(default: {defaultDecision})</span>}
+          </label>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {decisionModels.map((m) => (
+              <span
+                key={m}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all ${
+                  m === defaultDecision
+                    ? "bg-amber-500/15 text-amber-500 border border-visible"
+                    : "bg-surface-200 text-t-hover border border-surface-200"
+                }`}
+                onClick={() => { setDefaultDecision(m); markDirty(); }}
+                title="Click to set as default"
+              >
+                {m === defaultDecision && "★ "}{m}
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeModel(m, decisionModels, setDecisionModels); }}
+                  className="hover:text-red-400 ml-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {catalogDecisionModels.filter((m) => !decisionModels.includes(m)).map((m) => (
+              <button
+                key={m}
+                onClick={() => toggleModel(m, decisionModels, setDecisionModels)}
+                className="px-2.5 py-1 bg-surface-50 text-muted text-xs rounded-lg border border-dashed border-surface-300 hover:border-visible hover:text-amber-500 transition-all"
+              >
+                + {m}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={customDecision}
+              onChange={(e) => setCustomDecision(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addModel(customDecision, decisionModels, setDecisionModels, setCustomDecision)}
+              placeholder="Add decision model..."
+              className="flex-1 px-3 py-1.5 bg-surface-50 border border-visible rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
+            />
+            <button
+              onClick={() => addModel(customDecision, decisionModels, setDecisionModels, setCustomDecision)}
               className="px-3 py-1.5 bg-surface-200 text-t-hover rounded-lg text-xs hover:bg-surface-300"
             >
               Add

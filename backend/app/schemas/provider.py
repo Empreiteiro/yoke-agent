@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -126,7 +126,39 @@ PROVIDER_CATALOG = {
         "requires_api_key": False,
         "supports_base_url": True,
     },
+    # ── Decision models ──────────────────────────────────────────────
+    # Decision models answer a typed question about a piece of state with
+    # a calibrated choice (plus per-option probabilities) instead of
+    # generated text. Used by the Model Comparison workbench.
+    "typesafe": {
+        "label": "TypeSafe (Jev)",
+        "supports_llm": False,
+        "supports_embedding": False,
+        "supports_decision": True,
+        "llm_models": [],
+        "embedding_models": [],
+        "decision_models": ["jev-latest"],
+        "requires_api_key": True,
+        "supports_base_url": True,
+        "default_base_url": "https://api.typesafe.ai",
+    },
+    "systemone": {
+        "label": "System One-compatible",
+        "supports_llm": False,
+        "supports_embedding": False,
+        "supports_decision": True,
+        "llm_models": [],
+        "embedding_models": [],
+        "decision_models": [],
+        "requires_api_key": False,
+        "supports_base_url": True,
+    },
 }
+
+# Catalog entries default to no decision support.
+for _entry in PROVIDER_CATALOG.values():
+    _entry.setdefault("supports_decision", False)
+    _entry.setdefault("decision_models", [])
 
 
 # --- Embedding model dimension capabilities ---
@@ -166,10 +198,13 @@ class ProviderCreate(BaseModel):
     is_active: bool = True
     supports_llm: bool = True
     supports_embedding: bool = False
+    supports_decision: bool = False
     llm_models: list[str] = []
     embedding_models: list[str] = []
+    decision_models: list[str] = []
     default_llm_model: Optional[str] = None
     default_embedding_model: Optional[str] = None
+    default_decision_model: Optional[str] = None
     extra_config: dict = {}
 
 
@@ -180,10 +215,13 @@ class ProviderUpdate(BaseModel):
     is_active: Optional[bool] = None
     supports_llm: Optional[bool] = None
     supports_embedding: Optional[bool] = None
+    supports_decision: Optional[bool] = None
     llm_models: Optional[list[str]] = None
     embedding_models: Optional[list[str]] = None
+    decision_models: Optional[list[str]] = None
     default_llm_model: Optional[str] = None
     default_embedding_model: Optional[str] = None
+    default_decision_model: Optional[str] = None
     extra_config: Optional[dict] = None
 
 
@@ -195,10 +233,13 @@ class ProviderResponse(BaseModel):
     is_active: bool
     supports_llm: bool
     supports_embedding: bool
+    supports_decision: bool = False
     llm_models: list[str] = []
     embedding_models: list[str] = []
+    decision_models: list[str] = []
     default_llm_model: Optional[str] = None
     default_embedding_model: Optional[str] = None
+    default_decision_model: Optional[str] = None
     extra_config: dict = {}
     has_api_key: bool = False  # never expose actual key
     created_at: datetime
@@ -207,14 +248,27 @@ class ProviderResponse(BaseModel):
     class Config:
         from_attributes = True
 
+    # Rows created before decision-model support have NULL in these columns.
+    @field_validator("llm_models", "embedding_models", "decision_models", mode="before")
+    @classmethod
+    def _none_to_empty_list(cls, value):
+        return [] if value is None else value
+
+    @field_validator("supports_decision", mode="before")
+    @classmethod
+    def _none_to_false(cls, value):
+        return bool(value)
+
 
 class ProviderTestResult(BaseModel):
     success: bool
     message: str
     llm_ok: Optional[bool] = None
     embedding_ok: Optional[bool] = None
+    decision_ok: Optional[bool] = None
 
 
 class AvailableModelsResponse(BaseModel):
     llm_models: list[dict]  # [{"provider_id": 1, "provider_name": "OpenAI", "model": "gpt-4o"}, ...]
     embedding_models: list[dict]
+    decision_models: list[dict] = []
