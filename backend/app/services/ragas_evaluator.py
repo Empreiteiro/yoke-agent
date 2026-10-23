@@ -8,6 +8,9 @@ from typing import List, Dict, Any, Optional
 
 from datasets import Dataset as HFDataset
 from sqlalchemy.orm import Session
+
+# Must run before `import ragas` — see the module docstring.
+from app.services import ragas_compat  # noqa: F401
 from ragas import evaluate
 from ragas.metrics import (
     faithfulness,

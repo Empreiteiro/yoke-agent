@@ -1,6 +1,6 @@
 .PHONY: help install install-backend install-frontend dev dev-backend dev-frontend \
        build start stop clean lint lint-backend lint-frontend test test-backend \
-       db-reset docker-up docker-down setup check-deps \
+       db-reset docker-up docker-down setup prepare check-deps \
        sync-cli-client cli-install cli-uninstall
 
 # --- Configuration ---
@@ -16,6 +16,11 @@ VENV_PYTHON   = $(VENV_DIR)/bin/python
 VENV_UVICORN  = $(VENV_DIR)/bin/uvicorn
 UV            = $(shell command -v uv 2>/dev/null)
 PIP_INSTALL   = $(if $(UV),$(UV) pip install --python $(VENV_PYTHON),$(VENV_PIP) install)
+ENV_FILE      = $(BACKEND_DIR)/.env
+# Stamp files record when dependencies were last installed, so `make dev`
+# only reinstalls after requirements.txt / package.json / package-lock.json change.
+BACKEND_STAMP  = $(VENV_DIR)/.requirements.stamp
+FRONTEND_STAMP = $(FRONTEND_DIR)/node_modules/.install.stamp
 
 # Colors
 CYAN  = \033[36m
@@ -34,53 +39,65 @@ help: ## Show this help message
 
 # --- Setup & Install ---
 
-setup: ## First-time setup: create venv, install all deps, copy .env
-	@echo "$(CYAN)Setting up project...$(RESET)"
-	$(PYTHON) -m venv $(VENV_DIR)
-	$(PIP_INSTALL) --upgrade pip
-	$(PIP_INSTALL) -r $(BACKEND_DIR)/requirements.txt
-	cd $(FRONTEND_DIR) && $(NPM) install
-	@if [ ! -f $(BACKEND_DIR)/.env ]; then \
-		cp $(BACKEND_DIR)/.env.example $(BACKEND_DIR)/.env; \
-		echo "$(GREEN)Created $(BACKEND_DIR)/.env from .env.example$(RESET)"; \
-		echo "$(YELLOW)>>> Edit $(BACKEND_DIR)/.env and add your OPENAI_API_KEY$(RESET)"; \
-	fi
+setup: prepare ## First-time setup: create venv, install all deps, copy .env
 	@echo ""
 	@echo "$(GREEN)Setup complete! Run 'make dev' to start developing.$(RESET)"
 
-install: install-backend install-frontend ## Install all dependencies
+prepare: $(BACKEND_STAMP) $(FRONTEND_STAMP) $(ENV_FILE) ## Create venv, .env and install deps — only what is missing or outdated
 
-install-backend: ## Install backend Python dependencies (uses venv)
+install: install-backend install-frontend ## Reinstall all dependencies
+
+install-backend: | $(VENV_PYTHON) ## Reinstall backend Python dependencies (uses venv)
 	@echo "$(CYAN)Installing backend dependencies...$(RESET)"
-	@if [ ! -d $(VENV_DIR) ]; then \
-		echo "$(YELLOW)Virtual environment not found. Creating...$(RESET)"; \
-		$(PYTHON) -m venv $(VENV_DIR); \
-	fi
-	$(PIP_INSTALL) --upgrade pip
 	$(PIP_INSTALL) -r $(BACKEND_DIR)/requirements.txt
+	@touch $(BACKEND_STAMP)
 
-install-frontend: ## Install frontend Node.js dependencies
+install-frontend: ## Reinstall frontend Node.js dependencies
+	@echo "$(CYAN)Installing frontend dependencies...$(RESET)"
+	@command -v $(NPM) >/dev/null 2>&1 || { echo "$(YELLOW)npm not found — install Node.js 18+ first.$(RESET)"; exit 1; }
+	cd $(FRONTEND_DIR) && $(NPM) install
+	@touch $(FRONTEND_STAMP)
+
+# Virtual environment: created once, with a Python version check.
+$(VENV_PYTHON):
+	@command -v $(PYTHON) >/dev/null 2>&1 || { echo "$(YELLOW)$(PYTHON) not found — install Python 3.11+ first.$(RESET)"; exit 1; }
+	@$(PYTHON) -c 'import sys; sys.exit(sys.version_info < (3, 11))' || { \
+		echo "$(YELLOW)Python 3.11+ is required (found $$($(PYTHON) --version 2>&1)).$(RESET)"; exit 1; }
+	@echo "$(CYAN)Creating virtual environment in $(VENV_DIR)...$(RESET)"
+	$(PYTHON) -m venv $(VENV_DIR)
+	$(PIP_INSTALL) --upgrade pip
+
+# Backend deps: (re)installed when the venv is new or requirements.txt changed.
+$(BACKEND_STAMP): $(BACKEND_DIR)/requirements.txt | $(VENV_PYTHON)
+	@echo "$(CYAN)Installing backend dependencies...$(RESET)"
+	$(PIP_INSTALL) -r $(BACKEND_DIR)/requirements.txt
+	@touch $@
+
+# Frontend deps: (re)installed when node_modules is missing or package files changed.
+$(FRONTEND_STAMP): $(FRONTEND_DIR)/package.json $(FRONTEND_DIR)/package-lock.json
+	@command -v $(NPM) >/dev/null 2>&1 || { echo "$(YELLOW)npm not found — install Node.js 18+ first.$(RESET)"; exit 1; }
 	@echo "$(CYAN)Installing frontend dependencies...$(RESET)"
 	cd $(FRONTEND_DIR) && $(NPM) install
+	@touch $@
+
+# .env: copied from the template once; never overwritten.
+$(ENV_FILE):
+	cp $(BACKEND_DIR)/.env.example $@
+	@echo "$(GREEN)Created $@ from .env.example$(RESET)"
+	@echo "$(YELLOW)>>> First login: DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD in $@ (change them after logging in).$(RESET)"
+	@echo "$(YELLOW)>>> Provider API keys can be added later in Settings → Providers.$(RESET)"
 
 # --- Dependency Check ---
 
-check-deps: ## Verify and install all backend dependencies
+check-deps: | $(VENV_PYTHON) ## Re-verify backend dependencies against requirements.txt
 	@echo "$(CYAN)Checking backend dependencies...$(RESET)"
-	@if [ ! -d $(VENV_DIR) ]; then \
-		echo "$(YELLOW)No virtual environment found. Run 'make setup' first.$(RESET)"; \
-		exit 1; \
-	fi
 	@$(PIP_INSTALL) --quiet -r $(BACKEND_DIR)/requirements.txt
+	@touch $(BACKEND_STAMP)
 	@echo "$(GREEN)All dependencies OK.$(RESET)"
 
 # --- Development ---
 
-dev: check-deps ## Start both backend and frontend in development mode
-	@if [ ! -d $(VENV_DIR) ]; then \
-		echo "$(YELLOW)No virtual environment found. Running 'make setup' first...$(RESET)"; \
-		$(MAKE) setup; \
-	fi
+dev: prepare ## Start both backend and frontend in development mode (prepares the env first)
 	@# Kill any stale processes on our ports
 	@-lsof -ti:$(UVICORN_PORT) | xargs kill -9 2>/dev/null || true
 	@-lsof -ti:$(FRONTEND_PORT) | xargs kill -9 2>/dev/null || true
