@@ -13,15 +13,15 @@ from app.models.provider import Provider
 # is not supported for this model" or the more generic "Invalid
 # service_tier argument" rather than silently downgrading).
 #
-# OpenAI flex: o3, o4-mini, and the gpt-5 family (gpt-5, gpt-5-mini,
-# gpt-5-nano). gpt-4.1 was once listed in early previews but the GA
-# flex SKU does NOT cover it — using flex against gpt-4.1 returns
-# "Invalid service_tier argument".
-# Source: https://platform.openai.com/docs/guides/flex-processing
+# OpenAI flex: o3, o4-mini, and the gpt-5 / gpt-6 families (Batch and
+# Flex are both billed at 50% of standard). gpt-4.1 was once listed in
+# early previews but the GA flex SKU does NOT cover it — using flex
+# against gpt-4.1 returns "Invalid service_tier argument".
+# Source: https://developers.openai.com/api/docs/pricing
 #
-# Google flex: gemini-2.5-* family and the gemini-3.x preview lineage.
+# Google flex: gemini-2.5-* family and the gemini-3.x lineage.
 # Source: https://ai.google.dev/gemini-api/docs/flex-processing
-_OPENAI_FLEX_PREFIXES = ("o3", "o4-mini", "gpt-5")
+_OPENAI_FLEX_PREFIXES = ("o3", "o4-mini", "gpt-5", "gpt-6")
 _GOOGLE_FLEX_PREFIXES = ("gemini-2.5", "gemini-3")
 
 # OpenAI reasoning models reject any custom ``temperature`` (and
@@ -29,18 +29,42 @@ _GOOGLE_FLEX_PREFIXES = ("gemini-2.5", "gemini-3")
 # is accepted. The API returns:
 #   "Unsupported value: 'temperature' does not support 0.0 with this
 #    model. Only the default (1) value is supported."
-# Detected by model-name prefix so we can simply omit the kwarg from
-# the ChatOpenAI constructor and let the SDK use the default.
-_OPENAI_REASONING_PREFIXES = ("o1", "o3", "o4-mini", "o4")
+# The o-series and the GPT-5 / GPT-6 families are all reasoning models
+# (they take ``reasoning.effort`` instead). Detected by model-name
+# prefix so we can simply omit the kwarg from the ChatOpenAI
+# constructor and let the SDK use the default.
+_OPENAI_REASONING_PREFIXES = ("o1", "o3", "o4-mini", "o4", "gpt-5", "gpt-6")
+
+# Claude models that still accept a custom ``temperature``. Claude Opus
+# 4.7+, Sonnet 5+, Haiku 5.5 and the Fable line removed sampling
+# parameters (any non-default value returns a 400), so anything not
+# listed here — including future models — gets the API default.
+_ANTHROPIC_SAMPLING_PREFIXES = (
+    "claude-3",
+    "claude-opus-4-0", "claude-opus-4-1", "claude-opus-4-5", "claude-opus-4-6",
+    "claude-opus-4-2025",
+    "claude-sonnet-4-0", "claude-sonnet-4-5", "claude-sonnet-4-6",
+    "claude-sonnet-4-2025",
+    "claude-haiku-4-5",
+)
 
 
 def is_openai_reasoning_model(model_name: str) -> bool:
-    """Return True for OpenAI o-series reasoning models that don't
-    accept a custom ``temperature``."""
+    """Return True for OpenAI reasoning models (o-series, GPT-5, GPT-6)
+    that don't accept a custom ``temperature``."""
     if not model_name:
         return False
     name = model_name.lower()
     return any(name.startswith(p) for p in _OPENAI_REASONING_PREFIXES)
+
+
+def anthropic_accepts_temperature(model_name: str) -> bool:
+    """Return True for Claude models that still accept a custom
+    ``temperature`` (Opus 4.6 / Sonnet 4.6 / Haiku 4.5 and older)."""
+    if not model_name:
+        return False
+    name = model_name.lower()
+    return any(name.startswith(p) for p in _ANTHROPIC_SAMPLING_PREFIXES)
 
 
 def flex_supported_for(provider_type: str, model_name: str) -> bool:
@@ -59,10 +83,9 @@ def flex_supported_for(provider_type: str, model_name: str) -> bool:
 def pick_flex_model(provider: Provider) -> Optional[str]:
     """Pick the first flex-compatible model from a provider's model list,
     preferring the configured default. For OpenAI, non-reasoning models
-    (gpt-4.1*, gpt-5*) are preferred over reasoning ones (o3*, o4-mini*)
-    because the latter don't accept a custom ``temperature`` and trip up
-    callers that pass ``temperature=0`` for determinism. Returns None if
-    none are compatible."""
+    are preferred over reasoning ones because the latter ignore a custom
+    ``temperature`` (``get_llm`` omits it for them). Returns None if none
+    are compatible."""
     candidates: list[str] = []
     if provider.default_llm_model:
         candidates.append(provider.default_llm_model)
@@ -113,16 +136,16 @@ def get_llm(
             "model": model_name,
             "api_key": provider.api_key,
         }
-        # Reasoning models (o1*, o3*, o4-mini*) only accept the default
-        # temperature of 1; passing anything else returns 400. Just omit
+        # Reasoning models (o-series, gpt-5*, gpt-6*) only accept the
+        # default temperature of 1; passing anything else returns 400. Just omit
         # the kwarg so the SDK uses the default. Same when the caller
         # explicitly passes temperature=None ("use SDK default").
         if temperature is not None and not is_openai_reasoning_model(model_name):
             kwargs["temperature"] = temperature
         # Opt-in OpenAI "flex" service tier (~50% cheaper, best-effort
         # latency). Stored on the provider via extra_config.flex_tier=True.
-        # Only the reasoning family (o3*, o4-mini*) and gpt-4.1 / gpt-5
-        # lineage accept it — issuing flex against any other model
+        # Only o3*, o4-mini* and the gpt-5 / gpt-6 lineage accept it —
+        # issuing flex against any other model
         # returns a 400 from the API, so we silently skip the flag for
         # unsupported models instead of breaking the call.
         # ``langchain-openai >= 1.0`` exposes ``service_tier`` as an
@@ -136,7 +159,9 @@ def get_llm(
     elif ptype == "anthropic":
         from langchain_anthropic import ChatAnthropic
         kwargs = {"model": model_name, "api_key": provider.api_key}
-        if temperature is not None:
+        # Newer Claude models reject sampling parameters — omit the kwarg
+        # so the API default applies (see _ANTHROPIC_SAMPLING_PREFIXES).
+        if temperature is not None and anthropic_accepts_temperature(model_name):
             kwargs["temperature"] = temperature
         return ChatAnthropic(**kwargs)
 

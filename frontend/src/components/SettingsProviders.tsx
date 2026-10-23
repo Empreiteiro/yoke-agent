@@ -550,8 +550,8 @@ function AddProviderForm({
                     Best-effort latency (may be slower under load), no SLA, but
                     roughly half the price of standard on-demand.{" "}
                     {providerType === "openai"
-                      ? "Supported on o3, o4-mini, and the gpt-5 family (gpt-5, gpt-5-mini, gpt-5-nano)."
-                      : "Supported on gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite, and the gemini-3.x preview lineage."}
+                      ? "Supported on o3 and the gpt-5 / gpt-6 families (e.g. gpt-5.5, gpt-6.1-sol, gpt-6-luna)."
+                      : "Supported on the gemini-2.5 and gemini-3.x models (e.g. gemini-3.8-flash, gemini-3.5-flash-lite)."}
                   </p>
                 </div>
               </label>
@@ -1005,8 +1005,8 @@ function ProviderDetails({
                 <code className="px-1 bg-surface-200/50 rounded text-accent">service_tier=flex</code>.
                 Best-effort latency, no SLA, roughly half the cost.{" "}
                 {provider.provider_type === "openai"
-                  ? "Supported on o3, o4-mini and the gpt-5 family (gpt-5, gpt-5-mini, gpt-5-nano)."
-                  : "Supported on gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite and the gemini-3.x preview lineage."}
+                  ? "Supported on o3 and the gpt-5 / gpt-6 families (e.g. gpt-5.5, gpt-6.1-sol, gpt-6-luna)."
+                  : "Supported on the gemini-2.5 and gemini-3.x models (e.g. gemini-3.8-flash, gemini-3.5-flash-lite)."}
               </p>
             </div>
           </label>

@@ -9,12 +9,15 @@ PROVIDER_CATALOG = {
         "label": "OpenAI",
         "supports_llm": True,
         "supports_embedding": True,
+        # Current API models as of Oct 2026. GPT-4o / GPT-4.1 (and their
+        # minis) are deprecated with a Jan 14, 2027 shutdown; o4-mini,
+        # o3-mini and gpt-4.1-nano shut down Oct 23, 2026. Older ids can
+        # still be added by hand in Settings → Providers. In every list the
+        # first entry is preselected as the provider's default model.
         "llm_models": [
-            "gpt-5.4", "gpt-5.4-mini",
-            "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
-            "gpt-4o", "gpt-4o-mini",
-            "o3", "o3-mini", "o4-mini",
-            "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo",
+            "gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna",
+            "gpt-5.6-sol", "gpt-5.6-terra",
+            "gpt-5.5", "gpt-5.4", "gpt-5.4-mini",
         ],
         "embedding_models": [
             "text-embedding-3-small", "text-embedding-3-large",
@@ -27,9 +30,15 @@ PROVIDER_CATALOG = {
         "label": "Anthropic",
         "supports_llm": True,
         "supports_embedding": False,
+        # Current Claude models as of Oct 2026 (aliases — no date suffix).
+        # Claude Opus 4 / Sonnet 4 are deprecated and the Claude 3.x models
+        # are retired.
         "llm_models": [
-            "claude-opus-4-20250514", "claude-sonnet-4-20250514",
-            "claude-3-5-haiku-20241022", "claude-3-opus-20240229",
+            "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5",
+            "claude-fable-5-1",
+            "claude-opus-5", "claude-sonnet-5",
+            "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6",
+            "claude-sonnet-4-6", "claude-haiku-4-5",
         ],
         "embedding_models": [],
         "requires_api_key": True,
@@ -39,10 +48,13 @@ PROVIDER_CATALOG = {
         "label": "Google AI (Gemini)",
         "supports_llm": True,
         "supports_embedding": True,
+        # Current Gemini API models as of Oct 2026. Gemini 2.0 shut down
+        # June 1, 2026, 1.5 is retired, and 2.5 is limited to existing
+        # users; gemini-3.5-flash is deprecated (routed to 3.6 Flash).
         "llm_models": [
-            "gemini-2.5-pro", "gemini-2.5-flash",
-            "gemini-2.0-flash", "gemini-2.0-flash-lite",
-            "gemini-1.5-pro", "gemini-1.5-flash",
+            "gemini-3.8-flash", "gemini-4-argon",
+            "gemini-3.6-flash", "gemini-3.5-flash-lite",
+            "gemini-3.1-pro-preview",
         ],
         "embedding_models": [
             "gemini-embedding-001", "gemini-embedding-2-preview",
