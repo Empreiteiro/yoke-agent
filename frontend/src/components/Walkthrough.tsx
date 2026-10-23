@@ -209,7 +209,7 @@ export default function WalkthroughOverlay() {
         <rect
           width="100%"
           height="100%"
-          fill="rgba(0,0,0,0.7)"
+          fill="var(--overlay)"
           mask="url(#wt-mask)"
         />
       </svg>
@@ -222,7 +222,7 @@ export default function WalkthroughOverlay() {
           left: spotX,
           width: spotW,
           height: spotH,
-          boxShadow: "0 0 20px rgba(139,92,246,0.3), inset 0 0 20px rgba(139,92,246,0.05)",
+          boxShadow: "0 0 20px oklch(var(--c-accent) / 0.3), inset 0 0 20px oklch(var(--c-accent) / 0.05)",
         }}
       />
 
@@ -251,7 +251,7 @@ export default function WalkthroughOverlay() {
 
       {/* Tooltip card */}
       <div
-        className="absolute bg-surface-100 rounded-2xl border border-surface-200/50 shadow-2xl p-5 transition-all duration-300"
+        className="absolute bg-surface-100 rounded-2xl border border-themed shadow-2xl p-5 transition-all duration-300"
         style={{
           ...tooltipStyle,
           width: TOOLTIP_W,
@@ -319,7 +319,7 @@ export default function WalkthroughOverlay() {
             )}
             <button
               onClick={nextStep}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-medium hover:opacity-90 transition-opacity"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-medium hover:opacity-90 transition-opacity"
             >
               {currentStepIndex === totalSteps - 1 ? "Done" : "Next"}
               {currentStepIndex < totalSteps - 1 && (
