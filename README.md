@@ -180,22 +180,20 @@ git clone https://github.com/Empreiteiro/yoke-agent.git
 cd yoke-agent
 ```
 
-### 2. Setup (creates venv, installs everything)
-
-```bash
-make setup
-```
-
-### 3. Start the dev servers
+### 2. Start the dev servers
 
 ```bash
 make dev
 ```
 
+On the first run `make dev` prepares everything before starting: it creates `backend/.venv` (checking for Python 3.11+), installs the backend and frontend dependencies, and copies `backend/.env.example` to `backend/.env`. Later runs skip all of that and only reinstall when `backend/requirements.txt`, `frontend/package.json` or `frontend/package-lock.json` change. Use `make setup` to prepare the environment without starting the servers.
+
 - **Backend**: http://localhost:4040 (hot reload, Swagger at `/docs`)
 - **Frontend**: http://localhost:4000
 
-### 4. Configure a provider
+Sign in with the default admin account from `backend/.env` (`DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_PASSWORD`) and change it after the first login.
+
+### 3. Configure a provider
 
 Open http://localhost:4000 → Settings → Providers → **Add Provider**, pick a provider type, paste an API key (or configure local/CLI access), then Test. Once at least one provider is active you can start chatting, building collections, and running experiments.
 
@@ -203,11 +201,11 @@ Open http://localhost:4000 → Settings → Providers → **Add Provider**, pick
 
 | Command | Description |
 |---------|-------------|
-| `make setup` | First-time setup: venv, deps, `.env` |
-| `make dev` | Start both servers for development |
+| `make dev` | Prepare the environment if needed, then start both servers for development |
+| `make setup` | Prepare the environment (venv, deps, `.env`) without starting the servers |
 | `make dev-backend` | Start only the backend |
 | `make dev-frontend` | Start only the frontend |
-| `make install` | Install all dependencies |
+| `make install` | Force a reinstall of all dependencies |
 | `make build` | Build frontend for production |
 | `make start` | Start both servers in production mode |
 | `make lint` | Run linters (ruff + eslint) |
