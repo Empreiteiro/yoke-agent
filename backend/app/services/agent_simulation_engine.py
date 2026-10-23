@@ -19,7 +19,7 @@ from app.models.agent import (
     InteractionDatasetItem, SimulationTranscript,
 )
 from app.services.llm_factory import get_llm, resolve_provider
-from app.services.token_tracker import log_llm_response
+from app.services.token_tracker import estimate_cost, log_llm_response
 from app.services.tracing import Tracer
 
 import subprocess as _subprocess
@@ -396,11 +396,9 @@ async def run_simulation(
         sqlfunc.sum(SimulationTranscript.completion_tokens),
     ).filter(SimulationTranscript.combination_id == combination.id).first()
     total_tokens = int(agg[0] or 0) if agg else 0
-    # Estimate cost at ~$0 for claude-code CLI (local); $3/M input + $15/M output for API providers
-    # For now, use a rough estimate based on model name
-    cost_per_m_input = {"gpt-4o": 2.5, "gpt-4o-mini": 0.15, "claude-opus-4": 15.0, "claude-sonnet-4": 3.0}.get(model, 0.0)
-    cost_per_m_output = {"gpt-4o": 10.0, "gpt-4o-mini": 0.6, "claude-opus-4": 75.0, "claude-sonnet-4": 15.0}.get(model, 0.0)
-    est_cost = ((agg[1] or 0) * cost_per_m_input + (agg[2] or 0) * cost_per_m_output) / 1_000_000 if agg else 0.0
+    # Price from the shared table (token_tracker.MODEL_PRICING); unknown
+    # models and local providers (Claude Code CLI) count as $0.
+    est_cost = (estimate_cost(model, agg[1] or 0, agg[2] or 0) or 0.0) if agg else 0.0
 
     combination.total_simulations = len(simulation_tasks)
     combination.completed_simulations = completed_count[0]

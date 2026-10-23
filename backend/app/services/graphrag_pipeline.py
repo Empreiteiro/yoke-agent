@@ -368,7 +368,7 @@ async def run_graphrag_pipeline(
     embedding_model = params["embedding_model"]
     embedding_dimensions = params.get("embedding_dimensions")
     chunking_strategy = params.get("chunking_strategy", "recursive")
-    entity_extraction_model = params.get("entity_extraction_model", "gpt-4o-mini")
+    entity_extraction_model = params.get("entity_extraction_model", "gpt-6-luna")
     max_gleanings = params.get("max_gleanings", 1)
     community_level = params.get("community_level", 1)
     search_mode = params.get("search_mode", "local")

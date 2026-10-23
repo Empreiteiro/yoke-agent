@@ -258,7 +258,7 @@ def estimate_cost(
     # GraphRAG entity extraction cost estimate
     graphrag_extraction_tokens = 0
     if "graphrag" in config.pipeline_types:
-        entity_models = config.entity_extraction_models or ["gpt-4o-mini"]
+        entity_models = config.entity_extraction_models or ["gpt-6-luna"]
         num_graphrag_combos = (
             len(config.chunk_sizes) * len(config.chunk_overlaps) *
             len(config.chunking_strategies) * len(config.embedding_models) *
@@ -507,7 +507,7 @@ def configure_grid(
 
     # --- GraphRAG combinations ---
     if "graphrag" in config.pipeline_types:
-        entity_models = config.entity_extraction_models or ["gpt-4o-mini"]
+        entity_models = config.entity_extraction_models or ["gpt-6-luna"]
 
         graphrag_base_combos = list(
             itertools.product(

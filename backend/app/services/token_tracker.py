@@ -1,5 +1,6 @@
 """Token usage tracking utility for LLM and embedding operations."""
 
+from datetime import date
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 
@@ -10,8 +11,21 @@ from app.models.token_usage import TokenUsageLog
 # Keep the keys canonical (model slug as reported by the API); the
 # `estimate_cost` helper also does a case-insensitive partial match so
 # variants like "gpt-4o-2024-08-06" still resolve to the base price.
+# Standard tier, short-context band: long-prompt surcharges (OpenAI
+# >272K, Gemini Pro >200K, Claude Haiku 5.5 >100K) are not modelled.
+# Deprecated / retired models stay listed so older usage is still priced.
 MODEL_PRICING = {
-    # ── OpenAI ────────────────────────────────────────────────────────
+    # ── OpenAI (developers.openai.com/api/docs/pricing, Oct 2026) ─────
+    "gpt-6-astra": {"prompt": 10.00, "completion": 50.00},
+    "gpt-6.1-sol": {"prompt": 2.00, "completion": 10.00},
+    "gpt-6-luna": {"prompt": 0.10, "completion": 0.50},
+    # Promotional $4/$20 through Nov 20, 2026 — see PRICE_CHANGES.
+    "gpt-5.6-sol": {"prompt": 4.00, "completion": 20.00},
+    "gpt-5.6-terra": {"prompt": 2.00, "completion": 12.00},
+    "gpt-5.5": {"prompt": 5.00, "completion": 30.00},
+    "gpt-5.4": {"prompt": 2.50, "completion": 15.00},
+    "gpt-5.4-mini": {"prompt": 0.75, "completion": 4.50},
+    "gpt-5.4-nano": {"prompt": 0.20, "completion": 1.25},
     "gpt-4o": {"prompt": 2.50, "completion": 10.00},
     "gpt-4o-mini": {"prompt": 0.15, "completion": 0.60},
     "gpt-4.1": {"prompt": 2.00, "completion": 8.00},
@@ -26,7 +40,19 @@ MODEL_PRICING = {
     "text-embedding-3-small": {"prompt": 0.02, "completion": 0.0},
     "text-embedding-3-large": {"prompt": 0.13, "completion": 0.0},
     "text-embedding-ada-002": {"prompt": 0.10, "completion": 0.0},
-    # ── Anthropic ─────────────────────────────────────────────────────
+    # ── Anthropic (platform.claude.com pricing, Oct 2026) ─────────────
+    "claude-fable-5-1": {"prompt": 10.00, "completion": 50.00},
+    "claude-fable-5": {"prompt": 10.00, "completion": 50.00},
+    "claude-opus-5-5": {"prompt": 4.00, "completion": 20.00},
+    "claude-opus-5": {"prompt": 5.00, "completion": 25.00},
+    "claude-opus-4-8": {"prompt": 5.00, "completion": 25.00},
+    "claude-opus-4-7": {"prompt": 5.00, "completion": 25.00},
+    "claude-opus-4-6": {"prompt": 5.00, "completion": 25.00},
+    "claude-sonnet-5-5": {"prompt": 2.00, "completion": 10.00},
+    "claude-sonnet-5": {"prompt": 2.00, "completion": 10.00},
+    "claude-sonnet-4-6": {"prompt": 3.00, "completion": 15.00},
+    "claude-haiku-5-5": {"prompt": 0.10, "completion": 0.50},
+    "claude-haiku-4-5": {"prompt": 1.00, "completion": 5.00},
     "claude-3-5-sonnet": {"prompt": 3.00, "completion": 15.00},
     "claude-sonnet-4": {"prompt": 3.00, "completion": 15.00},
     "claude-opus-4": {"prompt": 15.00, "completion": 75.00},
@@ -34,8 +60,15 @@ MODEL_PRICING = {
     "claude-3-5-haiku": {"prompt": 0.80, "completion": 4.00},
     "claude-3-haiku": {"prompt": 0.25, "completion": 1.25},
     # ── Google Gemini ─────────────────────────────────────────────────
-    # Source: https://ai.google.dev/pricing (paid tier, ≤128k context).
-    # Gemini 2.5 Pro has tiered pricing; we use the ≤200k-token band.
+    # Source: https://ai.google.dev/gemini-api/docs/pricing (paid tier).
+    # Pro models have tiered pricing; we use the ≤200k-token band.
+    # Gemini 4 Argon and 3.8 Flash are on introductory prices — the
+    # scheduled increases are in PRICE_CHANGES.
+    "gemini-4-argon": {"prompt": 2.00, "completion": 10.00},
+    "gemini-3.8-flash": {"prompt": 0.75, "completion": 3.75},
+    "gemini-3.6-flash": {"prompt": 1.50, "completion": 7.50},
+    "gemini-3.5-flash-lite": {"prompt": 0.30, "completion": 2.50},
+    "gemini-3.1-pro-preview": {"prompt": 2.00, "completion": 12.00},
     "gemini-2.5-pro": {"prompt": 1.25, "completion": 10.00},
     "gemini-2.5-flash": {"prompt": 0.30, "completion": 2.50},
     "gemini-2.0-flash": {"prompt": 0.10, "completion": 0.40},
@@ -59,28 +92,58 @@ MODEL_PRICING = {
 }
 
 
+# Announced list-price changes: model key -> [(effective date, new
+# pricing)], oldest first. `lookup_pricing` applies every change whose
+# date has passed, so costs stay right without another code change.
+PRICE_CHANGES: Dict[str, list] = {
+    "gpt-5.6-sol": [(date(2026, 11, 21), {"prompt": 5.00, "completion": 30.00})],
+    "gemini-4-argon": [(date(2026, 12, 1), {"prompt": 4.00, "completion": 20.00})],
+    "gemini-3.8-flash": [(date(2027, 1, 1), {"prompt": 1.50, "completion": 7.50})],
+}
+
+
 # Flex service-tier discount multiplier applied to prompt and
 # completion prices. Both OpenAI and Google publish flex as roughly
 # 50% of standard on-demand pricing for the models that support it
-# (OpenAI: o3*, o4-mini, gpt-4.1*, gpt-5*; Google: gemini-2.5-* and
-# gemini-3.x preview).
+# (OpenAI: o3*, gpt-5*, gpt-6*; Google: gemini-2.5-* and gemini-3.x).
 FLEX_DISCOUNT = 0.5
 
 
-def lookup_pricing(model_name: str) -> Optional[Dict[str, float]]:
+def _pricing_key(model_name: str) -> Optional[str]:
+    """Resolve a model name to its MODEL_PRICING key.
+
+    Exact match first; then the *longest* key contained in the name, so
+    ``gpt-4o-mini-2024-07-18`` resolves to ``gpt-4o-mini`` rather than
+    ``gpt-4o``; then a key that contains the name, only when exactly one
+    does (``gpt-6`` alone is ambiguous and stays unpriced).
+    """
+    if model_name in MODEL_PRICING:
+        return model_name
+    lowered = model_name.lower()
+    contained = [key for key in MODEL_PRICING if key in lowered]
+    if contained:
+        return max(contained, key=len)
+    containing = [key for key in MODEL_PRICING if lowered in key]
+    if len(containing) == 1:
+        return containing[0]
+    return None
+
+
+def lookup_pricing(model_name: str, on: Optional[date] = None) -> Optional[Dict[str, float]]:
     """Return ``{"prompt": usd_per_1m, "completion": usd_per_1m}`` for a
-    model, or None when the price is unknown. Exact match first, then a
-    case-insensitive partial match (``gpt-4o-2024-08-06`` → ``gpt-4o``)."""
+    model on date ``on`` (default: today), or None when the price is
+    unknown. Matches by name as described in :func:`_pricing_key`."""
     if not model_name:
         return None
-    pricing = MODEL_PRICING.get(model_name)
-    if pricing:
-        return pricing
-    lowered = model_name.lower()
-    for key, val in MODEL_PRICING.items():
-        if key in lowered or lowered in key:
-            return val
-    return None
+    key = _pricing_key(model_name)
+    if key is None:
+        return None
+    pricing = MODEL_PRICING[key]
+    today = on or date.today()
+    for effective, changed in PRICE_CHANGES.get(key, []):
+        if today >= effective:
+            pricing = changed
+    return pricing
 
 
 def estimate_cost(

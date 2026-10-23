@@ -38,7 +38,7 @@ It ships with three complementary workbenches on a single dashboard:
 ### Core platform
 - **AI Chat Assistant** — Streaming chat with the default provider as the first sidebar entry, so you can ask the platform how to use itself.
 - **Multi-Provider Support** — OpenAI, Anthropic, Google Gemini, Cohere, Ollama, Azure OpenAI, HuggingFace, Claude Code CLI, and OpenAI-compatible custom endpoints. Configured entirely from the Settings → Providers UI.
-- **Flex Service Tier** — Opt-in ~50% discount for OpenAI (`o3`, `o4-mini`, `gpt-4.1` family) and Google Gemini (`gemini-2.5-*`, `gemini-3.x` preview) via the `service_tier=flex` parameter. Toggle per-provider in Settings.
+- **Flex Service Tier** — Opt-in ~50% discount for OpenAI (`o3` and the `gpt-5` / `gpt-6` families) and Google Gemini (`gemini-2.5-*`, `gemini-3.x`) via the `service_tier=flex` parameter. Toggle per-provider in Settings.
 - **Token & Cost Tracking** — Every LLM and embedding call is logged with estimated cost, including automatic flex-tier discount detection from response metadata.
 - **Dark-theme UI** — Responsive, step-based dashboard with sidebar navigation.
 
@@ -134,9 +134,9 @@ Configured from Settings → Providers. All credentials are stored in the backen
 
 | Provider | LLM | Embeddings | Notes |
 |----------|-----|------------|-------|
-| **OpenAI** | ✓ | ✓ | Supports flex tier on `o3`, `o4-mini`, `gpt-4.1*`. |
-| **Anthropic** | ✓ | — | Claude Opus/Sonnet/Haiku. |
-| **Google (Gemini)** | ✓ | ✓ | Supports flex tier on `gemini-2.5-*` and `gemini-3.x` preview. |
+| **OpenAI** | ✓ | ✓ | GPT-6 (Astra, 6.1 Sol, Luna), GPT-5.6 (Sol, Terra), GPT-5.5, GPT-5.4. Flex tier on `o3`, `gpt-5*`, `gpt-6*`. |
+| **Anthropic** | ✓ | — | Claude Opus 5.5 / Sonnet 5.5 / Haiku 5.5, Fable 5.1, and the Opus 5, Sonnet 5 and 4.x models. |
+| **Google (Gemini)** | ✓ | ✓ | Gemini 4 Argon, 3.8 Flash, 3.6 Flash, 3.5 Flash-Lite, 3.1 Pro (preview). Flex tier on `gemini-2.5-*` and `gemini-3.x`. |
 | **Cohere** | ✓ | ✓ | Command-R family + embed-english/multilingual. |
 | **Ollama** | ✓ | ✓ | Local models via `/api/tags` discovery. |
 | **Azure OpenAI** | ✓ | ✓ | Deployment-based, with custom API version. |
@@ -372,7 +372,7 @@ JSON exports from Yoke (`{"task", "labels": [{"name", "description"}], "items": 
 Every LLM and embedding call goes through `app.services.token_tracker`, which:
 
 - Records prompt/completion tokens, provider, model, experiment/combination IDs, and an estimated cost in USD.
-- Knows current pricing for OpenAI (`gpt-4o*`, `gpt-4.1*`, `o3`, `o4-mini`), Anthropic (Opus/Sonnet/Haiku 3/4), Google Gemini (2.5 Pro/Flash, 2.0 Flash/Flash-Lite, 1.5 Pro/Flash, embeddings), and Cohere (Command-R, embed-*).
+- Knows current pricing (`MODEL_PRICING`) for OpenAI (GPT-6, GPT-5.6, GPT-5.5, GPT-5.4 and older), Anthropic (Claude Fable / Opus / Sonnet / Haiku 5.x and 4.x), Google Gemini (4 Argon, 3.8 / 3.6 Flash, 3.5 Flash-Lite, 3.1 Pro, embeddings) and Cohere, including announced price changes on a date (`PRICE_CHANGES`, e.g. the end of Gemini 4 Argon's introductory price).
 - Detects **flex-tier** responses from `response_metadata.service_tier` and applies a 50% discount automatically when logging cost.
 
 Enabling flex is a single checkbox in Settings → Providers → (edit OpenAI or Google). It sets `extra_config.flex_tier = true` on the provider; `llm_factory` then:
