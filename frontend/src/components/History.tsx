@@ -40,13 +40,13 @@ import {
 
 
 const statusConfig: Record<string, { icon: any; color: string; label: string }> = {
-  completed: { icon: CheckCircle, color: "text-emerald-400", label: "Completed" },
-  completed_with_errors: { icon: AlertCircle, color: "text-amber-400", label: "Partial" },
+  completed: { icon: CheckCircle, color: "text-success", label: "Completed" },
+  completed_with_errors: { icon: AlertCircle, color: "text-warning", label: "Partial" },
   running: { icon: Loader2, color: "text-blue-400", label: "Running" },
-  failed: { icon: XCircle, color: "text-red-400", label: "Failed" },
+  failed: { icon: XCircle, color: "text-danger", label: "Failed" },
   stopped: { icon: StopCircle, color: "text-orange-400", label: "Stopped" },
   pending: { icon: Clock, color: "text-t-secondary", label: "Pending" },
-  configured: { icon: AlertCircle, color: "text-amber-400", label: "Configured" },
+  configured: { icon: AlertCircle, color: "text-warning", label: "Configured" },
   proposing: { icon: Loader2, color: "text-purple-400", label: "Proposing" },
 };
 
@@ -308,7 +308,7 @@ export default function History({
                 <button
                   onClick={() => setShowBulkConfirm(true)}
                   disabled={bulkDeleting}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-300 bg-red-500/10 border border-red-500/40 rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-danger/80 bg-danger/10 border border-danger/40 rounded-lg hover:bg-danger/20 transition-colors disabled:opacity-50"
                 >
                   <Trash2 className="w-3 h-3" />
                   Delete {selectedCount}
@@ -321,11 +321,11 @@ export default function History({
 
       {/* Bulk delete confirmation */}
       {showBulkConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] backdrop-blur-[7px]">
           <div className="bg-surface-100 rounded-2xl border border-visible p-6 max-w-md w-full mx-4">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-red-500/15 flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-red-400" />
+              <div className="w-10 h-10 rounded-lg bg-danger/15 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-danger" />
               </div>
               <div>
                 <h3 className="text-base font-semibold text-primary">
@@ -344,7 +344,7 @@ export default function History({
               <button
                 onClick={bulkDelete}
                 disabled={bulkDeleting}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-danger-foreground bg-danger hover:bg-danger/90 rounded-lg transition-colors disabled:opacity-50"
               >
                 {bulkDeleting ? "Deleting..." : "Delete"}
               </button>
@@ -360,7 +360,7 @@ export default function History({
           className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center justify-center gap-2 ${
             activeTab === "rag"
               ? "bg-accent/20 border-accent text-accent"
-              : "bg-surface-100 border-surface-200/50 text-t-secondary hover:text-primary"
+              : "bg-surface-100 border-themed text-t-secondary hover:text-primary"
           }`}
         >
           Augmented Retrieval
@@ -375,7 +375,7 @@ export default function History({
           className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center justify-center gap-2 ${
             activeTab === "agent"
               ? "bg-accent/20 border-accent text-accent"
-              : "bg-surface-100 border-surface-200/50 text-t-secondary hover:text-primary"
+              : "bg-surface-100 border-themed text-t-secondary hover:text-primary"
           }`}
         >
           Agent Evaluation
@@ -502,7 +502,7 @@ export default function History({
                             loadExperiments();
                           } catch {}
                         }}
-                        className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                        className="p-1.5 rounded-lg text-danger hover:bg-danger/10 transition-colors"
                         title="Stop"
                       >
                         <Square className="w-3.5 h-3.5" />
@@ -523,7 +523,7 @@ export default function History({
                       className={`p-1.5 rounded-lg transition-colors ${
                         isRunning
                           ? "text-muted/30 cursor-not-allowed"
-                          : "text-muted hover:text-red-400 hover:bg-red-500/10"
+                          : "text-muted hover:text-danger hover:bg-danger/10"
                       }`}
                       title={isRunning ? "Stop first" : "Delete"}
                     >
@@ -620,10 +620,10 @@ export default function History({
                       <p
                         className={`text-lg font-bold ${
                           bestScore >= 0.8
-                            ? "text-emerald-400"
+                            ? "text-success"
                             : bestScore >= 0.6
-                            ? "text-amber-400"
-                            : "text-red-400"
+                            ? "text-warning"
+                            : "text-danger"
                         }`}
                       >
                         {(bestScore * 100).toFixed(1)}%
@@ -697,7 +697,7 @@ export default function History({
                           <button
                             onClick={() => handleStop(exp.id)}
                             disabled={stoppingId === exp.id}
-                            className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                            className="p-1.5 rounded-lg text-danger hover:bg-danger/10 transition-colors"
                             title="Stop experiment"
                           >
                             {stoppingId === exp.id ? (
@@ -739,7 +739,7 @@ export default function History({
                           className={`p-1.5 rounded-lg transition-colors ${
                             isRunning
                               ? "text-muted/30 cursor-not-allowed"
-                              : "text-muted hover:text-red-400 hover:bg-red-500/10"
+                              : "text-muted hover:text-danger hover:bg-danger/10"
                           }`}
                           title={isRunning ? "Stop first" : "Delete"}
                           disabled={isRunning}
@@ -777,7 +777,7 @@ export default function History({
 
       {/* Delete confirmation modal */}
       {confirmDeleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] backdrop-blur-[7px]">
           <div className="bg-surface-100 border border-visible rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl">
             <h3 className="text-primary font-semibold mb-2">Delete experiment?</h3>
             <p className="text-sm text-t-secondary mb-5">
@@ -792,7 +792,7 @@ export default function History({
               </button>
               <button
                 onClick={() => handleDelete(confirmDeleteId)}
-                className="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm text-danger-foreground bg-danger hover:bg-danger/90 rounded-lg transition-colors"
               >
                 Delete
               </button>
@@ -840,11 +840,11 @@ function ExpandedReport({ report }: { report: any }) {
         </div>
         <div className="p-3 bg-surface-50 rounded-xl border border-visible">
           <p className="text-xs text-t-secondary mb-1">Completed</p>
-          <p className="text-lg font-bold text-emerald-400">{report.summary.completed}</p>
+          <p className="text-lg font-bold text-success">{report.summary.completed}</p>
         </div>
         <div className="p-3 bg-surface-50 rounded-xl border border-visible">
           <p className="text-xs text-t-secondary mb-1">Failed</p>
-          <p className="text-lg font-bold text-red-400">{report.summary.failed}</p>
+          <p className="text-lg font-bold text-danger">{report.summary.failed}</p>
         </div>
         <div className="p-3 bg-surface-50 rounded-xl border border-visible">
           <p className="text-xs text-t-secondary mb-1">Pending</p>
@@ -856,7 +856,7 @@ function ExpandedReport({ report }: { report: any }) {
       {best && (
         <div className="bg-gradient-to-br from-accent/5 to-secondary/5 rounded-xl border border-visible p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Trophy className="w-5 h-5 text-amber-400" />
+            <Trophy className="w-5 h-5 text-warning" />
             <h4 className="text-primary font-semibold">Best Configuration</h4>
           </div>
 
@@ -906,8 +906,8 @@ function ExpandedReport({ report }: { report: any }) {
                   <Radar
                     name="Score"
                     dataKey="value"
-                    stroke="#8b5cf6"
-                    fill="#8b5cf6"
+                    stroke="var(--accent)"
+                    fill="var(--accent)"
                     fillOpacity={0.2}
                   />
                 </RadarChart>
@@ -937,7 +937,7 @@ function ExpandedReport({ report }: { report: any }) {
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="score" name="Overall" fill="#8b5cf6" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="score" name="Overall" fill="var(--accent)" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="faithfulness" name="Faithfulness" fill="#06b6d4" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="relevancy" name="Relevancy" fill="#10b981" radius={[3, 3, 0, 0]} />
               </BarChart>
@@ -963,7 +963,7 @@ function ExpandedReport({ report }: { report: any }) {
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-surface-200/30">
+              <tbody className="divide-y divide-themed-subtle">
                 {completed.map((c: any, i: number) => {
                   const isExpanded = expandedComboId === c.id;
                   const details: any[] = Array.isArray(c.detailed_results) ? c.detailed_results : [];
@@ -976,7 +976,7 @@ function ExpandedReport({ report }: { report: any }) {
                         <td className="px-2 py-2 text-t-secondary">
                           <div className="flex items-center gap-1">
                             {isExpanded ? <ChevronDown className="w-3 h-3 text-t-secondary" /> : <ChevronRight className="w-3 h-3 text-t-secondary" />}
-                            {i === 0 ? <Trophy className="w-3.5 h-3.5 text-amber-400" /> : i + 1}
+                            {i === 0 ? <Trophy className="w-3.5 h-3.5 text-warning" /> : i + 1}
                           </div>
                         </td>
                         <td className="px-2 py-2">
@@ -1010,10 +1010,10 @@ function ExpandedReport({ report }: { report: any }) {
                           <span
                             className={`font-semibold ${
                               (c.overall_score ?? 0) >= 0.8
-                                ? "text-emerald-400"
+                                ? "text-success"
                                 : (c.overall_score ?? 0) >= 0.6
-                                ? "text-amber-400"
-                                : "text-red-400"
+                                ? "text-warning"
+                                : "text-danger"
                             }`}
                           >
                             {c.overall_score != null ? `${(c.overall_score * 100).toFixed(1)}%` : "-"}
@@ -1022,7 +1022,7 @@ function ExpandedReport({ report }: { report: any }) {
                         <td className="px-2 py-2 text-t-secondary text-xs">
                           {c.total_tokens ? (c.total_tokens >= 1000 ? `${(c.total_tokens / 1000).toFixed(1)}K` : c.total_tokens) : "-"}
                         </td>
-                        <td className="px-2 py-2 text-amber-400 text-xs">
+                        <td className="px-2 py-2 text-warning text-xs">
                           {c.total_cost ? `$${c.total_cost < 0.01 ? c.total_cost.toFixed(4) : c.total_cost.toFixed(2)}` : "-"}
                         </td>
                       </tr>
@@ -1049,10 +1049,10 @@ function ExpandedReport({ report }: { report: any }) {
                                         <span className="text-xs font-mono text-muted mt-0.5">Q{qi + 1}</span>
                                         <p className="flex-1 text-xs text-primary line-clamp-1">{q.user_input || q.question || "—"}</p>
                                         <div className="flex items-center gap-2 flex-shrink-0 text-[10px]">
-                                          <span className={faith >= 0.8 ? "text-emerald-400" : faith >= 0.5 ? "text-amber-400" : "text-red-400"}>F:{(faith * 100).toFixed(0)}%</span>
-                                          <span className={relev >= 0.8 ? "text-emerald-400" : relev >= 0.5 ? "text-amber-400" : "text-red-400"}>R:{(relev * 100).toFixed(0)}%</span>
-                                          <span className={prec >= 0.8 ? "text-emerald-400" : prec >= 0.5 ? "text-amber-400" : "text-red-400"}>P:{(prec * 100).toFixed(0)}%</span>
-                                          <span className={recall >= 0.8 ? "text-emerald-400" : recall >= 0.5 ? "text-amber-400" : "text-red-400"}>C:{(recall * 100).toFixed(0)}%</span>
+                                          <span className={faith >= 0.8 ? "text-success" : faith >= 0.5 ? "text-warning" : "text-danger"}>F:{(faith * 100).toFixed(0)}%</span>
+                                          <span className={relev >= 0.8 ? "text-success" : relev >= 0.5 ? "text-warning" : "text-danger"}>R:{(relev * 100).toFixed(0)}%</span>
+                                          <span className={prec >= 0.8 ? "text-success" : prec >= 0.5 ? "text-warning" : "text-danger"}>P:{(prec * 100).toFixed(0)}%</span>
+                                          <span className={recall >= 0.8 ? "text-success" : recall >= 0.5 ? "text-warning" : "text-danger"}>C:{(recall * 100).toFixed(0)}%</span>
                                           {qExpanded ? <ChevronDown className="w-2.5 h-2.5 text-muted" /> : <ChevronRight className="w-2.5 h-2.5 text-muted" />}
                                         </div>
                                       </button>

@@ -7,10 +7,11 @@ interface LogoProps {
   className?: string;
 }
 
-const THEME_COLORS: Record<string, { stroke: string; glow?: string }> = {
-  neon: { stroke: "#a78bfa", glow: "#8b5cf6" },
-  dark: { stroke: "#818cf8", glow: "#6366f1" },
-  light: { stroke: "#18181b" },
+// The mark follows the active accent; only the neon theme adds a soft glow.
+const THEME_COLORS: Record<string, { stroke: string; glow?: boolean }> = {
+  neon: { stroke: "var(--accent)", glow: true },
+  dark: { stroke: "var(--accent)" },
+  light: { stroke: "var(--accent)" },
 };
 
 export default function Logo({ size = 32, className = "" }: LogoProps) {

@@ -201,7 +201,7 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
               className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2 ${
                 activeTab === t.id
                   ? "bg-accent/20 border-accent text-accent"
-                  : "bg-surface-100 border-surface-200/50 text-t-secondary hover:text-primary hover:border-surface-200"
+                  : "bg-surface-100 border-themed text-t-secondary hover:text-primary hover:border-themed"
               }`}
             >
               {t.label}
@@ -243,7 +243,7 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+        <div className="flex items-center gap-2 p-3 bg-danger/10 border border-danger/30 rounded-lg text-danger text-sm">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           {error}
         </div>
@@ -257,24 +257,24 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
             <input
               type="text" value={formName} onChange={(e) => setFormName(e.target.value)}
               placeholder="Scenario name"
-              className="px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:border-accent"
             />
             <input
               type="text" value={formDescription} onChange={(e) => setFormDescription(e.target.value)}
               placeholder="Brief description (optional)"
-              className="px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:border-accent"
             />
           </div>
           <textarea
             value={formObjective} onChange={(e) => setFormObjective(e.target.value)}
             placeholder="What the user wants to accomplish (e.g., 'Get the current weather in Paris')"
             rows={2}
-            className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/40 resize-y"
+            className="w-full px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:border-accent resize-y"
           />
           <input
             type="text" value={formInputHint} onChange={(e) => setFormInputHint(e.target.value)}
             placeholder="Example phrasing (optional, e.g., 'What's the weather like in Paris?')"
-            className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="w-full px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:border-accent"
           />
           <div>
             <label className="block text-xs text-t-secondary mb-1">{typeInfo.expected_label} (JSON)</label>
@@ -282,14 +282,14 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
               value={formExpected} onChange={(e) => setFormExpected(e.target.value)}
               placeholder={EXPECTED_HINTS[activeTab] || "{}"}
               rows={3}
-              className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 resize-y font-mono"
+              className="w-full px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm focus:outline-none focus:border-accent resize-y font-mono"
             />
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => editingId ? handleUpdate(editingId) : handleAdd()}
               disabled={!formName.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
             >
               <Check className="w-3.5 h-3.5" /> {editingId ? "Update" : "Add"}
             </button>
@@ -313,11 +313,11 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
           No scenarios yet for this type. Add manually or generate with AI.
         </div>
       ) : (
-        <div className="bg-surface-100 rounded-xl border border-surface-200/50 overflow-hidden">
+        <div className="bg-surface-100 rounded-xl border border-themed overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-surface-200/50 text-left">
+                <tr className="border-b border-themed text-left">
                   <th className="px-4 py-3 text-xs font-semibold text-t-secondary uppercase tracking-wider w-8">#</th>
                   <th className="px-4 py-3 text-xs font-semibold text-t-secondary uppercase tracking-wider">Name</th>
                   <th className="px-4 py-3 text-xs font-semibold text-t-secondary uppercase tracking-wider">Objective</th>
@@ -331,7 +331,7 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
                   return (
                     <tr
                       key={s.id}
-                      className={`border-b border-surface-200/30 transition-colors ${
+                      className={`border-b border-themed-subtle transition-colors ${
                         isExpanded ? "bg-surface-200/10" : "hover:bg-surface-200/5"
                       }`}
                     >
@@ -381,10 +381,10 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
                           </button>
                           <button
                             onClick={() => handleDelete(s.id)}
-                            className="p-1.5 hover:bg-red-500/10 rounded-lg transition-colors"
+                            className="p-1.5 hover:bg-danger/10 rounded-lg transition-colors"
                             title="Delete"
                           >
-                            <Trash2 className="w-3.5 h-3.5 text-t-secondary hover:text-red-400" />
+                            <Trash2 className="w-3.5 h-3.5 text-t-secondary hover:text-danger" />
                           </button>
                         </div>
                       </td>
@@ -401,7 +401,7 @@ export default function StepAgentScenarios({ agentConfigId, onComplete }: StepAg
       {totalCount > 0 && (
         <button
           onClick={() => onComplete?.()}
-          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3 px-6 bg-accent shadow-resting text-accent-foreground font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           Continue to Create Personas ({totalCount} scenarios ready)
         </button>

@@ -163,7 +163,7 @@ export default function SettingsProviders() {
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-accent text-primary rounded-xl hover:bg-accent/90 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-xl hover:bg-accent/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
           Add Provider
@@ -171,7 +171,7 @@ export default function SettingsProviders() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+        <div className="flex items-center gap-2 px-4 py-3 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
           <button onClick={() => setError(null)} className="ml-auto">
@@ -204,7 +204,7 @@ export default function SettingsProviders() {
           </p>
           <button
             onClick={() => setShowAddForm(true)}
-            className="px-6 py-3 bg-accent text-primary rounded-xl hover:bg-accent/90 transition-colors"
+            className="px-6 py-3 bg-accent text-accent-foreground rounded-xl hover:bg-accent/90 transition-colors"
           >
             Add your first provider
           </button>
@@ -235,7 +235,7 @@ export default function SettingsProviders() {
                       </span>
                     )}
                     {provider.supports_decision && (
-                      <span className="flex items-center gap-1 text-xs text-amber-500 font-medium">
+                      <span className="flex items-center gap-1 text-xs text-warning font-medium">
                         <Zap className="w-3 h-3" />
                         {(provider.decision_models || []).length} Decision model{(provider.decision_models || []).length !== 1 ? "s" : ""}
                       </span>
@@ -253,9 +253,9 @@ export default function SettingsProviders() {
                     {testingId === provider.id ? (
                       <Loader2 className="w-4 h-4 text-accent animate-spin" />
                     ) : testResult[provider.id]?.success === true ? (
-                      <Check className="w-4 h-4 text-emerald-400" />
+                      <Check className="w-4 h-4 text-success" />
                     ) : testResult[provider.id]?.success === false ? (
-                      <AlertCircle className="w-4 h-4 text-red-400" />
+                      <AlertCircle className="w-4 h-4 text-danger" />
                     ) : (
                       <Zap className="w-4 h-4 text-t-secondary" />
                     )}
@@ -265,7 +265,7 @@ export default function SettingsProviders() {
                     onClick={() => handleToggleActive(provider)}
                     className={`px-3 py-1 text-xs rounded-full transition-colors ${
                       provider.is_active
-                        ? "bg-emerald-500/20 text-emerald-400"
+                        ? "bg-success/20 text-success"
                         : "bg-surface-200 text-muted"
                     }`}
                   >
@@ -287,9 +287,9 @@ export default function SettingsProviders() {
                   {/* Delete */}
                   <button
                     onClick={() => handleDelete(provider.id)}
-                    className="p-2 hover:bg-red-500/10 rounded-lg transition-colors"
+                    className="p-2 hover:bg-danger/10 rounded-lg transition-colors"
                   >
-                    <Trash2 className="w-4 h-4 text-muted hover:text-red-400" />
+                    <Trash2 className="w-4 h-4 text-muted hover:text-danger" />
                   </button>
                 </div>
               </div>
@@ -299,8 +299,8 @@ export default function SettingsProviders() {
                 <div
                   className={`px-6 py-2 text-xs ${
                     testResult[provider.id].success
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "bg-red-500/10 text-red-400"
+                      ? "bg-success/10 text-success"
+                      : "bg-danger/10 text-danger"
                   }`}
                 >
                   {testResult[provider.id].message}
@@ -540,7 +540,7 @@ function AddProviderForm({
                 <div className="flex-1">
                   <div className="text-sm font-medium text-primary flex items-center gap-2">
                     Use Flex service tier
-                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-500/15 text-emerald-400 uppercase">
+                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-success/15 text-success uppercase">
                       ~50% cheaper
                     </span>
                   </div>
@@ -573,7 +573,7 @@ function AddProviderForm({
                   <button
                     onClick={handleDiscover}
                     disabled={discovering || !baseUrl}
-                    className="px-4 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                    className="px-4 py-2.5 bg-accent text-accent-foreground rounded-xl text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
                   >
                     {discovering ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                     {discovering ? "Discovering..." : "Discover Models"}
@@ -586,7 +586,7 @@ function AddProviderForm({
 
           {/* Claude Code CLI — status & auth */}
           {isClaudeCode && (
-            <div className="bg-surface-50 rounded-xl border border-surface-200/50 p-4 space-y-3">
+            <div className="bg-surface-50 rounded-xl border border-themed p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-primary">Claude Code CLI Status</span>
               </div>
@@ -594,7 +594,7 @@ function AddProviderForm({
               {claudeStatus ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
-                    <span className={claudeStatus.installed ? "text-emerald-400" : "text-red-400"}>
+                    <span className={claudeStatus.installed ? "text-success" : "text-danger"}>
                       {claudeStatus.installed ? "✓" : "✗"}
                     </span>
                     <span className="text-t-secondary">
@@ -602,7 +602,7 @@ function AddProviderForm({
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <span className={claudeStatus.authenticated ? "text-emerald-400" : "text-amber-400"}>
+                    <span className={claudeStatus.authenticated ? "text-success" : "text-warning"}>
                       {claudeStatus.authenticated ? "✓" : "⚠"}
                     </span>
                     <span className="text-t-secondary">
@@ -610,7 +610,7 @@ function AddProviderForm({
                     </span>
                   </div>
                   {!claudeStatus.authenticated && claudeStatus.error && (
-                    <p className="text-xs text-amber-400/80">{claudeStatus.error}</p>
+                    <p className="text-xs text-warning/80">{claudeStatus.error}</p>
                   )}
                 </div>
               ) : (
@@ -621,7 +621,7 @@ function AddProviderForm({
               )}
 
               {claudeStatus && !claudeStatus.authenticated && (
-                <div className="space-y-2 pt-2 border-t border-surface-200/50">
+                <div className="space-y-2 pt-2 border-t border-themed">
                   <p className="text-xs text-t-secondary">
                     Paste your Claude OAuth token below. You can get it by running{" "}
                     <code className="px-1.5 py-0.5 bg-surface-200/50 rounded text-accent text-[11px]">claude auth print-token</code>{" "}
@@ -635,12 +635,12 @@ function AddProviderForm({
                       value={claudeToken}
                       onChange={(e) => setClaudeToken(e.target.value)}
                       placeholder="Paste OAuth token..."
-                      className="flex-1 px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/40 font-mono"
+                      className="flex-1 px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm placeholder:text-t-secondary/50 focus:outline-none focus:border-accent font-mono"
                     />
                     <button
                       onClick={handleSaveClaudeToken}
                       disabled={savingToken || !claudeToken.trim()}
-                      className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                      className="px-4 py-2 bg-accent text-accent-foreground rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
                     >
                       {savingToken ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : tokenSaved ? <Check className="w-3.5 h-3.5" /> : null}
                       {tokenSaved ? "Saved!" : "Save Token"}
@@ -650,7 +650,7 @@ function AddProviderForm({
               )}
 
               {claudeStatus?.authenticated && (
-                <p className="text-xs text-emerald-400/80">✓ Ready to use. Save the provider to start using Claude Code.</p>
+                <p className="text-xs text-success/80">✓ Ready to use. Save the provider to start using Claude Code.</p>
               )}
             </div>
           )}
@@ -775,7 +775,7 @@ function AddProviderForm({
           {entry.supports_decision && (
             <div>
               <label className="block text-sm font-medium text-t-secondary mb-2">
-                <Zap className="w-4 h-4 inline mr-1 text-amber-500" />
+                <Zap className="w-4 h-4 inline mr-1 text-warning" />
                 Decision Models
               </label>
               {DECISION_HINTS[providerType] && (
@@ -788,8 +788,8 @@ function AddProviderForm({
                     onClick={() => toggleModel(m, selectedDecisionModels, setSelectedDecisionModels)}
                     className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                       selectedDecisionModels.includes(m)
-                        ? "bg-amber-500/15 text-amber-500 border border-visible"
-                        : "bg-surface-50 text-muted border border-dashed border-surface-300 hover:border-visible hover:text-amber-500"
+                        ? "bg-warning/15 text-warning border border-visible"
+                        : "bg-surface-50 text-muted border border-dashed border-surface-300 hover:border-visible hover:text-warning"
                     }`}
                   >
                     {m}
@@ -816,7 +816,7 @@ function AddProviderForm({
           )}
 
           {error && (
-            <p className="text-sm text-red-400">{error}</p>
+            <p className="text-sm text-danger">{error}</p>
           )}
 
           {/* Save */}
@@ -830,7 +830,7 @@ function AddProviderForm({
             <button
               onClick={handleSave}
               disabled={saving || !name || !providerType}
-              className="px-6 py-2 bg-accent text-primary rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50"
+              className="px-6 py-2 bg-accent text-accent-foreground rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save Provider"}
             </button>
@@ -950,7 +950,7 @@ function ProviderDetails({
       {catalog?.requires_api_key && (
         <div>
           <label className="block text-xs font-medium text-t-secondary mb-1">
-            API Key {provider.has_api_key && <span className="text-emerald-400">(currently set)</span>}
+            API Key {provider.has_api_key && <span className="text-success">(currently set)</span>}
           </label>
           <div className="relative">
             <input
@@ -996,7 +996,7 @@ function ProviderDetails({
             <div className="flex-1">
               <div className="text-xs font-medium text-primary flex items-center gap-2">
                 Use Flex service tier
-                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-500/15 text-emerald-400 uppercase">
+                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-success/15 text-success uppercase">
                   ~50% cheaper
                 </span>
               </div>
@@ -1028,7 +1028,7 @@ function ProviderDetails({
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all ${
                   m === defaultLlm
                     ? "bg-accent/15 text-accent border border-visible"
-                    : "bg-surface-200 text-t-hover border border-surface-200"
+                    : "bg-surface-200 text-t-hover border border-themed"
                 }`}
                 onClick={() => { setDefaultLlm(m); markDirty(); }}
                 title="Click to set as default"
@@ -1036,7 +1036,7 @@ function ProviderDetails({
                 {m === defaultLlm && "★ "}{m}
                 <button
                   onClick={(e) => { e.stopPropagation(); removeModel(m, llmModels, setLlmModels); }}
-                  className="hover:text-red-400 ml-0.5"
+                  className="hover:text-danger ml-0.5"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1088,7 +1088,7 @@ function ProviderDetails({
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all ${
                   m === defaultEmb
                     ? "bg-secondary/15 text-secondary border border-secondary/30"
-                    : "bg-surface-200 text-t-hover border border-surface-200"
+                    : "bg-surface-200 text-t-hover border border-themed"
                 }`}
                 onClick={() => { setDefaultEmb(m); markDirty(); }}
                 title="Click to set as default"
@@ -1096,7 +1096,7 @@ function ProviderDetails({
                 {m === defaultEmb && "★ "}{m}
                 <button
                   onClick={(e) => { e.stopPropagation(); removeModel(m, embModels, setEmbModels); }}
-                  className="hover:text-red-400 ml-0.5"
+                  className="hover:text-danger ml-0.5"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1136,7 +1136,7 @@ function ProviderDetails({
       {provider.supports_decision && (
         <div>
           <label className="block text-xs font-medium text-t-secondary mb-2">
-            <Zap className="w-3.5 h-3.5 inline mr-1 text-amber-500" />
+            <Zap className="w-3.5 h-3.5 inline mr-1 text-warning" />
             Decision Models
             {defaultDecision && <span className="text-muted ml-2">(default: {defaultDecision})</span>}
           </label>
@@ -1146,8 +1146,8 @@ function ProviderDetails({
                 key={m}
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all ${
                   m === defaultDecision
-                    ? "bg-amber-500/15 text-amber-500 border border-visible"
-                    : "bg-surface-200 text-t-hover border border-surface-200"
+                    ? "bg-warning/15 text-warning border border-visible"
+                    : "bg-surface-200 text-t-hover border border-themed"
                 }`}
                 onClick={() => { setDefaultDecision(m); markDirty(); }}
                 title="Click to set as default"
@@ -1155,7 +1155,7 @@ function ProviderDetails({
                 {m === defaultDecision && "★ "}{m}
                 <button
                   onClick={(e) => { e.stopPropagation(); removeModel(m, decisionModels, setDecisionModels); }}
-                  className="hover:text-red-400 ml-0.5"
+                  className="hover:text-danger ml-0.5"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1167,7 +1167,7 @@ function ProviderDetails({
               <button
                 key={m}
                 onClick={() => toggleModel(m, decisionModels, setDecisionModels)}
-                className="px-2.5 py-1 bg-surface-50 text-muted text-xs rounded-lg border border-dashed border-surface-300 hover:border-visible hover:text-amber-500 transition-all"
+                className="px-2.5 py-1 bg-surface-50 text-muted text-xs rounded-lg border border-dashed border-surface-300 hover:border-visible hover:text-warning transition-all"
               >
                 + {m}
               </button>
@@ -1192,7 +1192,7 @@ function ProviderDetails({
       )}
 
       {/* Error */}
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
 
       {/* Save button */}
       {dirty && (
@@ -1200,7 +1200,7 @@ function ProviderDetails({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2 bg-accent text-primary rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2 bg-accent text-accent-foreground rounded-xl text-sm hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             {saving ? "Saving..." : "Save Changes"}

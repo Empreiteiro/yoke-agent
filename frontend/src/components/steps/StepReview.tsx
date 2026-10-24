@@ -128,7 +128,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
+      <div className="bg-surface-100 rounded-2xl border border-themed p-8">
         <div className="flex items-center justify-end mb-6" data-walkthrough="review-actions">
           <div className="flex items-center gap-2">
             {dataset?.sampled_pages?.length > 0 && (
@@ -157,11 +157,11 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
 
         {/* Error message from generation */}
         {hasError && dataset?.error_message && (
-          <div className="mb-4 flex items-start gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
-            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="mb-4 flex items-start gap-3 p-4 bg-danger/5 border border-danger/20 rounded-xl">
+            <AlertCircle className="w-5 h-5 text-danger flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm text-red-400 font-medium">Dataset generation failed</p>
-              <p className="text-sm text-red-400/80 mt-1">{dataset.error_message}</p>
+              <p className="text-sm text-danger font-medium">Dataset generation failed</p>
+              <p className="text-sm text-danger/80 mt-1">{dataset.error_message}</p>
               <p className="text-sm text-slate-400 mt-2">
                 You can add items manually or import a JSON file to continue.
               </p>
@@ -179,19 +179,19 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
                 value={newItem.question}
                 onChange={(e) => setNewItem((prev) => ({ ...prev, question: e.target.value }))}
                 placeholder="Question"
-                className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50"
+                className="w-full px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50"
               />
               <textarea
                 value={newItem.ground_truth}
                 onChange={(e) => setNewItem((prev) => ({ ...prev, ground_truth: e.target.value }))}
                 placeholder="Expected answer (ground truth)"
                 rows={2}
-                className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50 resize-none"
+                className="w-full px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50 resize-none"
               />
               <div className="flex gap-2">
                 <button
                   onClick={handleAddItem}
-                  className="px-4 py-2 bg-accent text-primary text-sm rounded-lg hover:bg-accent-dark"
+                  className="px-4 py-2 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent/90"
                 >
                   Add
                 </button>
@@ -221,7 +221,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
           {dataset?.items?.map((item: any, index: number) => (
             <div
               key={item.id}
-              className="p-4 bg-surface-50 rounded-xl border border-surface-200/50"
+              className="p-4 bg-surface-50 rounded-xl border border-themed"
             >
               {editingId === item.id ? (
                 <div className="space-y-2">
@@ -229,18 +229,18 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
                     type="text"
                     value={editData.question}
                     onChange={(e) => setEditData((prev) => ({ ...prev, question: e.target.value }))}
-                    className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
+                    className="w-full px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50"
                   />
                   <textarea
                     value={editData.ground_truth}
                     onChange={(e) => setEditData((prev) => ({ ...prev, ground_truth: e.target.value }))}
                     rows={2}
-                    className="w-full px-3 py-2 bg-surface-100 border border-surface-200/50 rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50 resize-none"
+                    className="w-full px-3 py-2 bg-surface-100 border border-themed rounded-lg text-primary text-sm focus:outline-none focus:border-accent/50 resize-none"
                   />
                   <div className="flex gap-2">
                     <button
                       onClick={() => saveEdit(item.id)}
-                      className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30"
+                      className="p-1.5 bg-success/20 text-success rounded-lg hover:bg-success/30"
                     >
                       <Save className="w-3.5 h-3.5" />
                     </button>
@@ -276,9 +276,9 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
                       </button>
                       <button
                         onClick={() => handleDeleteItem(item.id)}
-                        className="p-1.5 hover:bg-red-500/10 rounded-lg transition-colors"
+                        className="p-1.5 hover:bg-danger/10 rounded-lg transition-colors"
                       >
-                        <Trash2 className="w-3.5 h-3.5 text-t-secondary hover:text-red-400" />
+                        <Trash2 className="w-3.5 h-3.5 text-t-secondary hover:text-danger" />
                       </button>
                     </div>
                   </div>
@@ -301,7 +301,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
           onClick={handleApprove}
           disabled={itemCount === 0}
           data-walkthrough="review-approve"
-          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3 px-6 bg-accent shadow-resting text-accent-foreground font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <CheckCircle className="w-4 h-4" />
           {itemCount > 0
@@ -313,15 +313,15 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
       {/* Sampled Pages Modal */}
       {showPagesModal && dataset?.sampled_pages && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] backdrop-blur-[7px]"
           onClick={() => setShowPagesModal(false)}
         >
           <div
-            className="bg-surface-100 rounded-2xl border border-surface-200/50 w-full max-w-2xl max-h-[80vh] flex flex-col mx-4"
+            className="bg-surface-100 rounded-2xl border border-themed w-full max-w-2xl max-h-[80vh] flex flex-col mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200/50">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-themed">
               <div className="flex items-center gap-2">
                 <ScanSearch className="w-5 h-5 text-accent" />
                 <h3 className="text-base font-semibold text-primary">Pages sent to LLM</h3>
@@ -340,7 +340,7 @@ export default function StepReview({ datasetId, onComplete }: StepReviewProps) {
             {/* Pages list */}
             <div className="overflow-y-auto flex-1 p-4 space-y-3">
               {dataset.sampled_pages.map((pg: any, i: number) => (
-                <div key={i} className="p-4 bg-surface-50 rounded-xl border border-surface-200/50">
+                <div key={i} className="p-4 bg-surface-50 rounded-xl border border-themed">
                   <div className="flex items-center gap-2 mb-2">
                     <FileText className="w-4 h-4 text-accent flex-shrink-0" />
                     <span className="text-xs font-medium text-t-hover truncate">

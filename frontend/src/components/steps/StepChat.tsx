@@ -136,7 +136,7 @@ export default function StepChat() {
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto rounded-xl bg-surface-50/50 border border-surface-200/30 px-4 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto rounded-xl bg-surface-50/50 border border-themed-subtle px-4 py-4 space-y-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
@@ -171,8 +171,8 @@ export default function StepChat() {
                 <div
                   className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm ${
                     msg.role === "user"
-                      ? "bg-accent text-white rounded-br-sm"
-                      : "bg-surface-100 text-primary border border-surface-200/50 rounded-bl-sm"
+                      ? "bg-accent text-accent-foreground rounded-br-sm"
+                      : "bg-surface-100 text-primary border border-themed rounded-bl-sm"
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -202,12 +202,12 @@ export default function StepChat() {
             placeholder="Ask anything about the platform..."
             disabled={streaming}
             autoFocus
-            className="flex-1 px-4 py-2.5 bg-surface-50 border border-surface-200/50 rounded-xl text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50 disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 bg-surface-50 border border-themed rounded-xl text-primary text-sm placeholder-muted focus:outline-none focus:border-accent/50 disabled:opacity-50"
           />
           <button
             onClick={() => sendMessage()}
             disabled={!input.trim() || streaming}
-            className="px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 disabled:opacity-50 transition-colors"
+            className="px-4 py-2.5 bg-accent text-accent-foreground rounded-xl hover:bg-accent/90 disabled:opacity-50 transition-colors"
           >
             {streaming ? (
               <Loader2 className="w-4 h-4 animate-spin" />

@@ -117,7 +117,7 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-8">
+      <div className="bg-surface-100 rounded-2xl border border-themed p-8">
         {/* Drop zone */}
         <div
           onDragEnter={handleDrag}
@@ -170,7 +170,7 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
             {files.map((file, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between px-4 py-3 bg-surface-50 rounded-xl border border-surface-200/50"
+                className="flex items-center justify-between px-4 py-3 bg-surface-50 rounded-xl border border-themed"
               >
                 <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5 text-accent" />
@@ -194,7 +194,7 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
               onClick={handleUpload}
               disabled={uploading}
               data-walkthrough="upload-submit"
-              className="mt-4 w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+              className="mt-4 w-full py-3 px-6 bg-accent shadow-resting text-accent-foreground font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {uploading ? "Uploading..." : `Upload ${files.length} file(s)`}
             </button>
@@ -202,7 +202,7 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
         )}
 
         {error && (
-          <div className="mt-4 flex items-center gap-2 text-red-400 text-sm">
+          <div className="mt-4 flex items-center gap-2 text-danger text-sm">
             <AlertCircle className="w-4 h-4" />
             {error}
           </div>
@@ -211,9 +211,9 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
 
       {/* Uploaded documents */}
       {uploaded.length > 0 && (
-        <div className="bg-surface-100 rounded-2xl border border-emerald-500/20 p-8">
+        <div className="bg-surface-100 rounded-2xl border border-success/20 p-8">
           <div className="flex items-center gap-2 mb-4">
-            <CheckCircle className="w-5 h-5 text-emerald-400" />
+            <CheckCircle className="w-5 h-5 text-success" />
             <h3 className="text-lg font-semibold text-primary">
               Documents Uploaded
             </h3>
@@ -224,7 +224,7 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
                 key={doc.id}
                 className="flex items-center gap-3 px-4 py-3 bg-surface-50 rounded-xl"
               >
-                <FileText className="w-5 h-5 text-emerald-400" />
+                <FileText className="w-5 h-5 text-success" />
                 <span className="text-sm text-primary">{doc.filename}</span>
                 <span className="text-xs text-muted ml-auto">
                   {formatBytes(doc.file_size)}
@@ -238,7 +238,7 @@ export default function StepUpload({ onComplete }: StepUploadProps) {
       {uploaded.length > 0 && (
         <button
           onClick={handleContinue}
-          className="w-full py-3 px-6 bg-gradient-to-r from-accent to-accent-dark text-primary font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3 px-6 bg-accent shadow-resting text-accent-foreground font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           Continue to Dataset Generation
         </button>

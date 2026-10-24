@@ -78,7 +78,7 @@ export function KindBadge({ kind, className }: { kind: "decision" | "llm" | stri
       className={cn(
         "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide border",
         isDecision
-          ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
+          ? "bg-warning/10 text-warning border-warning/30"
           : "bg-accent/10 text-accent border-accent/30",
         className
       )}
@@ -92,10 +92,10 @@ export function KindBadge({ kind, className }: { kind: "decision" | "llm" | stri
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-surface-200 text-t-secondary",
   running: "bg-accent/15 text-accent",
-  stopping: "bg-amber-500/15 text-amber-500",
-  stopped: "bg-amber-500/15 text-amber-500",
-  completed: "bg-emerald-500/15 text-emerald-500",
-  failed: "bg-red-500/15 text-red-500",
+  stopping: "bg-warning/15 text-warning",
+  stopped: "bg-warning/15 text-warning",
+  completed: "bg-success/15 text-success",
+  failed: "bg-danger/15 text-danger",
 };
 
 export function StatusPill({ status }: { status: string }) {

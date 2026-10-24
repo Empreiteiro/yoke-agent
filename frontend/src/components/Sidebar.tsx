@@ -17,7 +17,6 @@ import {
   Cable,
   FlaskConical,
   Users,
-  ChevronDown,
   ChevronRight,
   Archive,
   Search,
@@ -25,9 +24,14 @@ import {
   User,
   Activity,
   Scale,
+  Lock,
+  Sun,
+  Moon,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
+import { useTheme, Theme } from "@/contexts/ThemeContext";
 
 const iconMap: Record<string, any> = {
   bot: Bot,
@@ -81,6 +85,74 @@ const SETTINGS_ITEMS = [
   { id: "user-settings", label: "User", icon: User },
 ];
 
+const THEME_OPTIONS: { key: Theme; icon: any; label: string }[] = [
+  { key: "light", icon: Sun, label: "Light" },
+  { key: "dark", icon: Moon, label: "Dark" },
+  { key: "neon", icon: Zap, label: "Neon" },
+];
+
+// Shared look for every row in the nav. The active row lifts onto the raised
+// surface (hairline + resting shadow) instead of being tinted.
+const rowBase =
+  "group w-full flex items-center gap-2.5 rounded-lg border text-[13px] font-medium transition-colors";
+const rowIdle = "border-transparent text-t-secondary hover:bg-surface-200/60 hover:text-primary";
+const rowActive = "border-themed bg-surface-100 text-primary shadow-resting";
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="px-2.5 pt-4 pb-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+      {children}
+    </div>
+  );
+}
+
+// ── Reusable: group header that expands a nested list ───────────────
+
+function GroupHeader({
+  label,
+  icon: GroupIcon,
+  isOpen,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  icon: any;
+  isOpen: boolean;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-expanded={isOpen}
+      className={cn(rowBase, "h-9 px-2.5", isActive && !isOpen ? rowActive : rowIdle)}
+    >
+      <GroupIcon
+        className={cn(
+          "w-4 h-4 flex-shrink-0 transition-colors",
+          isActive ? "text-accent" : "text-muted group-hover:text-t-secondary"
+        )}
+      />
+      <span className={cn("flex-1 text-left truncate", isActive && "text-primary")}>{label}</span>
+      <ChevronRight
+        className={cn(
+          "w-3.5 h-3.5 text-muted transition-transform duration-[240ms]",
+          isOpen && "rotate-90"
+        )}
+      />
+    </button>
+  );
+}
+
+// Nested list with a hairline guide on the left, like a tree.
+function SubList({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="ml-[17px] mt-0.5 mb-1 pl-2 border-l border-themed space-y-0.5 animate-fade-in">
+      {children}
+    </div>
+  );
+}
+
 // ── Reusable: render a single step button ────────────────────────────
 
 function StepButton({
@@ -103,32 +175,24 @@ function StepButton({
     <button
       onClick={() => onNavigate(`/?${pipelineParam}step=${step.id}`)}
       disabled={isLocked}
+      title={isLocked ? "Complete the previous step first" : undefined}
       className={cn(
-        "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
+        rowBase,
+        "h-8 px-2.5",
         isLocked
-          ? "text-muted cursor-not-allowed opacity-50"
+          ? "border-transparent text-muted/70 cursor-not-allowed"
           : isActive
-          ? "bg-accent/10 text-accent"
-          : isCompleted
-          ? "text-emerald-400 hover:bg-surface-100"
-          : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
+          ? rowActive
+          : rowIdle
       )}
     >
-      <div
-        className={cn(
-          "w-5 h-5 rounded flex items-center justify-center flex-shrink-0",
-          isLocked
-            ? "bg-surface-200/50 text-muted"
-            : isActive
-            ? "bg-accent/20 text-accent"
-            : isCompleted
-            ? "bg-emerald-500/20 text-emerald-400"
-            : "bg-surface-200 text-muted"
-        )}
-      >
-        {isCompleted ? <CheckCircle className="w-3 h-3" /> : <Icon className="w-3 h-3" />}
-      </div>
-      <span className="truncate">{step.label}</span>
+      {isCompleted && !isActive ? (
+        <CheckCircle className="w-3.5 h-3.5 flex-shrink-0 text-success" />
+      ) : (
+        <Icon className={cn("w-3.5 h-3.5 flex-shrink-0", isActive ? "text-accent" : "text-muted")} />
+      )}
+      <span className="flex-1 text-left truncate">{step.label}</span>
+      {isLocked && <Lock className="w-3 h-3 flex-shrink-0 text-muted/60" />}
     </button>
   );
 }
@@ -137,13 +201,14 @@ function StepButton({
 
 function CollapsibleViewGroup({
   label,
-  icon: GroupIcon,
+  icon,
   items,
   isOpen,
   onToggle,
   isGroupActive,
   currentView,
   onNavigate,
+  walkthroughId,
 }: {
   label: string;
   icon: any;
@@ -153,31 +218,13 @@ function CollapsibleViewGroup({
   isGroupActive: boolean;
   currentView: string | null;
   onNavigate: (path: string) => void;
+  walkthroughId?: string;
 }) {
   return (
-    <div className="space-y-0.5">
-      <button
-        onClick={onToggle}
-        className={cn(
-          "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-          isGroupActive
-            ? "bg-accent/10 text-accent"
-            : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-        )}
-      >
-        <div
-          className={cn(
-            "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-            isGroupActive ? "bg-accent/20 text-accent" : "bg-surface-200 text-muted"
-          )}
-        >
-          <GroupIcon className="w-3.5 h-3.5" />
-        </div>
-        <span className="flex-1 text-left">{label}</span>
-        {isOpen ? <ChevronDown className="w-3 h-3 text-muted" /> : <ChevronRight className="w-3 h-3 text-muted" />}
-      </button>
+    <div data-walkthrough={walkthroughId}>
+      <GroupHeader label={label} icon={icon} isOpen={isOpen} isActive={isGroupActive} onClick={onToggle} />
       {isOpen && (
-        <div className="ml-4 space-y-0.5">
+        <SubList>
           {items.map((item) => {
             const ItemIcon = item.icon;
             const isActive = currentView === item.id;
@@ -185,27 +232,46 @@ function CollapsibleViewGroup({
               <button
                 key={item.id}
                 onClick={() => onNavigate(`/?view=${item.id}`)}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
-                  isActive
-                    ? "bg-accent/10 text-accent"
-                    : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-                )}
+                className={cn(rowBase, "h-8 px-2.5", isActive ? rowActive : rowIdle)}
               >
-                <div
-                  className={cn(
-                    "w-5 h-5 rounded flex items-center justify-center flex-shrink-0",
-                    isActive ? "bg-accent/20 text-accent" : "bg-surface-200 text-muted"
-                  )}
-                >
-                  <ItemIcon className="w-3 h-3" />
-                </div>
-                <span>{item.label}</span>
+                <ItemIcon className={cn("w-3.5 h-3.5 flex-shrink-0", isActive ? "text-accent" : "text-muted")} />
+                <span className="truncate">{item.label}</span>
               </button>
             );
           })}
-        </div>
+        </SubList>
       )}
+    </div>
+  );
+}
+
+// ── Footer: segmented theme switcher ─────────────────────────────────
+
+function ThemeSwitcher() {
+  const { theme, setTheme } = useTheme();
+  return (
+    <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-0.5 p-0.5 rounded-lg bg-surface-200/70">
+      {THEME_OPTIONS.map(({ key, icon: ThemeIcon, label }) => {
+        const isActive = theme === key;
+        return (
+          <button
+            key={key}
+            role="radio"
+            aria-checked={isActive}
+            title={label}
+            onClick={() => setTheme(key)}
+            className={cn(
+              "flex items-center justify-center gap-1.5 h-7 rounded-md text-[11px] font-medium transition-colors",
+              isActive
+                ? "bg-surface-100 text-primary shadow-resting"
+                : "text-muted hover:text-t-secondary"
+            )}
+          >
+            <ThemeIcon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -270,131 +336,81 @@ export default function Sidebar({
   const chatIsActive = currentStep === chatStep.id && !isAnySpecialView;
   const ChatIcon = iconMap[chatStep.icon] || Bot;
 
+  const renderSteps = (list: readonly Step[], pipelineParam: string) =>
+    list.map((step) => {
+      const isActive = currentStep === step.id && !isAnySpecialView;
+      const isCompleted = completedSteps.has(step.id);
+      const accessible = isStepAccessible ? isStepAccessible(step.id) : true;
+      const isLocked = !accessible && !isCompleted;
+      return (
+        <StepButton
+          key={step.id}
+          step={step}
+          isActive={isActive}
+          isCompleted={isCompleted}
+          isLocked={isLocked}
+          pipelineParam={pipelineParam}
+          onNavigate={onNavigate}
+        />
+      );
+    });
+
   return (
-    <aside className="w-60 bg-surface-50 flex flex-col h-screen">
-      {/* Logo */}
-      <div className="px-4 py-4">
-        <div className="flex items-center gap-2.5" data-walkthrough="sidebar-welcome">
-          <Logo size={32} />
-          <div>
-            <h1 className="text-sm font-bold text-primary leading-tight">Yoke Agent</h1>
-            <p className="text-[10px] text-t-secondary">AI Quality Studio</p>
+    <aside className="w-64 flex-shrink-0 flex flex-col h-screen">
+      {/* Brand */}
+      <div className="px-5 pt-5 pb-2">
+        <div className="flex items-center gap-3" data-walkthrough="sidebar-welcome">
+          <div className="w-9 h-9 rounded-xl bg-surface-100 border border-themed shadow-resting flex items-center justify-center">
+            <Logo size={22} />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-[15px] font-semibold text-primary leading-tight">Yoke Agent</h1>
+            <p className="text-[11px] text-muted leading-tight mt-0.5">AI Quality Studio</p>
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto" data-walkthrough="sidebar-steps">
+      <nav className="flex-1 px-3 pb-3 overflow-y-auto" data-walkthrough="sidebar-steps">
         {/* AI Assistant — always visible, not inside any group */}
-        <button
-          onClick={() => onNavigate("/?step=chat")}
-          className={cn(
-            "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-            chatIsActive
-              ? "bg-accent/10 text-accent"
-              : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-          )}
-        >
-          <div
-            className={cn(
-              "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-              chatIsActive ? "bg-accent/20 text-accent" : "bg-surface-200 text-muted"
-            )}
+        <div className="pt-3">
+          <button
+            onClick={() => onNavigate("/?step=chat")}
+            className={cn(rowBase, "h-9 px-2.5", chatIsActive ? rowActive : rowIdle)}
           >
-            <ChatIcon className="w-3.5 h-3.5" />
-          </div>
-          <span className="truncate">{chatStep.label}</span>
-        </button>
+            <ChatIcon
+              className={cn(
+                "w-4 h-4 flex-shrink-0",
+                chatIsActive ? "text-accent" : "text-muted group-hover:text-t-secondary"
+              )}
+            />
+            <span className="truncate">{chatStep.label}</span>
+          </button>
+        </div>
 
-        <div className="!my-2 mx-2 border-t border-surface-200/40" />
+        <SectionLabel>Pipelines</SectionLabel>
 
         {/* ── Augmented Retrieval — collapsible group ──────────────── */}
-        <div className="space-y-0.5">
-          <button
+        <div>
+          <GroupHeader
+            label="Augmented Retrieval"
+            icon={Search}
+            isOpen={ragOpen}
+            isActive={isRagActive}
             onClick={() => { setRagOpen(!ragOpen); if (!ragOpen) onNavigate("/?pipeline=rag"); }}
-            className={cn(
-              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-              isRagActive
-                ? "bg-accent/10 text-accent"
-                : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-            )}
-          >
-            <div
-              className={cn(
-                "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-                isRagActive ? "bg-accent/20 text-accent" : "bg-surface-200 text-muted"
-              )}
-            >
-              <Search className="w-3.5 h-3.5" />
-            </div>
-            <span className="flex-1 text-left">Augmented Retrieval</span>
-            {ragOpen ? <ChevronDown className="w-3 h-3 text-muted" /> : <ChevronRight className="w-3 h-3 text-muted" />}
-          </button>
-          {ragOpen && (
-            <div className="ml-4 space-y-0.5">
-              {ragSteps.map((step) => {
-                const isActive = currentStep === step.id && !isAnySpecialView;
-                const isCompleted = completedSteps.has(step.id);
-                const accessible = isStepAccessible ? isStepAccessible(step.id) : true;
-                const isLocked = !accessible && !isCompleted;
-                return (
-                  <StepButton
-                    key={step.id}
-                    step={step}
-                    isActive={isActive}
-                    isCompleted={isCompleted}
-                    isLocked={isLocked}
-                    pipelineParam=""
-                    onNavigate={onNavigate}
-                  />
-                );
-              })}
-            </div>
-          )}
+          />
+          {ragOpen && <SubList>{renderSteps(ragSteps, "")}</SubList>}
         </div>
 
         {/* ── Agent Evaluation — collapsible group ─────────────── */}
-        <div className="space-y-0.5">
-          <button
+        <div>
+          <GroupHeader
+            label="Agent Evaluation"
+            icon={FlaskRound}
+            isOpen={agentOpen}
+            isActive={isAgentActive}
             onClick={() => { setAgentOpen(!agentOpen); if (!agentOpen) onNavigate("/?pipeline=agent"); }}
-            className={cn(
-              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-              isAgentActive
-                ? "bg-accent/10 text-accent"
-                : "text-t-secondary hover:bg-surface-100 hover:text-t-hover"
-            )}
-          >
-            <div
-              className={cn(
-                "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-                isAgentActive ? "bg-accent/20 text-accent" : "bg-surface-200 text-muted"
-              )}
-            >
-              <FlaskRound className="w-3.5 h-3.5" />
-            </div>
-            <span className="flex-1 text-left">Agent Evaluation</span>
-            {agentOpen ? <ChevronDown className="w-3 h-3 text-muted" /> : <ChevronRight className="w-3 h-3 text-muted" />}
-          </button>
-          {agentOpen && (
-            <div className="ml-4 space-y-0.5">
-              {agentSteps.map((step) => {
-                const isActive = currentStep === step.id && !isAnySpecialView;
-                const isCompleted = completedSteps.has(step.id);
-                const accessible = isStepAccessible ? isStepAccessible(step.id) : true;
-                const isLocked = !accessible && !isCompleted;
-                return (
-                  <StepButton
-                    key={step.id}
-                    step={step}
-                    isActive={isActive}
-                    isCompleted={isCompleted}
-                    isLocked={isLocked}
-                    pipelineParam="pipeline=agent&"
-                    onNavigate={onNavigate}
-                  />
-                );
-              })}
-            </div>
-          )}
+          />
+          {agentOpen && <SubList>{renderSteps(agentSteps, "pipeline=agent&")}</SubList>}
         </div>
 
         {/* ── Model Comparison — decision models vs. LLMs ──────── */}
@@ -409,7 +425,7 @@ export default function Sidebar({
           onNavigate={onNavigate}
         />
 
-        <div className="!my-2 mx-2 border-t border-surface-200/40" />
+        <SectionLabel>Workspace</SectionLabel>
 
         {/* ── History — collapsible group ───────────────────────── */}
         <CollapsibleViewGroup
@@ -421,6 +437,7 @@ export default function Sidebar({
           isGroupActive={isHistoryView}
           currentView={currentView}
           onNavigate={onNavigate}
+          walkthroughId="sidebar-history"
         />
 
         {/* ── Settings — collapsible group ──────────────────────── */}
@@ -433,8 +450,13 @@ export default function Sidebar({
           isGroupActive={isSettingsView}
           currentView={currentView}
           onNavigate={onNavigate}
+          walkthroughId="sidebar-settings"
         />
       </nav>
+
+      <div className="px-3 pb-4 pt-2">
+        <ThemeSwitcher />
+      </div>
     </aside>
   );
 }

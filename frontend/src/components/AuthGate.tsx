@@ -22,8 +22,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (auth.loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-t-secondary">
-        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+      <div className="min-h-screen flex items-center justify-center bg-surface text-sm text-t-secondary">
+        <Loader2 className="w-4 h-4 animate-spin mr-2 text-muted" />
         Loading…
       </div>
     );
@@ -58,44 +58,57 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const inputClass =
+    "w-full h-11 px-3.5 bg-surface-100 border border-visible rounded-xl text-sm text-primary focus:outline-none focus:border-accent";
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-50 px-4">
-      <div className="w-full max-w-md bg-surface-100 rounded-2xl border border-visible p-8 shadow-xl">
-        <div className="flex items-center gap-3 mb-6">
-          <Logo size={36} />
-          <div>
-            <h1 className="text-lg font-bold text-primary leading-tight">Yoke Agent</h1>
-            <p className="text-xs text-t-secondary">
-              {mode === "login" ? "Sign in to continue" : "Create your account"}
-            </p>
+    <div className="relative min-h-screen flex items-center justify-center bg-surface px-4 overflow-hidden">
+      {/* Soft brand wash behind the card */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-arc-gradient-soft opacity-80" />
+      <div className="relative w-full max-w-sm bg-surface-100 rounded-3xl border border-themed shadow-floating p-8 animate-fade-up">
+        <div className="flex flex-col items-center text-center mb-7">
+          <div className="w-12 h-12 rounded-2xl bg-surface-50 border border-themed shadow-resting flex items-center justify-center mb-4">
+            <Logo size={28} />
           </div>
+          <h1 className="text-xl font-semibold text-primary leading-tight">
+            {mode === "login" ? "Sign in to Yoke Agent" : "Create your account"}
+          </h1>
+          <p className="text-sm text-t-secondary mt-1.5">
+            {mode === "login" ? "Welcome back to your AI Quality Studio." : "Start evaluating your AI pipelines."}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-t-secondary mb-1.5">Email</label>
+            <label className="block text-sm font-medium text-primary mb-2">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-3 py-2 bg-surface-50 border border-visible rounded-lg text-sm text-primary focus:outline-none focus:border-accent"
+              autoComplete="email"
+              placeholder="you@company.com"
+              className={inputClass}
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-t-secondary mb-1.5">Password</label>
+            <label className="block text-sm font-medium text-primary mb-2">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
               minLength={mode === "register" ? 8 : undefined}
-              className="w-full px-3 py-2 bg-surface-50 border border-visible rounded-lg text-sm text-primary focus:outline-none focus:border-accent"
+              className={inputClass}
             />
+            {mode === "register" && (
+              <p className="pt-2 text-xs text-muted">At least 8 characters.</p>
+            )}
           </div>
 
           {error && (
-            <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+            <div role="alert" className="text-xs text-danger bg-danger/10 border border-danger/25 rounded-xl px-3 py-2.5">
               {error}
             </div>
           )}
@@ -103,7 +116,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-accent text-white font-medium rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
+            className="w-full h-11 flex items-center justify-center gap-2 px-4 bg-accent text-accent-foreground text-sm font-medium rounded-xl shadow-resting hover:opacity-90 active:opacity-85 transition-opacity disabled:opacity-50"
           >
             {submitting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -116,14 +129,14 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           </button>
         </form>
 
-        <div className="mt-5 text-center text-xs text-t-secondary">
+        <div className="mt-6 pt-5 border-t border-themed text-center text-sm text-t-secondary">
           {mode === "login" ? "Don't have an account?" : "Already registered?"}{" "}
           <button
             onClick={() => {
               setMode(mode === "login" ? "register" : "login");
               setError(null);
             }}
-            className="text-accent hover:underline"
+            className="font-medium text-primary hover:text-accent transition-colors"
           >
             {mode === "login" ? "Register" : "Sign in"}
           </button>

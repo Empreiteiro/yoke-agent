@@ -199,7 +199,7 @@ function GroupedLogs({
             return (
               <div
                 key={key}
-                className="border border-surface-200/50 rounded-xl overflow-hidden"
+                className="border border-themed rounded-xl overflow-hidden"
               >
                 {/* Accordion header */}
                 <button
@@ -224,7 +224,7 @@ function GroupedLogs({
                     <span className="text-xs text-primary font-medium">
                       {formatNumber(summary.totalTokens)} tokens
                     </span>
-                    <span className="text-xs text-amber-400 font-medium min-w-[60px] text-right">
+                    <span className="text-xs text-warning font-medium min-w-[60px] text-right">
                       {formatCost(summary.totalCost)}
                     </span>
                     <div className="flex gap-1">
@@ -249,7 +249,7 @@ function GroupedLogs({
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="border-b border-surface-200/50 bg-surface-100/50">
+                        <tr className="border-b border-themed bg-surface-100/50">
                           {["Time", "Phase", "Operation", "Model", "Type", "Prompt", "Completion", "Total", "Cost"].map(
                             (h) => (
                               <th
@@ -262,7 +262,7 @@ function GroupedLogs({
                           )}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-surface-200/30">
+                      <tbody className="divide-y divide-themed-subtle">
                         {entries.map((log: any) => (
                           <tr
                             key={log.id}
@@ -294,8 +294,8 @@ function GroupedLogs({
                                   log.model_type === "llm"
                                     ? "text-purple-400"
                                     : log.model_type === "decision"
-                                    ? "text-amber-400"
-                                    : "text-emerald-400"
+                                    ? "text-warning"
+                                    : "text-success"
                                 }`}
                               >
                                 {log.model_type.toUpperCase()}
@@ -310,7 +310,7 @@ function GroupedLogs({
                             <td className="px-3 py-2 text-primary font-medium">
                               {formatNumber(log.total_tokens)}
                             </td>
-                            <td className="px-3 py-2 text-amber-400">
+                            <td className="px-3 py-2 text-warning">
                               {log.estimated_cost != null
                                 ? formatCost(log.estimated_cost)
                                 : "-"}
@@ -318,7 +318,7 @@ function GroupedLogs({
                           </tr>
                         ))}
                         {/* Group totals row */}
-                        <tr className="bg-surface-100/80 font-medium border-t border-surface-200/50">
+                        <tr className="bg-surface-100/80 font-medium border-t border-themed">
                           <td
                             colSpan={5}
                             className="px-3 py-2 text-xs text-t-secondary uppercase"
@@ -341,7 +341,7 @@ function GroupedLogs({
                           <td className="px-3 py-2 text-primary">
                             {formatNumber(summary.totalTokens)}
                           </td>
-                          <td className="px-3 py-2 text-amber-400">
+                          <td className="px-3 py-2 text-warning">
                             {formatCost(summary.totalCost)}
                           </td>
                         </tr>
@@ -497,7 +497,7 @@ export default function Logs() {
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 days === d
                   ? "bg-accent/20 text-accent border border-accent/30"
-                  : "bg-surface-100 text-t-secondary hover:text-primary border border-surface-200/50"
+                  : "bg-surface-100 text-t-secondary hover:text-primary border border-themed"
               }`}
             >
               {d}d
@@ -528,7 +528,7 @@ export default function Logs() {
         return (
           <div className="relative rounded-2xl border border-visible p-4">
             <div className={`grid grid-cols-4 gap-4 ${ghostCls}`}>
-              <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-5">
+              <div className="bg-surface-100 rounded-2xl border border-themed p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
                     <Hash className="w-4 h-4 text-purple-400" />
@@ -540,7 +540,7 @@ export default function Logs() {
                 </p>
               </div>
 
-              <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-5">
+              <div className="bg-surface-100 rounded-2xl border border-themed p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
                     <Cpu className="w-4 h-4 text-cyan-400" />
@@ -552,10 +552,10 @@ export default function Logs() {
                 </p>
               </div>
 
-              <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-5">
+              <div className="bg-surface-100 rounded-2xl border border-themed p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                    <Layers className="w-4 h-4 text-emerald-400" />
+                  <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center">
+                    <Layers className="w-4 h-4 text-success" />
                   </div>
                   <span className="text-xs text-t-secondary">Embedding Tokens</span>
                 </div>
@@ -564,10 +564,10 @@ export default function Logs() {
                 </p>
               </div>
 
-              <div className="bg-surface-100 rounded-2xl border border-surface-200/50 p-5">
+              <div className="bg-surface-100 rounded-2xl border border-themed p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                    <DollarSign className="w-4 h-4 text-amber-400" />
+                  <div className="w-8 h-8 rounded-lg bg-warning/20 flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-warning" />
                   </div>
                   <span className="text-xs text-t-secondary">Est. Cost</span>
                 </div>
@@ -593,7 +593,7 @@ export default function Logs() {
       {/* Charts row */}
       <div className="grid grid-cols-2 gap-4">
         {/* Usage by day */}
-        <div className="relative bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+        <div className="relative bg-surface-100 rounded-2xl border border-themed p-6">
           <h3 className="text-sm font-semibold text-primary mb-4">Tokens per Day</h3>
           <div className={`h-52 ${isByDayGhost ? "opacity-25 blur-[1px] pointer-events-none" : ""}`}>
             <ResponsiveContainer width="100%" height="100%">
@@ -636,7 +636,7 @@ export default function Logs() {
         </div>
 
         {/* Usage by operation */}
-        <div className="relative bg-surface-100 rounded-2xl border border-surface-200/50 p-6">
+        <div className="relative bg-surface-100 rounded-2xl border border-themed p-6">
           <h3 className="text-sm font-semibold text-primary mb-4">Tokens by Operation</h3>
           <div className={`h-52 ${isByOperationGhost ? "opacity-25 blur-[1px] pointer-events-none" : ""}`}>
             <ResponsiveContainer width="100%" height="100%">
@@ -684,12 +684,12 @@ export default function Logs() {
       </div>
 
       {/* Models breakdown */}
-      <div className="relative bg-surface-100 rounded-2xl border border-surface-200/50 p-6 mt-4">
+      <div className="relative bg-surface-100 rounded-2xl border border-themed p-6 mt-4">
         <h3 className="text-sm font-semibold text-primary mb-4">Usage by Model</h3>
         <div className={`overflow-x-auto ${isModelGhost ? "opacity-25 blur-[1px] pointer-events-none" : ""}`}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-surface-200/50">
+              <tr className="border-b border-themed">
                 {["Model", "Type", "Total Tokens", "Calls", "Est. Cost"].map((h) => (
                   <th key={h} className="px-3 py-2 text-left text-xs font-medium text-t-secondary uppercase">
                     {h}
@@ -697,7 +697,7 @@ export default function Logs() {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-surface-200/30">
+            <tbody className="divide-y divide-themed-subtle">
               {modelBreakdown.map((m: any, i: number) => (
                 <tr key={i} className="hover:bg-surface-50 transition-colors">
                   <td className="px-3 py-2.5 text-primary font-medium">{m.model_name}</td>
@@ -707,8 +707,8 @@ export default function Logs() {
                         m.model_type === "llm"
                           ? "bg-purple-500/20 text-purple-400"
                           : m.model_type === "decision"
-                          ? "bg-amber-500/20 text-amber-400"
-                          : "bg-emerald-500/20 text-emerald-400"
+                          ? "bg-warning/20 text-warning"
+                          : "bg-success/20 text-success"
                       }`}
                     >
                       {m.model_type.toUpperCase()}
@@ -716,7 +716,7 @@ export default function Logs() {
                   </td>
                   <td className="px-3 py-2.5 text-primary">{formatNumber(m.total_tokens)}</td>
                   <td className="px-3 py-2.5 text-t-secondary">{m.call_count}</td>
-                  <td className="px-3 py-2.5 text-amber-400">{formatCost(m.estimated_cost)}</td>
+                  <td className="px-3 py-2.5 text-warning">{formatCost(m.estimated_cost)}</td>
                 </tr>
               ))}
             </tbody>

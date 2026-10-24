@@ -173,7 +173,7 @@ export default function DecisionCompare() {
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm">
+        <div className="flex items-start gap-2 px-4 py-3 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span className="flex-1">{error}</span>
           <button onClick={() => setError(null)}>
@@ -282,8 +282,8 @@ export default function DecisionCompare() {
               selected={selected}
               onToggle={toggle}
               empty={
-                <div className="flex flex-wrap items-center gap-3 text-xs text-t-secondary bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2.5">
-                  <Zap className="w-4 h-4 text-amber-500" />
+                <div className="flex flex-wrap items-center gap-3 text-xs text-t-secondary bg-warning/5 border border-warning/20 rounded-lg px-3 py-2.5">
+                  <Zap className="w-4 h-4 text-warning" />
                   <span className="flex-1">
                     No decision provider yet. Add <strong className="text-primary">TypeSafe (Jev)</strong> — or any System
                     One-compatible endpoint — in Settings → Providers.
@@ -326,7 +326,7 @@ export default function DecisionCompare() {
                       </div>
                       <PriceInput label="Input" value={m.input_price} onChange={(v) => updatePrice(m.key, "input_price", v)} />
                       <PriceInput label="Output" value={m.output_price} onChange={(v) => updatePrice(m.key, "output_price", v)} />
-                      <span className={cn("text-[11px] w-28", m.input_price === "" && m.output_price === "" ? "text-amber-500" : "text-muted")}>
+                      <span className={cn("text-[11px] w-28", m.input_price === "" && m.output_price === "" ? "text-warning" : "text-muted")}>
                         {m.input_price === "" && m.output_price === "" ? "Price unknown" : m.pricing_source}
                       </span>
                       <button
@@ -340,7 +340,7 @@ export default function DecisionCompare() {
                   ))}
                 </div>
                 {unknownPrices.length > 0 && (
-                  <p className="text-[11px] text-amber-500 mt-1.5">
+                  <p className="text-[11px] text-warning mt-1.5">
                     {unknownPrices.length} model{unknownPrices.length > 1 ? "s have" : " has"} no known price — its total cost will
                     show as “—”. Enter a price (or 0 for self-hosted) to include it.
                   </p>
@@ -444,7 +444,7 @@ export default function DecisionCompare() {
             <button
               onClick={start}
               disabled={starting || !datasetId || selected.length === 0}
-              className="flex items-center gap-2 px-6 py-2.5 bg-accent text-white rounded-xl text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-2.5 bg-accent text-accent-foreground rounded-xl text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
             >
               {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
               Run comparison
@@ -571,7 +571,7 @@ function EmptyProviders({ onOpenSettings }: { onOpenSettings: () => void }) {
       </p>
       <button
         onClick={onOpenSettings}
-        className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent/90"
+        className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-lg text-sm font-medium hover:bg-accent/90"
       >
         <Settings className="w-4 h-4" /> Open Providers
       </button>

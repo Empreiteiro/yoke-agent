@@ -307,7 +307,7 @@ function HomeContent() {
   };
 
   return (
-    <div className="flex h-screen bg-surface-50">
+    <div className="flex h-screen bg-surface">
       <Sidebar
         steps={ACTIVE_STEPS}
         ragSteps={RAG_STEPS}
@@ -320,10 +320,10 @@ function HomeContent() {
         isStepAccessible={isStepAccessible}
         currentPipeline={pipeline}
       />
-      <main className="flex-1 overflow-y-auto p-3 pl-0">
-        <div className="h-full bg-surface-100 rounded-2xl border border-surface-200/30 overflow-y-auto">
+      <main className="flex-1 min-w-0 py-3 pr-3">
+        <div className="h-full bg-surface-100 rounded-3xl border border-themed shadow-resting overflow-y-auto">
           {currentView && VIEW_COMPONENTS[currentView] ? (
-            <div className="p-6 max-w-6xl mx-auto">
+            <div key={currentView} className="px-8 py-7 max-w-6xl mx-auto animate-fade-up">
               {VIEW_COMPONENTS[currentView]}
             </div>
           ) : (
@@ -333,7 +333,7 @@ function HomeContent() {
                 currentStep={currentStep}
                 completedSteps={completedSteps}
               />
-              <div className="p-6 max-w-6xl mx-auto">{renderStep()}</div>
+              <div key={currentStep} className="px-8 py-7 max-w-6xl mx-auto animate-fade-up">{renderStep()}</div>
             </>
           )}
         </div>
@@ -345,7 +345,7 @@ function HomeContent() {
 
 export default function Home() {
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-surface-50 text-t-secondary">Loading...</div>}>
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-surface text-t-secondary">Loading…</div>}>
       <HomeContent />
     </Suspense>
   );

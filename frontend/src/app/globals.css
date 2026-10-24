@@ -2,98 +2,410 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* ==========================================================================
+   Design tokens
+   --------------------------------------------------------------------------
+   Modelled on the UI Arc foundation (https://uiarc.dev): a calm neutral
+   scale, hairline borders, soft layered shadows, generous radii, Geist for
+   display type and Inter for body copy.
 
-/* ===== NEON THEME (default) ===== */
-:root,
-[data-theme="neon"] {
-  --surface: #0a0a0f;
-  --surface-50: #12121a;
-  --surface-100: #1a1a2e;
-  --surface-200: #232338;
-  --surface-300: #2d2d44;
-  --accent: #8b5cf6;
-  --accent-light: #a78bfa;
-  --accent-dark: #7c3aed;
-  --secondary: #06b6d4;
-  --secondary-light: #22d3ee;
-  --secondary-dark: #0891b2;
-  --text-primary: #ffffff;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-hover: #cbd5e1;
-  --border: rgba(35, 35, 56, 0.5);
-  --input-bg: #12121a;
-  --input-border: #2d2d44;
-  --scrollbar-track: #12121a;
-  --scrollbar-thumb: #232338;
-  color-scheme: dark;
-}
-
-/* ===== DARK THEME ===== */
-[data-theme="dark"] {
-  --surface: #09090b;
-  --surface-50: #18181b;
-  --surface-100: #1f1f23;
-  --surface-200: #27272a;
-  --surface-300: #3f3f46;
-  --accent: #6366f1;
-  --accent-light: #818cf8;
-  --accent-dark: #4f46e5;
-  --secondary: #8b5cf6;
-  --secondary-light: #a78bfa;
-  --secondary-dark: #7c3aed;
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
-  --text-hover: #d4d4d8;
-  --border: rgba(39, 39, 42, 0.5);
-  --input-bg: #18181b;
-  --input-border: #3f3f46;
-  --scrollbar-track: #18181b;
-  --scrollbar-thumb: #27272a;
-  color-scheme: dark;
-}
+   Every color is declared twice:
+     --c-<name>  raw OKLCH channels ("L C H"), consumed by Tailwind so that
+                 opacity modifiers like `bg-accent/10` work.
+     --<name>    the finished color, for inline styles and chart props.
+   Themes and accents only redefine the channel variables; the finished
+   colors are derived once below.
+   ========================================================================== */
 
 /* ===== LIGHT THEME ===== */
+:root,
 [data-theme="light"] {
-  --surface: #ffffff;
-  --surface-50: #f4f4f5;
-  --surface-100: #e4e4e7;
-  --surface-200: #d4d4d8;
-  --surface-300: #a1a1aa;
-  --accent: #6366f1;
-  --accent-light: #818cf8;
-  --accent-dark: #4f46e5;
-  --secondary: #8b5cf6;
-  --secondary-light: #a78bfa;
-  --secondary-dark: #7c3aed;
-  --text-primary: #18181b;
-  --text-secondary: #52525b;
-  --text-muted: #71717a;
-  --text-hover: #3f3f46;
-  --border: rgba(212, 212, 216, 0.5);
-  --input-bg: #ffffff;
-  --input-border: #d4d4d8;
-  --scrollbar-track: #f4f4f5;
-  --scrollbar-thumb: #d4d4d8;
+  --c-surface: 97.4% 0 0;
+  --c-surface-50: 97.8% 0 0;
+  --c-surface-100: 100% 0 0;
+  --c-surface-200: 94.6% 0 0;
+  --c-surface-300: 89% 0 0;
+
+  --c-fg: 15% 0 0;
+  --c-fg-2: 46% 0 0;
+  --c-fg-3: 59% 0 0;
+  --c-fg-hover: 30% 0 0;
+
+  --c-border: 92.5% 0 0;
+  --c-border-subtle: 95.5% 0 0;
+  --c-border-strong: 87% 0 0;
+
+  --c-secondary: 60.9% 0.111 221.7;
+  --c-secondary-light: 71.5% 0.126 215.2;
+  --c-secondary-dark: 52% 0.1 225;
+
+  --c-success: 49% 0.19 150;
+  --c-warning: 58% 0.18 75;
+  --c-danger: 54% 0.21 25;
+
+  --shadow-resting: 0 1px 2px oklch(0% 0 0 / 0.035);
+  --shadow-raised: 0 6px 18px oklch(0% 0 0 / 0.065), 0 1px 3px oklch(0% 0 0 / 0.035);
+  --shadow-floating: 0 20px 48px oklch(0% 0 0 / 0.105), 0 3px 10px oklch(0% 0 0 / 0.045);
+
+  --arc-gradient-from: oklch(90% 0.045 300);
+  --arc-gradient-to: oklch(92% 0.045 65);
+  --arc-gradient-soft: linear-gradient(135deg, oklch(97.5% 0.016 300), oklch(98% 0.016 65));
+  --arc-gradient-line: linear-gradient(100deg, oklch(83% 0.06 300), oklch(86% 0.06 65));
+  --arc-gradient-ink: linear-gradient(100deg, oklch(47% 0.1 300), oklch(50% 0.09 55));
+  --arc-gradient-foreground: oklch(22% 0.01 300);
+
+  --overlay: oklch(10% 0 0 / 0.46);
   color-scheme: light;
 }
 
-body {
-  background: var(--surface);
-  color: var(--text-secondary);
-  font-family: 'Inter', system-ui, sans-serif;
+/* ===== DARK THEME =====
+   Tuned separately rather than inverted: surfaces step up in lightness as
+   they rise, text stays slightly below pure white. */
+[data-theme="dark"] {
+  --c-surface: 17% 0 0;
+  --c-surface-50: 19.5% 0 0;
+  --c-surface-100: 21.5% 0 0;
+  --c-surface-200: 26.5% 0 0;
+  --c-surface-300: 33% 0 0;
+
+  --c-fg: 96% 0 0;
+  --c-fg-2: 77% 0 0;
+  --c-fg-3: 64% 0 0;
+  --c-fg-hover: 88% 0 0;
+
+  --c-border: 28.5% 0 0;
+  --c-border-subtle: 25% 0 0;
+  --c-border-strong: 34% 0 0;
+
+  --c-secondary: 79.7% 0.134 211.5;
+  --c-secondary-light: 86% 0.11 210;
+  --c-secondary-dark: 71.5% 0.126 215.2;
+
+  --c-success: 78% 0.18 150;
+  --c-warning: 83% 0.17 80;
+  --c-danger: 76% 0.2 25;
+
+  --shadow-resting: 0 1px 2px oklch(0% 0 0 / 0.18);
+  --shadow-raised: 0 8px 22px oklch(0% 0 0 / 0.22);
+  --shadow-floating: 0 22px 55px oklch(0% 0 0 / 0.34);
+
+  --arc-gradient-from: oklch(38% 0.05 300);
+  --arc-gradient-to: oklch(40% 0.045 60);
+  --arc-gradient-soft: linear-gradient(135deg, oklch(23.5% 0.016 300), oklch(24% 0.014 65));
+  --arc-gradient-line: linear-gradient(100deg, oklch(48% 0.06 300), oklch(52% 0.055 65));
+  --arc-gradient-ink: linear-gradient(100deg, oklch(82% 0.07 300), oklch(86% 0.065 70));
+  --arc-gradient-foreground: oklch(96% 0.005 300);
+
+  --overlay: oklch(5% 0 0 / 0.6);
+  color-scheme: dark;
 }
 
-/* Remove surface borders in dark/neon themes for cleaner look.
-   The light theme keeps its native Tailwind opacity-modified borders so cards
-   and sections remain visible against the bright surface. */
-[data-theme="dark"] .border-surface-200\/50,
-[data-theme="dark"] .border-surface-200\/30,
-[data-theme="neon"] .border-surface-200\/50,
-[data-theme="neon"] .border-surface-200\/30 {
-  border-color: transparent;
+/* ===== NEON THEME =====
+   The dark scale pulled deeper and tinted toward violet, with a cyan
+   secondary for the luminous two-tone look. */
+[data-theme="neon"] {
+  --c-surface: 13.5% 0.018 285;
+  --c-surface-50: 16% 0.022 285;
+  --c-surface-100: 18% 0.025 285;
+  --c-surface-200: 23.5% 0.03 285;
+  --c-surface-300: 30% 0.035 285;
+
+  --c-fg: 97% 0.005 285;
+  --c-fg-2: 76% 0.025 280;
+  --c-fg-3: 62% 0.03 280;
+  --c-fg-hover: 87% 0.015 285;
+
+  --c-border: 26% 0.035 285;
+  --c-border-subtle: 22.5% 0.03 285;
+  --c-border-strong: 31% 0.04 285;
+
+  --c-secondary: 79.7% 0.134 211.5;
+  --c-secondary-light: 86% 0.11 210;
+  --c-secondary-dark: 71.5% 0.126 215.2;
+
+  --c-success: 78% 0.18 150;
+  --c-warning: 83% 0.17 80;
+  --c-danger: 76% 0.2 25;
+
+  --shadow-resting: 0 1px 2px oklch(0% 0 0 / 0.25);
+  --shadow-raised: 0 8px 24px oklch(8% 0.04 285 / 0.45);
+  --shadow-floating: 0 22px 60px oklch(5% 0.05 285 / 0.6), 0 0 0 1px oklch(71% 0.166 293 / 0.08);
+
+  --arc-gradient-from: oklch(42% 0.12 295);
+  --arc-gradient-to: oklch(46% 0.09 220);
+  --arc-gradient-soft: linear-gradient(135deg, oklch(21% 0.04 295), oklch(21% 0.03 225));
+  --arc-gradient-line: linear-gradient(100deg, oklch(60% 0.16 295), oklch(70% 0.12 215));
+  --arc-gradient-ink: linear-gradient(100deg, oklch(80% 0.12 295), oklch(84% 0.11 210));
+  --arc-gradient-foreground: oklch(97% 0.005 285);
+
+  --overlay: oklch(5% 0.03 285 / 0.62);
+  color-scheme: dark;
+}
+
+/* ===== ACCENTS =====
+   Selected via <html data-accent="…">. Light values first; dark/neon values
+   use a more specific selector so they win regardless of order. */
+:root,
+[data-accent="violet"] {
+  --c-accent: 56.7% 0.253 287.3;
+  --c-accent-strong: 45.6% 0.231 285.1;
+  --c-accent-light: 64% 0.21 290;
+  --c-accent-dark: 45.6% 0.231 285.1;
+  --c-accent-fg: 100% 0 0;
+}
+[data-accent="blue"] {
+  --c-accent: 54.2% 0.226 260.6;
+  --c-accent-strong: 45.2% 0.179 260.2;
+  --c-accent-light: 63% 0.19 260;
+  --c-accent-dark: 45.2% 0.179 260.2;
+  --c-accent-fg: 100% 0 0;
+}
+[data-accent="green"] {
+  --c-accent: 58% 0.14 160;
+  --c-accent-strong: 51.9% 0.112 161.8;
+  --c-accent-light: 69.1% 0.155 159.7;
+  --c-accent-dark: 51.9% 0.112 161.8;
+  --c-accent-fg: 100% 0 0;
+}
+[data-accent="amber"] {
+  --c-accent: 79.4% 0.159 78;
+  --c-accent-strong: 54.9% 0.118 70.6;
+  --c-accent-light: 86.8% 0.135 82.8;
+  --c-accent-dark: 66% 0.14 74;
+  --c-accent-fg: 22% 0.03 70;
+}
+[data-accent="orange"] {
+  --c-accent: 66% 0.17 50;
+  --c-accent-strong: 52.1% 0.146 46.2;
+  --c-accent-light: 71.9% 0.171 53.7;
+  --c-accent-dark: 52.1% 0.146 46.2;
+  --c-accent-fg: 100% 0 0;
+}
+[data-accent="coral"] {
+  --c-accent: 62% 0.19 27;
+  --c-accent-strong: 51.8% 0.178 27.6;
+  --c-accent-light: 67.2% 0.182 27;
+  --c-accent-dark: 51.8% 0.178 27.6;
+  --c-accent-fg: 100% 0 0;
+}
+[data-accent="rose"] {
+  --c-accent: 62% 0.2 353;
+  --c-accent-strong: 51.1% 0.184 352.6;
+  --c-accent-light: 66.5% 0.207 353.6;
+  --c-accent-dark: 51.1% 0.184 352.6;
+  --c-accent-fg: 100% 0 0;
+}
+[data-accent="neutral"] {
+  --c-accent: 33% 0 0;
+  --c-accent-strong: 24% 0 0;
+  --c-accent-light: 46% 0 0;
+  --c-accent-dark: 24% 0 0;
+  --c-accent-fg: 100% 0 0;
+}
+
+[data-theme="dark"],
+[data-theme="neon"],
+[data-theme="dark"][data-accent="violet"],
+[data-theme="neon"][data-accent="violet"] {
+  --c-accent: 71.2% 0.166 292.8;
+  --c-accent-strong: 81.8% 0.101 294.2;
+  --c-accent-light: 81.8% 0.101 294.2;
+  --c-accent-dark: 60% 0.2 290;
+  --c-accent-fg: 17% 0.03 290;
+}
+[data-theme="dark"][data-accent="blue"],
+[data-theme="neon"][data-accent="blue"] {
+  --c-accent: 71.7% 0.147 259.9;
+  --c-accent-strong: 82.4% 0.088 259.7;
+  --c-accent-light: 82.4% 0.088 259.7;
+  --c-accent-dark: 60% 0.18 260;
+  --c-accent-fg: 17% 0.03 260;
+}
+[data-theme="dark"][data-accent="green"],
+[data-theme="neon"][data-accent="green"] {
+  --c-accent: 80.6% 0.143 163.6;
+  --c-accent-strong: 88.6% 0.099 170.5;
+  --c-accent-light: 88.6% 0.099 170.5;
+  --c-accent-dark: 69.1% 0.155 159.7;
+  --c-accent-fg: 18% 0.03 160;
+}
+[data-theme="dark"][data-accent="amber"],
+[data-theme="neon"][data-accent="amber"] {
+  --c-accent: 86.8% 0.135 82.8;
+  --c-accent-strong: 91.8% 0.087 84.6;
+  --c-accent-light: 91.8% 0.087 84.6;
+  --c-accent-dark: 79.4% 0.159 78;
+  --c-accent-fg: 20% 0.03 75;
+}
+[data-theme="dark"][data-accent="orange"],
+[data-theme="neon"][data-accent="orange"] {
+  --c-accent: 81.2% 0.135 62.8;
+  --c-accent-strong: 88.7% 0.082 67;
+  --c-accent-light: 88.7% 0.082 67;
+  --c-accent-dark: 71.9% 0.171 53.7;
+  --c-accent-fg: 19% 0.03 55;
+}
+[data-theme="dark"][data-accent="coral"],
+[data-theme="neon"][data-accent="coral"] {
+  --c-accent: 77.5% 0.132 27.8;
+  --c-accent-strong: 86.5% 0.072 26;
+  --c-accent-light: 86.5% 0.072 26;
+  --c-accent-dark: 67.2% 0.182 27;
+  --c-accent-fg: 19% 0.03 27;
+}
+[data-theme="dark"][data-accent="rose"],
+[data-theme="neon"][data-accent="rose"] {
+  --c-accent: 77.9% 0.154 350;
+  --c-accent-strong: 87.4% 0.082 347.9;
+  --c-accent-light: 87.4% 0.082 347.9;
+  --c-accent-dark: 66.5% 0.207 353.6;
+  --c-accent-fg: 19% 0.03 350;
+}
+[data-theme="dark"][data-accent="neutral"],
+[data-theme="neon"][data-accent="neutral"] {
+  --c-accent: 80% 0 0;
+  --c-accent-strong: 91% 0 0;
+  --c-accent-light: 91% 0 0;
+  --c-accent-dark: 68% 0 0;
+  --c-accent-fg: 19% 0 0;
+}
+
+/* ===== DERIVED COLORS & SHARED SCALES ===== */
+:root {
+  --surface: oklch(var(--c-surface));
+  --surface-50: oklch(var(--c-surface-50));
+  --surface-100: oklch(var(--c-surface-100));
+  --surface-200: oklch(var(--c-surface-200));
+  --surface-300: oklch(var(--c-surface-300));
+  --accent: oklch(var(--c-accent));
+  --accent-strong: oklch(var(--c-accent-strong));
+  --accent-light: oklch(var(--c-accent-light));
+  --accent-dark: oklch(var(--c-accent-dark));
+  --accent-foreground: oklch(var(--c-accent-fg));
+  --accent-subtle: oklch(var(--c-accent) / 0.13);
+  --secondary: oklch(var(--c-secondary));
+  --secondary-light: oklch(var(--c-secondary-light));
+  --secondary-dark: oklch(var(--c-secondary-dark));
+  --text-primary: oklch(var(--c-fg));
+  --text-secondary: oklch(var(--c-fg-2));
+  --text-muted: oklch(var(--c-fg-3));
+  --text-hover: oklch(var(--c-fg-hover));
+  --border: oklch(var(--c-border));
+  --border-subtle: oklch(var(--c-border-subtle));
+  --border-strong: oklch(var(--c-border-strong));
+  --success: oklch(var(--c-success));
+  --warning: oklch(var(--c-warning));
+  --danger: oklch(var(--c-danger));
+  --input-bg: var(--surface-100);
+  --input-border: var(--border-strong);
+  --scrollbar-thumb: oklch(var(--c-fg-3) / 0.32);
+  --scrollbar-thumb-hover: oklch(var(--c-fg-3) / 0.55);
+  --arc-gradient: linear-gradient(100deg, var(--arc-gradient-from), var(--arc-gradient-to));
+
+  --font-display: "Geist", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-instant: 120ms;
+  --duration-fast: 160ms;
+  --duration-standard: 240ms;
+  --duration-considered: 480ms;
+}
+
+/* ===== BASE ===== */
+@layer base {
+  body {
+    background: var(--surface);
+    color: var(--text-secondary);
+    font-family: var(--font-body);
+    letter-spacing: -0.01em;
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background: oklch(var(--c-accent) / 0.22);
+  }
+
+  /* Keyboard focus: one accent outline everywhere. Text fields signal focus
+     with their border instead, so they're left out. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [tabindex="-1"]:focus-visible {
+    outline: none;
+  }
+
+  input,
+  textarea,
+  select {
+    transition:
+      border-color var(--duration-fast) var(--ease-standard),
+      background-color var(--duration-fast) var(--ease-standard),
+      box-shadow var(--duration-fast) var(--ease-standard);
+  }
+  :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select):hover:not(:focus):not(:disabled) {
+    border-color: oklch(var(--c-fg-3) / 0.55);
+  }
+  ::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+  }
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"],
+  progress {
+    accent-color: var(--accent);
+  }
+  select option {
+    background: var(--surface-100);
+    color: var(--text-primary);
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-mono);
+  }
+
+  /* Thin overlay scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
 }
 
 /* Theme-aware visible border — works on all themes */
@@ -101,53 +413,35 @@ body {
   border-color: var(--input-border);
 }
 
-/* Active theme-card state (used in SettingsUser theme picker).
-   Uses explicit per-theme rgba so the accent tint is visible on every theme,
-   including light where `border-accent/60` produced nothing. */
-[data-theme="neon"] .theme-card-active {
-  background-color: rgba(139, 92, 246, 0.12);
-  border-color: rgba(139, 92, 246, 0.6);
-}
-[data-theme="dark"] .theme-card-active {
-  background-color: rgba(99, 102, 241, 0.12);
-  border-color: rgba(99, 102, 241, 0.6);
-}
-[data-theme="light"] .theme-card-active {
-  background-color: rgba(99, 102, 241, 0.1);
-  border-color: rgba(99, 102, 241, 0.6);
-}
-
 /* Theme-aware chip styles for search type sub-parameters */
 .chip-amber {
-  background: rgba(245, 158, 11, 0.15);
-  color: #b45309;
-  border-color: rgba(245, 158, 11, 0.5);
+  background: oklch(var(--c-warning) / 0.14);
+  color: var(--warning);
+  border-color: oklch(var(--c-warning) / 0.45);
 }
 .chip-red {
-  background: rgba(239, 68, 68, 0.15);
-  color: #b91c1c;
-  border-color: rgba(239, 68, 68, 0.5);
-}
-[data-theme="dark"] .chip-amber,
-[data-theme="neon"] .chip-amber {
-  color: #fbbf24;
-}
-[data-theme="dark"] .chip-red,
-[data-theme="neon"] .chip-red {
-  color: #f87171;
+  background: oklch(var(--c-danger) / 0.12);
+  color: var(--danger);
+  border-color: oklch(var(--c-danger) / 0.45);
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
+/* Brand text: lavender-to-peach ink, as on uiarc.dev */
+.text-arc-gradient {
+  background: var(--arc-gradient-ink);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
-::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent);
+
+/* Every animation gets a reduced-motion path; spinners keep turning since
+   they carry state. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
