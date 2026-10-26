@@ -8,7 +8,7 @@ It ships with three complementary workbenches on a single dashboard:
 
 - **RAG Workbench** — Document ingestion → LLM-generated evaluation dataset → grid search over chunking, embeddings, retrieval strategies and rerankers → [RAGAS](https://docs.ragas.io/) scoring → improvement report.
 - **Agent Workbench** — Agent definition (prompt, tools, MCP servers) → scenario library (tool use, decision paths, response quality, guardrails) → persona-driven simulation → G-Eval LLM-as-judge scoring → ranked leaderboard.
-- **Model Comparison** — Labeled classification dataset (7 built-in sets of 1,200 rows, or your own upload) → the same sample through decision models (TypeSafe Jev and other System One endpoints) and LLM classifiers → accuracy, errors and total cost per model.
+- **Model Comparison** — Labeled classification dataset (7 built-in sets of 1,200 rows, or your own upload) → the same sample through decision models (TypeSafe Jev, OpenAI's Decisions API and other System One endpoints) and LLM classifiers → accuracy, errors and total cost per model.
 
 ---
 
@@ -62,7 +62,7 @@ It ships with three complementary workbenches on a single dashboard:
 - **Results Dashboard** — All Results table with every metric as a column, collapsible LLM-generated Improvement Report, and per-transcript drill-down.
 
 ### Model Comparison (decision models vs LLMs)
-- **Decision-model providers** — TypeSafe's **Jev** (System One API) and any System One-compatible endpoint (gateways such as LiteLLM, or self-hosted open "Jev-style" models), configured in Settings → Providers next to your LLMs.
+- **Decision-model providers** — TypeSafe's **Jev** (System One API), OpenAI's **Decisions API** (`gpt-6-luna`, selected under *Decision Models* on an OpenAI provider) and any System One-compatible endpoint (gateways such as LiteLLM, or self-hosted open "Jev-style" models), configured in Settings → Providers next to your LLMs.
 - **Built-in datasets** — Seven labeled sets of 1,200 rows each: Guardrails, Support Ticket Classification (English and pt-BR), Banking Intent Routing, Agent Tool Routing, Product Review Sentiment, and Email & SMS Threat Triage. Every set includes hard cases that borrow a neighbouring label's vocabulary.
 - **Custom datasets** — Upload CSV, TSV, JSON or JSONL; columns are auto-detected (or picked in a preview), and label definitions can be edited before import.
 - **Head-to-head runs** — Up to 8 models answer the same stratified sample with the same task question and label definitions, with live progress, stop and resume.
@@ -134,7 +134,7 @@ Configured from Settings → Providers. All credentials are stored in the backen
 
 | Provider | LLM | Embeddings | Notes |
 |----------|-----|------------|-------|
-| **OpenAI** | ✓ | ✓ | GPT-6 (Astra, 6.1 Sol, Luna), GPT-5.6 (Sol, Terra), GPT-5.5, GPT-5.4. Flex tier on `o3`, `gpt-5*`, `gpt-6*`. |
+| **OpenAI** | ✓ | ✓ | GPT-6 (Astra, 6.1 Sol, Luna), GPT-5.6 (Sol, Terra), GPT-5.5, GPT-5.4. Flex tier on `o3`, `gpt-5*`, `gpt-6*`. Decision model `gpt-6-luna` via the Decisions API (`/v1/decisions`): input tokens only, $0.10 / 1M. |
 | **Anthropic** | ✓ | — | Claude Opus 5.5 / Sonnet 5.5 / Haiku 5.5, Fable 5.1, and the Opus 5, Sonnet 5 and 4.x models. |
 | **Google (Gemini)** | ✓ | ✓ | Gemini 4 Argon, 3.8 Flash, 3.6 Flash, 3.5 Flash-Lite, 3.1 Pro (preview). Flex tier on `gemini-2.5-*` and `gemini-3.x`. |
 | **Cohere** | ✓ | ✓ | Command-R family + embed-english/multilingual. |
@@ -309,7 +309,7 @@ Aggregated results expose `{mean, median, std, min, max, count}` per metric, and
 
 ## Model Comparison: Decision Models vs LLMs
 
-Decision models such as TypeSafe's Jev don't generate text. They receive a piece of **state** and a typed **question**, and return a choice with a calibrated probability for each option. Many production LLM calls are this kind of decision: routing a ticket, screening an input, classifying an intent, or picking a tool. The Model Comparison workbench measures whether a decision model can replace an LLM on *your* task, and at what cost.
+Decision models such as TypeSafe's Jev and OpenAI's Decisions API don't generate text. They receive a piece of **state** and a typed **question**, and return a choice with a calibrated probability for each option. Many production LLM calls are this kind of decision: routing a ticket, screening an input, classifying an intent, or picking a tool. The Model Comparison workbench measures whether a decision model can replace an LLM on *your* task, and at what cost.
 
 **How a run works**
 
@@ -321,6 +321,12 @@ Decision models such as TypeSafe's Jev don't generate text. They receive a piece
      {"model": "jev-latest", "state": "<row text>",
       "questions": {"decision": {"type": "choice", "instructions": "<task>",
                                  "criteria": {"<label>": "<definition>", "...": "..."}}}}
+     ```
+     OpenAI's Decisions API gets the equivalent `choice` question (`POST /v1/decisions`); a `refusal` answer counts as **no answer**:
+     ```json
+     {"model": "gpt-6-luna", "input": "<row text>",
+      "questions": [{"type": "choice", "name": "decision", "instructions": "<task>",
+                     "choices": [{"value": "<label>", "description": "<definition>"}, "..."]}]}
      ```
    - LLMs receive the same content as a prompt and must answer `{"label": "...", "confidence": ...}`. An answer that doesn't resolve to exactly one known label counts as **no answer**. The parser never guesses.
 4. Predictions are stored per row, so you can drill into exactly where each model failed.
@@ -335,7 +341,7 @@ Decision models such as TypeSafe's Jev don't generate text. They receive a piece
 | Total cost, Cost / 1k rows, Cost share, × cheapest | Measured tokens × price per 1M tokens (editable per run), and each model's share of the comparison's spend |
 | Latency p50 / p95 | Per-request latency |
 
-Prices come from the built-in table (`MODEL_PRICING`, flex-tier aware). Ollama and Claude Code are treated as free, and any other model with no known price can be priced per run in the UI (enter 0 for self-hosted). Spend is also logged to **History → Logs** under the `model_comparison` operation.
+Prices come from the built-in tables (`MODEL_PRICING`, flex-tier aware, and `DECISION_MODEL_PRICING` for decision models: OpenAI's `gpt-6-luna` costs $0.10 / 1M input tokens via the Decisions API vs. $0.10 / $0.50 as an LLM). Ollama and Claude Code are treated as free, and any other model with no known price can be priced per run in the UI (enter 0 for self-hosted). Spend is also logged to **History → Logs** under the `model_comparison` operation.
 
 **Built-in datasets** (`backend/data/decision_datasets/`, seeded on startup)
 
