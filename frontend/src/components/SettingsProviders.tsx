@@ -68,6 +68,8 @@ const PROVIDER_ICONS: Record<string, string> = {
 };
 
 const DECISION_HINTS: Record<string, string> = {
+  openai:
+    "OpenAI's Decisions API (POST /v1/decisions) answers a typed choice question with a probability per option instead of generated text. Runs on gpt-6-luna at $0.10 / 1M input tokens; output is free. Used by Model Comparison — leave it unselected to skip.",
   typesafe:
     "TypeSafe's Jev is a decision model: it returns a typed choice with calibrated probabilities instead of generated text. Used by Model Comparison. Billed per input token; output is free.",
   systemone:
@@ -430,6 +432,11 @@ function AddProviderForm({
     setSaving(true);
     setError(null);
 
+    // Providers that also serve LLMs (OpenAI) only enable decisions when a
+    // decision model is selected.
+    const decisionOn =
+      !!entry?.supports_decision && (entry.supports_llm === false || selectedDecisionModels.length > 0);
+
     try {
       const provider = await api.createProvider({
         name,
@@ -439,13 +446,13 @@ function AddProviderForm({
         is_active: true,
         supports_llm: entry?.supports_llm ?? true,
         supports_embedding: entry?.supports_embedding ?? false,
-        supports_decision: entry?.supports_decision ?? false,
+        supports_decision: decisionOn,
         llm_models: entry?.supports_llm === false ? [] : selectedLlmModels,
         embedding_models: entry?.supports_embedding === false ? [] : selectedEmbModels,
-        decision_models: entry?.supports_decision ? selectedDecisionModels : [],
+        decision_models: decisionOn ? selectedDecisionModels : [],
         default_llm_model: entry?.supports_llm === false ? undefined : selectedLlmModels[0] || undefined,
         default_embedding_model: entry?.supports_embedding === false ? undefined : selectedEmbModels[0] || undefined,
-        default_decision_model: entry?.supports_decision ? selectedDecisionModels[0] || undefined : undefined,
+        default_decision_model: decisionOn ? selectedDecisionModels[0] || undefined : undefined,
         extra_config: supportsFlex && flexTier ? { flex_tier: true } : {},
       });
       onCreated(provider);
@@ -874,6 +881,9 @@ function ProviderDetails({
 
   const supportsFlex =
     provider.provider_type === "openai" || provider.provider_type === "google";
+  // Existing OpenAI providers predate decision support, so offer the
+  // section whenever the catalog says the provider type can serve it.
+  const decisionCapable = provider.supports_decision || !!catalog?.supports_decision;
 
   const markDirty = () => setDirty(true);
 
@@ -907,10 +917,12 @@ function ProviderDetails({
         default_llm_model: defaultLlm || (llmModels[0] ?? undefined),
         default_embedding_model: defaultEmb || (embModels[0] ?? undefined),
       };
-      if (provider.supports_decision) {
+      if (decisionCapable) {
         payload.decision_models = decisionModels;
         payload.default_decision_model =
           (decisionModels.includes(defaultDecision) ? defaultDecision : decisionModels[0]) || undefined;
+        // LLM providers (OpenAI) serve decisions only while one is configured.
+        if (provider.supports_llm) payload.supports_decision = decisionModels.length > 0;
       }
       if (apiKey) payload.api_key = apiKey;
       if (supportsFlex) {
@@ -1133,13 +1145,16 @@ function ProviderDetails({
       )}
 
       {/* Decision Models */}
-      {provider.supports_decision && (
+      {decisionCapable && (
         <div>
           <label className="block text-xs font-medium text-t-secondary mb-2">
             <Zap className="w-3.5 h-3.5 inline mr-1 text-warning" />
             Decision Models
             {defaultDecision && <span className="text-muted ml-2">(default: {defaultDecision})</span>}
           </label>
+          {decisionModels.length === 0 && DECISION_HINTS[provider.provider_type] && (
+            <p className="text-[11px] text-muted mb-2">{DECISION_HINTS[provider.provider_type]}</p>
+          )}
           <div className="flex flex-wrap gap-1.5 mb-2">
             {decisionModels.map((m) => (
               <span

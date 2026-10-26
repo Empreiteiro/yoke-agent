@@ -17,6 +17,7 @@ interface SelectedModel {
   provider_name: string;
   provider_type: string;
   model: string;
+  display_name: string;
   input_price: string;
   output_price: string;
   pricing_source: string;
@@ -86,7 +87,7 @@ export default function DecisionCompare() {
         kind: m.kind,
         provider_id: m.provider_id,
         model: m.model,
-        display_name: `${m.model} (${m.provider_name})`,
+        display_name: m.display_name,
         input_price_per_million: m.input_price === "" ? null : Number(m.input_price),
         output_price_per_million: m.output_price === "" ? null : Number(m.output_price),
       })),
@@ -277,7 +278,7 @@ export default function DecisionCompare() {
             <ModelPicker
               title="Decision models"
               icon={Zap}
-              hint="Typed choice + probability — TypeSafe Jev and System One-compatible endpoints."
+              hint="Typed choice + probability — TypeSafe Jev, OpenAI's Decisions API and System One-compatible endpoints."
               models={available.decision_models}
               selected={selected}
               onToggle={toggle}
@@ -285,8 +286,9 @@ export default function DecisionCompare() {
                 <div className="flex flex-wrap items-center gap-3 text-xs text-t-secondary bg-warning/5 border border-warning/20 rounded-lg px-3 py-2.5">
                   <Zap className="w-4 h-4 text-warning" />
                   <span className="flex-1">
-                    No decision provider yet. Add <strong className="text-primary">TypeSafe (Jev)</strong> — or any System
-                    One-compatible endpoint — in Settings → Providers.
+                    No decision provider yet. Add <strong className="text-primary">TypeSafe (Jev)</strong>, select{" "}
+                    <strong className="text-primary">gpt-6-luna</strong> under Decision Models on an OpenAI provider, or add
+                    any System One-compatible endpoint in Settings → Providers.
                   </span>
                   <button
                     onClick={() => router.push("/?view=settings")}
@@ -464,6 +466,7 @@ function toSelected(m: any): SelectedModel {
     provider_name: m.provider_name,
     provider_type: m.provider_type,
     model: m.model,
+    display_name: m.display_name ?? `${m.model} (${m.provider_name})`,
     input_price: toPrice(m.input_price_per_million),
     output_price: toPrice(m.output_price_per_million),
     pricing_source: m.pricing_source,
@@ -567,7 +570,7 @@ function EmptyProviders({ onOpenSettings }: { onOpenSettings: () => void }) {
       <Scale className="w-10 h-10 text-muted mx-auto mb-3" />
       <p className="text-sm text-primary font-medium">No models available yet</p>
       <p className="text-xs text-t-secondary mt-1 max-w-md mx-auto">
-        Add a decision-model provider (TypeSafe Jev) and at least one LLM provider in Settings → Providers.
+        Add a decision-model provider (TypeSafe Jev or OpenAI's Decisions API) and at least one LLM provider in Settings → Providers.
       </p>
       <button
         onClick={onOpenSettings}
