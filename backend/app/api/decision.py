@@ -189,6 +189,14 @@ def _comparison_dict(comp: DecisionComparison, include_details: bool = True) -> 
     return data
 
 
+def _default_display_name(kind: str, provider: Provider, model: str) -> str:
+    # OpenAI serves gpt-6-luna both as an LLM and via its Decisions API —
+    # tag the decision variant so the two don't share a name in results.
+    if kind == "decision" and provider.supports_llm:
+        return f"{model} · Decisions ({provider.name})"
+    return f"{model} ({provider.name})"
+
+
 def _resolve_specs(db: Session, specs: list[ModelSpec]) -> list[tuple[ModelSpec, Provider, Optional[float], Optional[float]]]:
     resolved = []
     for spec in specs:
@@ -445,6 +453,7 @@ def list_comparable_models(db: Session = Depends(get_db)):
                 decision_models.append({
                     "kind": "decision", "provider_id": p.id, "provider_name": p.name,
                     "provider_type": p.provider_type, "model": model,
+                    "display_name": _default_display_name("decision", p, model),
                     "is_default": model == p.default_decision_model,
                     "input_price_per_million": in_price, "output_price_per_million": out_price,
                     "pricing_source": source,
@@ -455,6 +464,7 @@ def list_comparable_models(db: Session = Depends(get_db)):
                 llm_models.append({
                     "kind": "llm", "provider_id": p.id, "provider_name": p.name,
                     "provider_type": p.provider_type, "model": model,
+                    "display_name": _default_display_name("llm", p, model),
                     "is_default": model == p.default_llm_model,
                     "input_price_per_million": in_price, "output_price_per_million": out_price,
                     "pricing_source": source,
@@ -480,7 +490,7 @@ def estimate_comparison(body: EstimateRequest, request: Request, db: Session = D
             "kind": spec.kind,
             "provider_id": provider.id,
             "model": spec.model,
-            "display_name": spec.display_name or f"{spec.model} ({provider.name})",
+            "display_name": spec.display_name or _default_display_name(spec.kind, provider, spec.model),
             "items": len(ids),
             "input_tokens": in_tok,
             "output_tokens": out_tok,
@@ -530,7 +540,7 @@ def create_comparison(body: ComparisonCreate, request: Request, bg: BackgroundTa
             provider_name=provider.name,
             provider_type=provider.provider_type,
             model_name=spec.model,
-            display_name=spec.display_name or f"{spec.model} ({provider.name})",
+            display_name=spec.display_name or _default_display_name(spec.kind, provider, spec.model),
             input_price_per_million=in_price,
             output_price_per_million=out_price,
             total=len(ids),

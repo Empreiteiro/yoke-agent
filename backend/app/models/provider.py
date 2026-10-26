@@ -16,8 +16,9 @@ class Provider(Base):
     # Supported capabilities
     supports_llm = Column(Boolean, default=False)
     supports_embedding = Column(Boolean, default=False)
-    # Decision models (TypeSafe Jev and other System One-style APIs) return a
-    # typed choice from a fixed option set instead of generated text.
+    # Decision models (TypeSafe Jev and other System One-style APIs, OpenAI's
+    # Decisions API) return a typed choice from a fixed option set instead
+    # of generated text.
     supports_decision = Column(Boolean, default=False)
 
     # Available models (stored as JSON arrays)

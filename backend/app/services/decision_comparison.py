@@ -1,11 +1,12 @@
 """Model Comparison engine: decision models vs. LLMs on labeled datasets.
 
 Every model in a comparison classifies the *same* sample of dataset rows.
-Decision models (TypeSafe Jev, System One-compatible endpoints) receive the
-task as a typed ``choice`` question; LLMs receive the same task and label
-definitions as a prompt. For each model we record every prediction plus
-aggregated accuracy (correct / incorrect / failed), per-label precision
-and recall, a confusion matrix, latency percentiles and total cost.
+Decision models (TypeSafe Jev, System One-compatible endpoints, OpenAI's
+Decisions API) receive the task as a typed ``choice`` question; LLMs
+receive the same task and label definitions as a prompt. For each model we
+record every prediction plus aggregated accuracy (correct / incorrect /
+failed), per-label precision and recall, a confusion matrix, latency
+percentiles and total cost.
 """
 
 from __future__ import annotations
@@ -30,10 +31,12 @@ from app.models.decision import (
 from app.models.provider import Provider
 from app.models.token_usage import TokenUsageLog
 from app.services.decision_models import (
-    DECISION_PROVIDER_TYPES, SystemOneClient, estimate_request_tokens,
+    DECISION_PROVIDER_TYPES, DecisionClient, estimate_request_tokens,
 )
 from app.services.llm_classifier import build_messages, parse_answer
-from app.services.token_tracker import FLEX_DISCOUNT, extract_llm_token_usage, lookup_pricing
+from app.services.token_tracker import (
+    FLEX_DISCOUNT, extract_llm_token_usage, lookup_decision_pricing, lookup_pricing,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -127,10 +130,11 @@ def default_prices(kind: str, provider: Provider, model: str) -> tuple[Optional[
     """
     ptype = provider.provider_type
     if kind == "decision":
-        if ptype == "typesafe":
-            pricing = lookup_pricing("jev")
-            return pricing["prompt"], pricing["completion"], "TypeSafe list price"
-        return None, None, "unknown"
+        pricing = lookup_decision_pricing(ptype, model)
+        if not pricing:
+            return None, None, "unknown"
+        vendor = "TypeSafe" if ptype == "typesafe" else "OpenAI"
+        return pricing["prompt"], pricing["completion"], f"{vendor} list price"
 
     if ptype in ("ollama", "claude_code"):
         return 0.0, 0.0, "local"
@@ -263,7 +267,7 @@ class Outcome:
 
 class _DecisionClassifier:
     def __init__(self, provider: Provider, model: str, task: str, labels: list[dict], concurrency: int):
-        self.client = SystemOneClient(provider, model)
+        self.client = DecisionClient(provider, model)
         self.task = task
         self.labels = labels
         self.label_names = [l["name"] for l in labels]
@@ -294,7 +298,10 @@ class _DecisionClassifier:
             tokens_estimated=answer.tokens_estimated,
             latency_ms=answer.latency_ms,
             raw=raw[:RAW_OUTPUT_LIMIT],
-            error=None if label else f"Answer {answer.choice!r} is not one of the dataset labels",
+            error=None if label else (
+                f"Model refused: {answer.refusal}" if answer.refusal
+                else f"Answer {answer.choice!r} is not one of the dataset labels"
+            ),
         )
 
 
