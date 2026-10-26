@@ -83,6 +83,10 @@ class ModelSpec(BaseModel):
     output_price_per_million: Optional[float] = Field(None, ge=0)
     # USD per hour of the hardware serving a self-hosted model.
     infra_cost_per_hour: Optional[float] = Field(None, ge=0)
+    # LLMs: send requests on the flex service tier (OpenAI o3 / gpt-5* /
+    # gpt-6*, Gemini 2.5 / 3.x) — about half the price, slower and
+    # best-effort. None = the provider's setting; ignored elsewhere.
+    flex: Optional[bool] = None
     deployment: Optional[DeploymentInfo] = None
 
     # A short name for this configuration, e.g. "default policy" or
