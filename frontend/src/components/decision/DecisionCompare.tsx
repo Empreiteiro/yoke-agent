@@ -479,7 +479,7 @@ export default function DecisionCompare() {
                   <span className="flex-1">
                     No decision provider yet. Add <strong className="text-primary">TypeSafe (Jev)</strong>, select{" "}
                     <strong className="text-primary">gpt-6-luna</strong> under Decision Models on an OpenAI provider, or add
-                    any System One-compatible endpoint in Settings → Providers.
+                    any System One-compatible endpoint (such as a self-hosted DiffusionGemma) in Settings → Providers.
                   </span>
                   <button
                     onClick={() => router.push("/?view=settings")}
