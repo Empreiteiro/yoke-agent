@@ -2,9 +2,10 @@
 
 A *decision dataset* is a labeled classification set (text → one label out
 of a fixed list). A *comparison* runs the same sample of a dataset through
-several models — decision models such as TypeSafe's Jev and regular LLMs
-prompted as classifiers — and stores per-item predictions plus aggregated
-accuracy, cost and latency per model.
+several models — decision models such as TypeSafe's Jev, pre-trained text
+classifiers, regex rule baselines and regular LLMs prompted as classifiers —
+and stores per-item predictions plus aggregated accuracy, cost and latency
+per model.
 """
 
 from sqlalchemy import (
@@ -69,7 +70,9 @@ class DecisionComparison(Base):
     sample_size = Column(Integer, nullable=True)
     seed = Column(Integer, default=42)
     item_ids = Column(JSON, nullable=False, default=list)
-    config = Column(JSON, default=dict)  # {"concurrency": 8, "temperature": 0.0}
+    # {"concurrency": 8, "temperature": 0.0, "latency_mode": false,
+    #  "warmup": 0, "analysis": {"positive_labels": [...], "prevalence": …}}
+    config = Column(JSON, default=dict)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     started_at = Column(DateTime, nullable=True)
@@ -88,8 +91,8 @@ class DecisionModelResult(Base):
     id = Column(Integer, primary_key=True, index=True)
     comparison_id = Column(Integer, ForeignKey("decision_comparisons.id", ondelete="CASCADE"), nullable=False, index=True)
     position = Column(Integer, default=0)
-    kind = Column(String(20), nullable=False)  # decision | llm
-    provider_id = Column(Integer, nullable=True)
+    kind = Column(String(20), nullable=False)  # decision | llm | classifier | rules
+    provider_id = Column(Integer, nullable=True)  # None for rule baselines
     provider_name = Column(String(100), nullable=True)
     provider_type = Column(String(50), nullable=True)
     model_name = Column(String(200), nullable=False)
@@ -97,6 +100,15 @@ class DecisionModelResult(Base):
     # USD per 1M tokens used for cost; None when the price is unknown.
     input_price_per_million = Column(Float, nullable=True)
     output_price_per_million = Column(Float, nullable=True)
+    # USD per hour of the hardware serving a self-hosted model; charged for
+    # the model's wall-clock time in the run.
+    infra_cost_per_hour = Column(Float, nullable=True)
+    # Snapshot of everything that shapes the model's answers (task and label
+    # overrides, prompt templates, label aliases, classifier mapping, rules)
+    # plus deployment metadata — see ModelSpec.
+    config = Column(JSON, nullable=True)
+    variant = Column(String(100), nullable=True)
+    policy_hash = Column(String(16), nullable=True)
 
     status = Column(String(20), default="pending")  # pending, running, stopped, completed, failed
     error_message = Column(Text, nullable=True)
@@ -112,12 +124,19 @@ class DecisionModelResult(Base):
     input_tokens = Column(Integer, default=0)
     output_tokens = Column(Integer, default=0)
     tokens_estimated = Column(Boolean, default=False)
-    total_cost = Column(Float, nullable=True)
+    token_cost = Column(Float, nullable=True)
+    infra_cost = Column(Float, nullable=True)
+    total_cost = Column(Float, nullable=True)  # token_cost + infra_cost
 
     avg_latency_ms = Column(Float, nullable=True)
     p50_latency_ms = Column(Float, nullable=True)
+    p90_latency_ms = Column(Float, nullable=True)
     p95_latency_ms = Column(Float, nullable=True)
+    p99_latency_ms = Column(Float, nullable=True)
+    latency_std_ms = Column(Float, nullable=True)
     wall_time_ms = Column(Float, nullable=True)
+    avg_attempts = Column(Float, nullable=True)
+    retried = Column(Integer, default=0)  # predictions that needed > 1 attempt
     avg_confidence = Column(Float, nullable=True)
     avg_confidence_correct = Column(Float, nullable=True)
     avg_confidence_incorrect = Column(Float, nullable=True)
@@ -143,7 +162,12 @@ class DecisionPrediction(Base):
     status = Column(String(20), default="ok")  # ok | invalid | error
     is_correct = Column(Boolean, default=False)
     confidence = Column(Float, nullable=True)
+    # Score per dataset label when the model returns a distribution
+    # (decision models, classifiers); used for ROC curves and calibration.
+    probabilities = Column(JSON, nullable=True)
+    # Latency of the successful attempt only; retries are counted here.
     latency_ms = Column(Float, nullable=True)
+    attempts = Column(Integer, nullable=True)
     input_tokens = Column(Integer, default=0)
     output_tokens = Column(Integer, default=0)
     cost = Column(Float, nullable=True)

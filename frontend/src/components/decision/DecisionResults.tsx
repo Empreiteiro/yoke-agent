@@ -16,6 +16,7 @@ import {
   Search,
   Square,
   Target,
+  Timer,
   Trash2,
   Trophy,
   X,
@@ -39,18 +40,35 @@ import { api, downloadFile } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Pager } from "./DecisionDatasets";
 import {
+  ChartTooltip,
   KindBadge,
+  KindLegend,
   STATUS,
   SectionCard,
   SeriesDot,
   StatusPill,
+  VariantBadge,
   formatCost,
   formatInt,
   formatMs,
   formatPct,
+  kindInfo,
+  labelledIds,
+  shortName,
   useChartChrome,
   useSeriesColors,
 } from "./shared";
+import {
+  CalibrationChart,
+  GuardrailPanel,
+  LatencyPanel,
+  LatencyTradeoffChart,
+  PolicySensitivityPanel,
+  RocPanel,
+  SignificancePanel,
+  SlicesPanel,
+  formatCi,
+} from "./DecisionAnalysis";
 
 const ACTIVE = ["pending", "running", "stopping"];
 const PRED_PAGE = 20;
@@ -239,6 +257,7 @@ function ComparisonDetail({ comparisonId }: { comparisonId: number }) {
   const router = useRouter();
   const colors = useSeriesColors();
   const [comp, setComp] = useState<any>(null);
+  const [analysis, setAnalysis] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -252,6 +271,7 @@ function ComparisonDetail({ comparisonId }: { comparisonId: number }) {
 
   useEffect(() => {
     setComp(null);
+    setAnalysis(null);
     load();
   }, [load]);
 
@@ -261,6 +281,15 @@ function ComparisonDetail({ comparisonId }: { comparisonId: number }) {
     const t = setInterval(load, 2000);
     return () => clearInterval(t);
   }, [running, load]);
+
+  // Derived statistics are computed server-side from the predictions;
+  // fetch them once the run settles (and again if it is resumed).
+  const compId: number | undefined = comp?.id;
+  const processed: number | undefined = comp?.progress?.processed;
+  useEffect(() => {
+    if (!compId || running) return;
+    api.getComparisonAnalysis(compId).then(setAnalysis).catch((e) => setError(e.message));
+  }, [compId, running, processed]);
 
   const act = async (fn: () => Promise<any>) => {
     setBusy(true);
@@ -309,6 +338,11 @@ function ComparisonDetail({ comparisonId }: { comparisonId: number }) {
           </div>
           <p className="text-sm text-t-secondary mt-0.5">
             {comp.dataset_name} · {formatInt(comp.item_count)} rows ({comp.sampling}) · {comp.model_count} models
+            {comp.config?.latency_mode && (
+              <span className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded-md border border-visible text-[11px] text-t-hover align-middle">
+                <Timer className="w-3 h-3" /> latency benchmark mode
+              </span>
+            )}
           </p>
           <p className="text-xs text-muted mt-1 max-w-3xl">Task: {comp.task}</p>
         </div>
@@ -379,26 +413,57 @@ function ComparisonDetail({ comparisonId }: { comparisonId: number }) {
         />
       </div>
 
-      <Leaderboard models={models} />
+      <Leaderboard models={models} analysis={analysis} />
 
       {finished.length > 0 && (
         <>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <AccuracyChart models={finished} />
-            <CostChart models={finished} />
+            <AccuracyChart models={finished} analysis={analysis} />
+            <OutcomeChart models={finished} />
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <OutcomeChart models={finished} />
+            <CostChart models={finished} />
             <TradeoffChart models={finished} />
           </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <LatencyTradeoffChart models={finished} />
+            <CalibrationChart models={finished} analysis={analysis} />
+          </div>
+          {analysis && (
+            <>
+              <GuardrailPanel
+                comparisonId={comp.id}
+                models={finished}
+                labels={comp.labels}
+                analysis={analysis}
+                onAnalysis={setAnalysis}
+              />
+              <RocPanel models={finished} analysis={analysis} />
+              <SignificancePanel models={finished} analysis={analysis} />
+              <LatencyPanel models={finished} analysis={analysis} config={comp.config || {}} />
+              <SlicesPanel models={finished} analysis={analysis} />
+              <PolicySensitivityPanel models={finished} analysis={analysis} />
+            </>
+          )}
           <PerLabelTable models={finished} labels={comp.labels} />
           <ConfusionMatrix models={finished} labels={comp.labels} />
         </>
       )}
 
-      <PredictionsExplorer comparisonId={comp.id} models={models} labels={comp.labels} refreshKey={comp.progress.processed} />
+      <PredictionsExplorer
+        comparisonId={comp.id}
+        models={models}
+        labels={comp.labels}
+        difficulties={Object.keys(firstSlices(analysis))}
+        refreshKey={comp.progress.processed}
+      />
     </div>
   );
+}
+
+function firstSlices(analysis: any): Record<string, any> {
+  const first: any = Object.values(analysis?.models || {})[0];
+  return first?.slices?.difficulty || {};
 }
 
 function BackLink({ onClick }: { onClick: () => void }) {
@@ -490,7 +555,7 @@ function ProgressPanel({ comp, models }: { comp: any; models: any[] }) {
 
 type SortKey = "rank" | "accuracy" | "total_cost" | "cost_per_1k" | "p50_latency_ms" | "macro_f1";
 
-function Leaderboard({ models }: { models: any[] }) {
+function Leaderboard({ models, analysis }: { models: any[]; analysis: any }) {
   const [sortKey, setSortKey] = useState<SortKey>("rank");
   const [asc, setAsc] = useState(true);
 
@@ -517,7 +582,7 @@ function Leaderboard({ models }: { models: any[] }) {
   return (
     <SectionCard
       title="Leaderboard"
-      description="Ranked by accuracy, then total cost. Errors = wrong label + no valid answer. Click a column to sort."
+      description="Ranked by accuracy, then total cost. Errors = wrong label + no valid answer. ≈ #1 = not statistically distinguishable from the top model. Click a column to sort."
     >
       <div className="overflow-x-auto -mx-2">
         <table className="w-full text-sm min-w-[900px]">
@@ -539,7 +604,10 @@ function Leaderboard({ models }: { models: any[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-[color:var(--input-border)]">
-            {sorted.map((m) => (
+            {sorted.map((m) => {
+              const a = analysis?.models?.[m.id];
+              const tie = analysis?.ties_with_best?.[m.id];
+              return (
               <tr key={m.id} className="align-top">
                 <td className="px-2.5 py-3 text-primary font-semibold tabular-nums">{m.rank ?? "—"}</td>
                 <td className="px-2.5 py-3">
@@ -547,9 +615,14 @@ function Leaderboard({ models }: { models: any[] }) {
                     <SeriesDot color={m.color} />
                     <span className="text-primary font-medium">{m.model_name}</span>
                     <KindBadge kind={m.kind} />
+                    <VariantBadge variant={m.variant} />
                     {m.status !== "completed" && <StatusPill status={m.status} />}
                   </div>
-                  <p className="text-[11px] text-muted ml-[18px]">{m.provider_name}</p>
+                  <p className="text-[11px] text-muted ml-[18px]">
+                    {m.provider_name}
+                    {m.deployment?.hardware && ` · ${m.deployment.hardware}`}
+                    {m.deployment?.parameters && ` · ${m.deployment.parameters}`}
+                  </p>
                   {m.error_message && <p className="text-[11px] text-danger ml-[18px] mt-0.5 max-w-md">{m.error_message}</p>}
                 </td>
                 <td className="px-2.5 py-3 text-right tabular-nums text-t-hover">{formatInt(m.evaluated)}</td>
@@ -565,14 +638,33 @@ function Leaderboard({ models }: { models: any[] }) {
                 </td>
                 <td className="px-2.5 py-3 text-right">
                   <span className="text-primary font-semibold tabular-nums">{formatPct(m.accuracy)}</span>
+                  {tie && !tie.is_best && tie.tied && (
+                    <span
+                      className="ml-1 px-1 py-0.5 rounded border border-visible text-[10px] text-t-hover"
+                      title={`Not statistically different from the top model (McNemar, Holm-adjusted p = ${tie.p_adjusted?.toFixed(3)})`}
+                    >
+                      ≈ #1
+                    </span>
+                  )}
                   <div className="w-20 h-1 bg-surface-200 rounded-full mt-1 ml-auto overflow-hidden">
                     <div className="h-full rounded-full" style={{ width: `${(m.accuracy || 0) * 100}%`, backgroundColor: m.color }} />
                   </div>
+                  {a?.accuracy_ci && <p className="text-[10px] text-muted mt-0.5" title="95% Wilson interval">{formatCi(a.accuracy_ci)}</p>}
                 </td>
-                <td className="px-2.5 py-3 text-right tabular-nums text-t-hover">{m.macro_f1 === null ? "—" : m.macro_f1.toFixed(3)}</td>
+                <td className="px-2.5 py-3 text-right tabular-nums text-t-hover">
+                  {m.macro_f1 === null ? "—" : m.macro_f1.toFixed(3)}
+                  {a?.macro_f1_ci && (
+                    <p className="text-[10px] text-muted" title="95% bootstrap interval">
+                      {a.macro_f1_ci[0].toFixed(3)}–{a.macro_f1_ci[1].toFixed(3)}
+                    </p>
+                  )}
+                </td>
                 <td className="px-2.5 py-3 text-right tabular-nums text-primary font-medium">
                   {formatCost(m.total_cost)}
                   {m.tokens_estimated && <p className="text-[10px] text-muted font-normal">tokens estimated</p>}
+                  {m.infra_cost !== null && m.infra_cost !== undefined && (
+                    <p className="text-[10px] text-muted font-normal">incl. {formatCost(m.infra_cost)} hardware</p>
+                  )}
                   {!m.pricing_known && <p className="text-[10px] text-warning font-normal">no price set</p>}
                 </td>
                 <td className="px-2.5 py-3 text-right tabular-nums text-t-hover">{formatCost(m.cost_per_1k)}</td>
@@ -587,9 +679,12 @@ function Leaderboard({ models }: { models: any[] }) {
                 <td className="px-2.5 py-3 text-right tabular-nums text-t-hover whitespace-nowrap">
                   {formatMs(m.p50_latency_ms)}
                   <p className="text-[10px] text-muted">p95 {formatMs(m.p95_latency_ms)}</p>
+                  <p className="text-[10px] text-muted">p99 {formatMs(m.p99_latency_ms)}</p>
+                  {m.retried > 0 && <p className="text-[10px] text-muted">{formatInt(m.retried)} retried</p>}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -599,21 +694,7 @@ function Leaderboard({ models }: { models: any[] }) {
 
 /* ═══════════════════════════ Charts ═══════════════════════════ */
 
-function ChartTooltip({ active, payload, render }: any) {
-  const chrome = useChartChrome();
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={chrome.tooltip} className="px-3 py-2 shadow-lg">
-      {render(payload[0].payload, payload)}
-    </div>
-  );
-}
-
-function shortName(m: any) {
-  return m.model_name.length > 22 ? `${m.model_name.slice(0, 21)}…` : m.model_name;
-}
-
-function AccuracyChart({ models }: { models: any[] }) {
+function AccuracyChart({ models, analysis }: { models: any[]; analysis: any }) {
   const chrome = useChartChrome();
   const data = models.map((m) => ({ name: shortName(m), full: m.display_name, value: (m.accuracy || 0) * 100, m }));
   return (
@@ -634,6 +715,9 @@ function AccuracyChart({ models }: { models: any[] }) {
                       <p className="text-xs">
                         Accuracy <strong>{formatPct(d.m.accuracy)}</strong> · {formatInt(d.m.correct)} / {formatInt(d.m.evaluated)} correct
                       </p>
+                      {analysis?.models?.[d.m.id]?.accuracy_ci && (
+                        <p className="text-[11px] opacity-80">95% CI {formatCi(analysis.models[d.m.id].accuracy_ci)}</p>
+                      )}
                     </>
                   )}
                 />
@@ -784,6 +868,8 @@ function TradeoffChart({ models }: { models: any[] }) {
     .filter((m) => m.cost_per_1k !== null && m.cost_per_1k !== undefined)
     .map((m) => ({ x: m.cost_per_1k, y: (m.accuracy || 0) * 100, m }));
   const useLog = points.length > 1 && points.every((p) => p.x > 0);
+  const maxX = Math.max(...points.map((p) => p.x), 0) || 1;
+  const labelled = labelledIds(points.map((p) => ({ id: p.m.id, nx: p.x / maxX, ny: p.y / 100 })));
   return (
     <SectionCard
       title="Cost vs accuracy"
@@ -794,7 +880,7 @@ function TradeoffChart({ models }: { models: any[] }) {
       ) : (
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 20, right: 24, left: 4, bottom: 8 }}>
+            <ScatterChart margin={{ top: 20, right: 56, left: 4, bottom: 8 }}>
               <CartesianGrid stroke={chrome.grid} />
               <XAxis
                 type="number"
@@ -832,16 +918,33 @@ function TradeoffChart({ models }: { models: any[] }) {
                   />
                 }
               />
+              <Legend
+                verticalAlign="top"
+                height={28}
+                wrapperStyle={{ fontSize: 11 }}
+                formatter={(value: string) => <span style={{ color: "var(--text-secondary)" }}>{value}</span>}
+              />
               {points.map((p) => (
-                <Scatter key={p.m.id} data={[p]} fill={p.m.color} stroke="var(--surface-100)" strokeWidth={2} shape={p.m.kind === "decision" ? "diamond" : "circle"}>
-                  <LabelList dataKey={(d: any) => d.m.model_name} position="top" style={{ fill: "var(--text-secondary)", fontSize: 10 }} />
+                <Scatter
+                  key={p.m.id}
+                  name={shortName(p.m)}
+                  legendType={kindInfo(p.m.kind).shape as any}
+                  data={[p]}
+                  fill={p.m.color}
+                  stroke="var(--surface-100)"
+                  strokeWidth={2}
+                  shape={kindInfo(p.m.kind).shape as any}
+                >
+                  {labelled.has(p.m.id) && (
+                    <LabelList dataKey={(d: any) => shortName(d.m)} position="top" style={{ fill: "var(--text-secondary)", fontSize: 10 }} />
+                  )}
                 </Scatter>
               ))}
             </ScatterChart>
           </ResponsiveContainer>
         </div>
       )}
-      <p className="text-[11px] text-muted mt-1">◆ decision model · ● LLM</p>
+      <KindLegend />
     </SectionCard>
   );
 }
@@ -995,16 +1098,19 @@ function PredictionsExplorer({
   comparisonId,
   models,
   labels,
+  difficulties,
   refreshKey,
 }: {
   comparisonId: number;
   models: any[];
   labels: any[];
+  difficulties: string[];
   refreshKey: number;
 }) {
   const [modelId, setModelId] = useState<number | "">(models[0]?.id ?? "");
   const [outcome, setOutcome] = useState("errors");
   const [expected, setExpected] = useState("");
+  const [difficulty, setDifficulty] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -1018,6 +1124,7 @@ function PredictionsExplorer({
         model_result_id: modelId === "" ? undefined : modelId,
         outcome: outcome || undefined,
         expected_label: expected || undefined,
+        difficulty: difficulty || undefined,
         search: search || undefined,
         offset: page * PRED_PAGE,
         limit: PRED_PAGE,
@@ -1025,7 +1132,7 @@ function PredictionsExplorer({
       .then(setData)
       .catch(() => setData({ total: 0, items: [] }))
       .finally(() => setLoading(false));
-  }, [comparisonId, modelId, outcome, expected, search, page, refreshKey]);
+  }, [comparisonId, modelId, outcome, expected, difficulty, search, page, refreshKey]);
 
   const byId = Object.fromEntries(models.map((m) => [m.id, m]));
   const pages = Math.max(1, Math.ceil(data.total / PRED_PAGE));
@@ -1088,6 +1195,23 @@ function PredictionsExplorer({
             </option>
           ))}
         </select>
+        {difficulties.length > 0 && (
+          <select
+            value={difficulty}
+            onChange={(e) => {
+              setDifficulty(e.target.value);
+              reset();
+            }}
+            className="bg-surface-50 border border-visible rounded-lg px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-accent/50"
+          >
+            <option value="">Any difficulty</option>
+            {difficulties.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -1149,8 +1273,23 @@ function PredictionsExplorer({
                       </span>
                     )}
                   </td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-t-hover">{p.confidence === null ? "—" : formatPct(p.confidence, 0)}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-t-hover">{formatMs(p.latency_ms)}</td>
+                  <td
+                    className="py-2 pr-3 text-right tabular-nums text-t-hover"
+                    title={
+                      p.probabilities
+                        ? Object.entries(p.probabilities)
+                            .sort((a: any, b: any) => b[1] - a[1])
+                            .map(([k, v]: any) => `${k}: ${formatPct(v, 1)}`)
+                            .join("\n")
+                        : undefined
+                    }
+                  >
+                    {p.confidence === null ? "—" : formatPct(p.confidence, 0)}
+                  </td>
+                  <td className="py-2 pr-3 text-right tabular-nums text-t-hover whitespace-nowrap">
+                    {formatMs(p.latency_ms)}
+                    {p.attempts > 1 && <span className="block text-[10px] text-muted">{p.attempts} attempts</span>}
+                  </td>
                   <td className="py-2 text-right tabular-nums text-t-hover">{formatCost(p.cost)}</td>
                 </tr>
               );

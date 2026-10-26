@@ -53,7 +53,11 @@ async function request<T>(
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(error.detail || "Request failed");
+    // FastAPI validation errors (422) carry a list of {loc, msg} objects.
+    const detail = Array.isArray(error.detail)
+      ? error.detail.map((d: any) => String(d?.msg ?? JSON.stringify(d)).replace(/^Value error, /, "")).join("; ")
+      : error.detail;
+    throw new Error(detail || "Request failed");
   }
 
   // 204 No Content — nothing to parse
@@ -449,7 +453,8 @@ export const api = {
   getTranscript: (id: number) => request<any>(`/agent/transcripts/${id}`),
   getTranscriptMetrics: (id: number) => request<any>(`/agent/transcripts/${id}/metrics`),
 
-  // Model Comparison — decision models (TypeSafe Jev / System One) vs. LLMs
+  // Model Comparison — decision models (TypeSafe Jev / System One), text
+  // classifiers and rule baselines vs. LLMs
   listDecisionDatasets: () => request<any[]>("/decision/datasets"),
   getDecisionDataset: (id: number) => request<any>(`/decision/datasets/${id}`),
   listDecisionDatasetItems: (
@@ -497,7 +502,13 @@ export const api = {
     request<any>(`/decision/datasets/${id}/duplicate`, { method: "POST" }),
   deleteDecisionDataset: (id: number) =>
     request<any>(`/decision/datasets/${id}`, { method: "DELETE" }),
-  listComparableModels: () => request<{ decision_models: any[]; llm_models: any[] }>("/decision/models"),
+  listComparableModels: () =>
+    request<{
+      decision_models: any[];
+      classifier_models: any[];
+      llm_models: any[];
+      default_prompts: { system: string; user: string };
+    }>("/decision/models"),
   estimateComparison: (data: any) =>
     request<any>("/decision/comparisons/estimate", { method: "POST", body: JSON.stringify(data) }),
   createComparison: (data: any) =>
@@ -511,6 +522,7 @@ export const api = {
       outcome?: string;
       expected_label?: string;
       predicted_label?: string;
+      difficulty?: string;
       search?: string;
       offset?: number;
       limit?: number;
@@ -522,6 +534,17 @@ export const api = {
     });
     return request<{ total: number; items: any[] }>(`/decision/comparisons/${id}/predictions?${qs}`);
   },
+  getComparisonAnalysis: (id: number) => request<any>(`/decision/comparisons/${id}/analysis`),
+  updateAnalysisSettings: (
+    id: number,
+    data: {
+      positive_labels: string[] | null;
+      failure_policy: string;
+      prevalence: number | null;
+      fn_cost: number;
+      fp_cost: number;
+    }
+  ) => request<any>(`/decision/comparisons/${id}/analysis-settings`, { method: "PUT", body: JSON.stringify(data) }),
   stopComparison: (id: number) =>
     request<any>(`/decision/comparisons/${id}/stop`, { method: "POST" }),
   resumeComparison: (id: number) =>

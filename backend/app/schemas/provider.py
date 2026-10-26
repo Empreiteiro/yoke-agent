@@ -172,6 +172,25 @@ PROVIDER_CATALOG = {
         "requires_api_key": False,
         "supports_base_url": True,
     },
+    # Pre-trained text classifiers (the "traditional guardrails" decision
+    # models are benchmarked against). Their models are listed under
+    # decision_models; Model Comparison runs them as kind "classifier".
+    # extra_config: {"api_format": "hf" | "detector", "path", "parameters",
+    # "detector_params", "headers"} — see services/text_classifiers.py.
+    "classifier": {
+        "label": "Text classifier (HF / TEI / detector)",
+        "supports_llm": False,
+        "supports_embedding": False,
+        "supports_decision": True,
+        "llm_models": [],
+        "embedding_models": [],
+        "decision_models": [
+            "protectai/deberta-v3-base-prompt-injection-v2",
+            "ibm-granite/granite-guardian-hap-125m",
+        ],
+        "requires_api_key": False,
+        "supports_base_url": True,
+    },
 }
 
 # Catalog entries default to no decision support.
