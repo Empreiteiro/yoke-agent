@@ -25,13 +25,9 @@ import {
   Activity,
   Scale,
   Lock,
-  Sun,
-  Moon,
-  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
-import { useTheme, Theme } from "@/contexts/ThemeContext";
 
 const iconMap: Record<string, any> = {
   bot: Bot,
@@ -83,12 +79,6 @@ const SETTINGS_ITEMS = [
   { id: "mcp", label: "MCP Server", icon: Cable },
   { id: "glossary", label: "Concepts", icon: BookOpen },
   { id: "user-settings", label: "User", icon: User },
-];
-
-const THEME_OPTIONS: { key: Theme; icon: any; label: string }[] = [
-  { key: "light", icon: Sun, label: "Light" },
-  { key: "dark", icon: Moon, label: "Dark" },
-  { key: "neon", icon: Zap, label: "Neon" },
 ];
 
 // Shared look for every row in the nav. The active row lifts onto the raised
@@ -241,37 +231,6 @@ function CollapsibleViewGroup({
           })}
         </SubList>
       )}
-    </div>
-  );
-}
-
-// ── Footer: segmented theme switcher ─────────────────────────────────
-
-function ThemeSwitcher() {
-  const { theme, setTheme } = useTheme();
-  return (
-    <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-0.5 p-0.5 rounded-lg bg-surface-200/70">
-      {THEME_OPTIONS.map(({ key, icon: ThemeIcon, label }) => {
-        const isActive = theme === key;
-        return (
-          <button
-            key={key}
-            role="radio"
-            aria-checked={isActive}
-            title={label}
-            onClick={() => setTheme(key)}
-            className={cn(
-              "flex items-center justify-center gap-1.5 h-7 rounded-md text-[11px] font-medium transition-colors",
-              isActive
-                ? "bg-surface-100 text-primary shadow-resting"
-                : "text-muted hover:text-t-secondary"
-            )}
-          >
-            <ThemeIcon className="w-3.5 h-3.5" />
-            {label}
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -453,10 +412,6 @@ export default function Sidebar({
           walkthroughId="sidebar-settings"
         />
       </nav>
-
-      <div className="px-3 pb-4 pt-2">
-        <ThemeSwitcher />
-      </div>
     </aside>
   );
 }
