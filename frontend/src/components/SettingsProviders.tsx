@@ -48,6 +48,9 @@ interface CatalogEntry {
   llm_models: string[];
   embedding_models: string[];
   decision_models?: string[];
+  // "classifier" when decision_models run as text classifiers.
+  decision_kind?: string;
+  model_labels?: Record<string, string>;
   requires_api_key: boolean;
   supports_base_url: boolean;
   default_base_url?: string;
@@ -57,6 +60,8 @@ const PROVIDER_ICONS: Record<string, string> = {
   openai: "🟢",
   anthropic: "🟤",
   google: "🔵",
+  openrouter: "🔀",
+  nvidia: "🟩",
   cohere: "🟣",
   ollama: "🦙",
   azure_openai: "☁️",
@@ -69,6 +74,8 @@ const PROVIDER_ICONS: Record<string, string> = {
 };
 
 const DECISION_HINTS: Record<string, string> = {
+  nvidia:
+    "Nemotron-3.5 Content Safety labels a prompt safe or unsafe, plus the categories it violates. Default policies use NVIDIA's 23-category taxonomy; custom policies send the dataset's task and label definitions as the policy, so categories come back as label names. In Model Comparison, map \"unsafe\" (or a category) to a dataset label. Free, rate-limited on build.nvidia.com.",
   openai:
     "OpenAI's Decisions API (POST /v1/decisions) answers a typed choice question with a probability per option instead of generated text. Runs on gpt-6-luna at $0.10 / 1M input tokens; output is free. Used by Model Comparison — leave it unselected to skip.",
   typesafe:
@@ -77,6 +84,17 @@ const DECISION_HINTS: Record<string, string> = {
     "Any endpoint that speaks TypeSafe's System One API — a gateway (e.g. LiteLLM at http://proxy:4000/typesafe) or a self-hosted open decision model such as Google's DiffusionGemma behind vLLM's structured-decisions server (port 8011 by default). Requests go to {Base URL}/v1/systemone. DiffusionGemma isn't on the Gemini API, so a Google API key won't reach it: use the served model name (dgemma if you set --served-model-name) and give the GPU a $/hour cost in Model Comparison.",
   classifier:
     "Pre-trained text classifiers (e.g. a DeBERTa prompt-injection detector or Granite Guardian HAP) — the traditional guardrails decision models are benchmarked against. Use {model} in the Base URL to address several Hugging Face models from one provider. Model Comparison maps their native labels onto the dataset's.",
+};
+
+const API_KEY_PLACEHOLDERS: Record<string, string> = {
+  openrouter: "sk-or-...",
+  nvidia: "nvapi-...",
+};
+
+// Hint for the "add a model" field of providers with open-ended catalogs.
+const LLM_MODEL_PLACEHOLDERS: Record<string, string> = {
+  openrouter: "Add any OpenRouter model slug (vendor/model)...",
+  nvidia: "Add any model id from build.nvidia.com...",
 };
 
 // Wire formats a text-classifier provider can speak (extra_config.api_format).
@@ -277,7 +295,7 @@ export default function SettingsProviders() {
                     {provider.supports_decision && (
                       <span className="flex items-center gap-1 text-xs text-warning font-medium">
                         <Zap className="w-3 h-3" />
-                        {(provider.decision_models || []).length} {provider.provider_type === "classifier" ? "Classifier" : "Decision"} model{(provider.decision_models || []).length !== 1 ? "s" : ""}
+                        {(provider.decision_models || []).length} {catalog[provider.provider_type]?.decision_kind === "classifier" ? "Classifier" : "Decision"} model{(provider.decision_models || []).length !== 1 ? "s" : ""}
                       </span>
                     )}
                   </div>
@@ -560,7 +578,7 @@ function AddProviderForm({
                   type={showKey ? "text" : "password"}
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
+                  placeholder={API_KEY_PLACEHOLDERS[providerType] || "sk-..."}
                   className="w-full px-4 py-2.5 pr-10 bg-surface-50 border border-visible rounded-xl text-primary text-sm focus:outline-none focus:border-accent"
                 />
                 <button
@@ -750,7 +768,7 @@ function AddProviderForm({
                   value={customModel}
                   onChange={(e) => setCustomModel(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addCustomModel(customModel, selectedLlmModels, setSelectedLlmModels, setCustomModel)}
-                  placeholder="Add custom model..."
+                  placeholder={LLM_MODEL_PLACEHOLDERS[providerType] || "Add custom model..."}
                   className="flex-1 px-3 py-1.5 bg-surface-50 border border-visible rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
                 />
                 <button
@@ -831,7 +849,7 @@ function AddProviderForm({
             <div>
               <label className="block text-sm font-medium text-t-secondary mb-2">
                 <Zap className="w-4 h-4 inline mr-1 text-warning" />
-                {providerType === "classifier" ? "Classifier Models" : "Decision Models"}
+                {entry.decision_kind === "classifier" ? "Classifier Models" : "Decision Models"}
               </label>
               {DECISION_HINTS[providerType] && (
                 <p className="text-xs text-muted mb-2">{DECISION_HINTS[providerType]}</p>
@@ -847,7 +865,7 @@ function AddProviderForm({
                         : "bg-surface-50 text-muted border border-dashed border-surface-300 hover:border-visible hover:text-warning"
                     }`}
                   >
-                    {m}
+                    {entry.model_labels?.[m] ?? m}
                     {selectedDecisionModels.includes(m) && !(entry.decision_models || []).includes(m) && " ✕"}
                   </button>
                 ))}
@@ -930,6 +948,9 @@ function ProviderDetails({
     Boolean(provider.extra_config?.flex_tier)
   );
   const isClassifier = provider.provider_type === "classifier";
+  // NVIDIA NIM's content-safety models also run as classifiers.
+  const classifierModels = isClassifier || catalog?.decision_kind === "classifier";
+  const modelLabel = (m: string) => catalog?.model_labels?.[m] ?? m;
   const [classifierFormat, setClassifierFormat] = useState<string>(provider.extra_config?.api_format || "hf");
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -1135,7 +1156,7 @@ function ProviderDetails({
               value={customLlm}
               onChange={(e) => setCustomLlm(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addModel(customLlm, llmModels, setLlmModels, setCustomLlm)}
-              placeholder="Add custom model..."
+              placeholder={LLM_MODEL_PLACEHOLDERS[provider.provider_type] || "Add custom model..."}
               className="flex-1 px-3 py-1.5 bg-surface-50 border border-visible rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
             />
             <button
@@ -1212,8 +1233,8 @@ function ProviderDetails({
         <div>
           <label className="block text-xs font-medium text-t-secondary mb-2">
             <Zap className="w-3.5 h-3.5 inline mr-1 text-warning" />
-            {isClassifier ? "Classifier Models" : "Decision Models"}
-            {defaultDecision && <span className="text-muted ml-2">(default: {defaultDecision})</span>}
+            {classifierModels ? "Classifier Models" : "Decision Models"}
+            {defaultDecision && <span className="text-muted ml-2">(default: {modelLabel(defaultDecision)})</span>}
           </label>
           {decisionModels.length === 0 && DECISION_HINTS[provider.provider_type] && (
             <p className="text-[11px] text-muted mb-2">{DECISION_HINTS[provider.provider_type]}</p>
@@ -1230,7 +1251,7 @@ function ProviderDetails({
                 onClick={() => { setDefaultDecision(m); markDirty(); }}
                 title="Click to set as default"
               >
-                {m === defaultDecision && "★ "}{m}
+                {m === defaultDecision && "★ "}{modelLabel(m)}
                 <button
                   onClick={(e) => { e.stopPropagation(); removeModel(m, decisionModels, setDecisionModels); }}
                   className="hover:text-danger ml-0.5"
@@ -1247,7 +1268,7 @@ function ProviderDetails({
                 onClick={() => toggleModel(m, decisionModels, setDecisionModels)}
                 className="px-2.5 py-1 bg-surface-50 text-muted text-xs rounded-lg border border-dashed border-surface-300 hover:border-visible hover:text-warning transition-all"
               >
-                + {m}
+                + {modelLabel(m)}
               </button>
             ))}
           </div>
@@ -1256,7 +1277,7 @@ function ProviderDetails({
               value={customDecision}
               onChange={(e) => setCustomDecision(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addModel(customDecision, decisionModels, setDecisionModels, setCustomDecision)}
-              placeholder={isClassifier ? "Add classifier model..." : "Add decision model..."}
+              placeholder={classifierModels ? "Add classifier model..." : "Add decision model..."}
               className="flex-1 px-3 py-1.5 bg-surface-50 border border-visible rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
             />
             <button
