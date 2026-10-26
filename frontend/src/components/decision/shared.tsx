@@ -1,6 +1,6 @@
 "use client";
 
-import { Brain, Zap } from "lucide-react";
+import { Brain, Regex, ShieldCheck, Zap } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 
@@ -62,7 +62,37 @@ export function formatMs(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
   if (value >= 10_000) return `${(value / 1000).toFixed(0)} s`;
   if (value >= 1000) return `${(value / 1000).toFixed(1)} s`;
+  // Regex rules and local classifiers answer in well under a millisecond.
+  if (value > 0 && value < 1) return `${value.toFixed(value < 0.1 ? 3 : 2)} ms`;
+  if (value > 0 && value < 10) return `${value.toFixed(1)} ms`;
   return `${Math.round(value)} ms`;
+}
+
+/** Decade ticks for a log axis spanning ``values`` (all > 0). */
+export function logTicks(values: number[]): number[] {
+  const lo = Math.floor(Math.log10(Math.min(...values)));
+  const hi = Math.ceil(Math.log10(Math.max(...values)));
+  const ticks = [];
+  for (let e = lo; e <= Math.max(hi, lo + 1); e++) ticks.push(Math.pow(10, e));
+  return ticks;
+}
+
+/**
+ * Which scatter points get a direct label: the highest point of any
+ * cluster keeps its label, points that would sit on top of it rely on the
+ * legend and tooltip. Coordinates are normalized to the plot (0–1).
+ */
+export function labelledIds(points: { id: number; nx: number; ny: number }[]): Set<number> {
+  const keep: { nx: number; ny: number }[] = [];
+  const ids = new Set<number>();
+  [...points]
+    .sort((a, b) => b.ny - a.ny)
+    .forEach((p) => {
+      if (keep.some((k) => Math.abs(k.nx - p.nx) < 0.14 && Math.abs(k.ny - p.ny) < 0.07)) return;
+      keep.push(p);
+      ids.add(p.id);
+    });
+  return ids;
 }
 
 export function formatInt(value: number | null | undefined): string {
@@ -70,21 +100,69 @@ export function formatInt(value: number | null | undefined): string {
   return value.toLocaleString();
 }
 
-export function KindBadge({ kind, className }: { kind: "decision" | "llm" | string; className?: string }) {
-  const isDecision = kind === "decision";
-  const Icon = isDecision ? Zap : Brain;
+export type ModelKind = "decision" | "llm" | "classifier" | "rules";
+
+const KINDS: Record<ModelKind, { label: string; icon: any; style: string; shape: string; marker: string }> = {
+  decision: { label: "Decision", icon: Zap, style: "bg-warning/10 text-warning border-warning/30", shape: "diamond", marker: "◆" },
+  llm: { label: "LLM", icon: Brain, style: "bg-accent/10 text-accent border-accent/30", shape: "circle", marker: "●" },
+  classifier: { label: "Classifier", icon: ShieldCheck, style: "bg-secondary/10 text-secondary border-secondary/30", shape: "square", marker: "■" },
+  rules: { label: "Rules", icon: Regex, style: "bg-surface-200 text-t-hover border-visible", shape: "triangle", marker: "▲" },
+};
+
+export const kindInfo = (kind: string) => KINDS[kind as ModelKind] || KINDS.llm;
+
+export function KindBadge({ kind, className }: { kind: ModelKind | string; className?: string }) {
+  const info = kindInfo(kind);
+  const Icon = info.icon;
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide border",
-        isDecision
-          ? "bg-warning/10 text-warning border-warning/30"
-          : "bg-accent/10 text-accent border-accent/30",
+        info.style,
         className
       )}
     >
       <Icon className="w-3 h-3" />
-      {isDecision ? "Decision" : "LLM"}
+      {info.label}
+    </span>
+  );
+}
+
+export function KindLegend() {
+  return (
+    <p className="text-[11px] text-muted mt-1">
+      {KINDS.decision.marker} decision model · {KINDS.classifier.marker} classifier · {KINDS.rules.marker} rules ·{" "}
+      {KINDS.llm.marker} LLM
+    </p>
+  );
+}
+
+export function ChartTooltip({ active, payload, render }: any) {
+  const chrome = useChartChrome();
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={chrome.tooltip} className="px-3 py-2 shadow-lg">
+      {render(payload[0].payload, payload)}
+    </div>
+  );
+}
+
+export function shortName(m: any) {
+  const name = m.variant ? `${m.model_name} · ${m.variant}` : m.model_name;
+  return name.length > 22 ? `${name.slice(0, 21)}…` : name;
+}
+
+export function VariantBadge({ variant, className }: { variant?: string | null; className?: string }) {
+  if (!variant) return null;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium border border-visible bg-surface-50 text-t-hover",
+        className
+      )}
+      title="Variant — the same model with a different policy or prompt"
+    >
+      {variant}
     </span>
   );
 }

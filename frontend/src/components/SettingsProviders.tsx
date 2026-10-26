@@ -65,6 +65,7 @@ const PROVIDER_ICONS: Record<string, string> = {
   custom: "⚙️",
   typesafe: "⚡",
   systemone: "🎯",
+  classifier: "🛡️",
 };
 
 const DECISION_HINTS: Record<string, string> = {
@@ -72,7 +73,44 @@ const DECISION_HINTS: Record<string, string> = {
     "TypeSafe's Jev is a decision model: it returns a typed choice with calibrated probabilities instead of generated text. Used by Model Comparison. Billed per input token; output is free.",
   systemone:
     "Any endpoint that speaks TypeSafe's System One API — a gateway (e.g. LiteLLM at http://proxy:4000/typesafe) or a self-hosted open decision model. Requests go to {Base URL}/v1/systemone.",
+  classifier:
+    "Pre-trained text classifiers (e.g. a DeBERTa prompt-injection detector or Granite Guardian HAP) — the traditional guardrails decision models are benchmarked against. Use {model} in the Base URL to address several Hugging Face models from one provider. Model Comparison maps their native labels onto the dataset's.",
 };
+
+// Wire formats a text-classifier provider can speak (extra_config.api_format).
+const CLASSIFIER_FORMATS: { value: string; label: string; hint: string }[] = [
+  {
+    value: "hf",
+    label: "Hugging Face / TEI",
+    hint: 'POST {"inputs": text} to the Base URL → [{"label", "score"}, …] (HF Inference API, TEI /predict, transformers pipelines).',
+  },
+  {
+    value: "detector",
+    label: "Guardrails detector API",
+    hint: "POST {Base URL}/api/v1/text/contents with header detector-id: <model> (OpenShift AI / TrustyAI detectors). No detection = the comparison's fallback label.",
+  },
+];
+
+function ClassifierFormatPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const current = CLASSIFIER_FORMATS.find((f) => f.value === value) || CLASSIFIER_FORMATS[0];
+  return (
+    <div>
+      <label className="block text-xs font-medium text-t-secondary mb-1">API format</label>
+      <select
+        value={current.value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 bg-surface-50 border border-visible rounded-lg text-primary text-sm focus:outline-none focus:border-accent"
+      >
+        {CLASSIFIER_FORMATS.map((f) => (
+          <option key={f.value} value={f.value}>
+            {f.label}
+          </option>
+        ))}
+      </select>
+      <p className="text-[11px] text-muted mt-1">{current.hint}</p>
+    </div>
+  );
+}
 
 export default function SettingsProviders() {
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -237,7 +275,7 @@ export default function SettingsProviders() {
                     {provider.supports_decision && (
                       <span className="flex items-center gap-1 text-xs text-warning font-medium">
                         <Zap className="w-3 h-3" />
-                        {(provider.decision_models || []).length} Decision model{(provider.decision_models || []).length !== 1 ? "s" : ""}
+                        {(provider.decision_models || []).length} {provider.provider_type === "classifier" ? "Classifier" : "Decision"} model{(provider.decision_models || []).length !== 1 ? "s" : ""}
                       </span>
                     )}
                   </div>
@@ -403,6 +441,7 @@ function AddProviderForm({
   };
 
   const entry = providerType ? catalog[providerType] : null;
+  const [classifierFormat, setClassifierFormat] = useState("hf");
 
   useEffect(() => {
     if (entry) {
@@ -446,7 +485,12 @@ function AddProviderForm({
         default_llm_model: entry?.supports_llm === false ? undefined : selectedLlmModels[0] || undefined,
         default_embedding_model: entry?.supports_embedding === false ? undefined : selectedEmbModels[0] || undefined,
         default_decision_model: entry?.supports_decision ? selectedDecisionModels[0] || undefined : undefined,
-        extra_config: supportsFlex && flexTier ? { flex_tier: true } : {},
+        extra_config:
+          providerType === "classifier"
+            ? { api_format: classifierFormat }
+            : supportsFlex && flexTier
+              ? { flex_tier: true }
+              : {},
       });
       onCreated(provider);
     } catch (e: any) {
@@ -771,12 +815,16 @@ function AddProviderForm({
             </div>
           )}
 
+          {providerType === "classifier" && (
+            <ClassifierFormatPicker value={classifierFormat} onChange={setClassifierFormat} />
+          )}
+
           {/* Decision Models */}
           {entry.supports_decision && (
             <div>
               <label className="block text-sm font-medium text-t-secondary mb-2">
                 <Zap className="w-4 h-4 inline mr-1 text-warning" />
-                Decision Models
+                {providerType === "classifier" ? "Classifier Models" : "Decision Models"}
               </label>
               {DECISION_HINTS[providerType] && (
                 <p className="text-xs text-muted mb-2">{DECISION_HINTS[providerType]}</p>
@@ -868,6 +916,8 @@ function ProviderDetails({
   const [flexTier, setFlexTier] = useState<boolean>(
     Boolean(provider.extra_config?.flex_tier)
   );
+  const isClassifier = provider.provider_type === "classifier";
+  const [classifierFormat, setClassifierFormat] = useState<string>(provider.extra_config?.api_format || "hf");
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -918,6 +968,9 @@ function ProviderDetails({
           ...(provider.extra_config || {}),
           flex_tier: flexTier,
         };
+      }
+      if (isClassifier) {
+        payload.extra_config = { ...(provider.extra_config || {}), api_format: classifierFormat };
       }
       const updated = await api.updateProvider(provider.id, payload);
       onUpdate(updated);
@@ -981,6 +1034,10 @@ function ProviderDetails({
             className="w-full px-3 py-2 bg-surface-50 border border-visible rounded-lg text-primary text-sm focus:outline-none focus:border-accent"
           />
         </div>
+      )}
+
+      {isClassifier && (
+        <ClassifierFormatPicker value={classifierFormat} onChange={(v) => { setClassifierFormat(v); markDirty(); }} />
       )}
 
       {/* Flex tier — OpenAI and Google Gemini */}
@@ -1137,7 +1194,7 @@ function ProviderDetails({
         <div>
           <label className="block text-xs font-medium text-t-secondary mb-2">
             <Zap className="w-3.5 h-3.5 inline mr-1 text-warning" />
-            Decision Models
+            {isClassifier ? "Classifier Models" : "Decision Models"}
             {defaultDecision && <span className="text-muted ml-2">(default: {defaultDecision})</span>}
           </label>
           <div className="flex flex-wrap gap-1.5 mb-2">
@@ -1178,7 +1235,7 @@ function ProviderDetails({
               value={customDecision}
               onChange={(e) => setCustomDecision(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addModel(customDecision, decisionModels, setDecisionModels, setCustomDecision)}
-              placeholder="Add decision model..."
+              placeholder={isClassifier ? "Add classifier model..." : "Add decision model..."}
               className="flex-1 px-3 py-1.5 bg-surface-50 border border-visible rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
             />
             <button
