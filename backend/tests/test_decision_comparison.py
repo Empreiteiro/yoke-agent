@@ -19,7 +19,7 @@ from app.services import decision_comparison as engine_mod
 from app.services.decision_comparison import Outcome, compute_metrics, select_items
 from app.services.decision_datasets import DatasetParseError, parse_dataset, seed_builtin_datasets
 from app.services.decision_models import (
-    SystemOneClient, build_request, parse_response, resolve_endpoint,
+    DecisionClient, build_openai_request, build_request, parse_response, resolve_endpoint,
 )
 from app.services.llm_classifier import parse_answer
 
@@ -84,7 +84,7 @@ def test_system_one_client_sends_bearer_and_retries_429():
         return httpx.Response(200, json={"answers": {"decision": {"choice": "billing", "confidence": 0.97}}})
 
     provider = SimpleNamespace(provider_type="typesafe", base_url=None, extra_config={}, api_key="ts-key", name="TS")
-    client = SystemOneClient(provider, "jev-latest")
+    client = DecisionClient(provider, "jev-latest")
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler), headers=client.headers) as http:
@@ -95,6 +95,98 @@ def test_system_one_client_sends_bearer_and_retries_429():
     assert answer.tokens_estimated  # no usage block → char/4 estimate
     assert calls[-1].headers["authorization"] == "Bearer ts-key"
     assert len(calls) == 2
+
+
+# ── OpenAI Decisions API ────────────────────────────────────────────────
+
+
+def test_build_openai_request_uses_named_choice_question():
+    body = build_openai_request("gpt-6-luna", "charged twice", "Which team?", LABELS)
+    assert body["model"] == "gpt-6-luna"
+    assert body["input"] == "charged twice"
+    (question,) = body["questions"]
+    assert question == {
+        "type": "choice",
+        "name": "decision",
+        "instructions": "Which team?",
+        "choices": [
+            {"value": "billing", "description": "Payments and invoices"},
+            {"value": "technical", "description": "Bugs and outages"},
+        ],
+    }
+
+
+def test_parse_response_reads_openai_answer_list():
+    answer = parse_response({
+        "answers": [
+            {"type": "predicate", "name": "other", "probability": 0.2},
+            {"type": "choice", "name": "decision", "choice": "billing",
+             "probabilities": [{"value": "billing", "probability": 0.95},
+                               {"value": "technical", "probability": 0.05}],
+             "confidence": 0.93},
+        ],
+        "usage": {"input_tokens": 91, "output_tokens": 0},
+    })
+    assert answer.choice == "billing"
+    assert answer.confidence == pytest.approx(0.93)
+    assert answer.probabilities == {"billing": 0.95, "technical": 0.05}
+    assert answer.input_tokens == 91 and answer.refusal is None
+
+
+def test_parse_response_reports_refusal_without_a_choice():
+    answer = parse_response({
+        "answers": [{"type": "refusal", "name": "decision", "refusal": "Unsafe request"}],
+        "usage": {"input_tokens": 12},
+    })
+    assert answer.choice is None
+    assert answer.refusal == "Unsafe request"
+    assert answer.input_tokens == 12
+
+
+def test_resolve_endpoint_for_openai():
+    def prov(base=None):
+        return SimpleNamespace(provider_type="openai", base_url=base, extra_config={}, name="OpenAI")
+
+    assert resolve_endpoint(prov()) == "https://api.openai.com/v1/decisions"
+    assert resolve_endpoint(prov("http://gateway/v1/")) == "http://gateway/v1/decisions"
+    assert resolve_endpoint(prov("http://gateway/v1/decisions")) == "http://gateway/v1/decisions"
+
+
+def test_decision_client_calls_openai_decisions_api():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        body = json.loads(request.content)
+        assert body["questions"][0]["choices"][1]["value"] == "technical"
+        return httpx.Response(200, json={
+            "answers": [{"type": "choice", "name": "decision", "choice": "technical",
+                         "probabilities": {"billing": 0.1, "technical": 0.9}}],
+            "usage": {"input_tokens": 64, "output_tokens": 3},
+        })
+
+    provider = SimpleNamespace(provider_type="openai", base_url=None, extra_config={}, api_key="sk-test", name="OpenAI")
+    client = DecisionClient(provider, "gpt-6-luna")
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler), headers=client.headers) as http:
+            return await client.decide(http, "app crashes", "Which team?", LABELS)
+
+    answer = asyncio.run(run())
+    assert str(seen[0].url) == "https://api.openai.com/v1/decisions"
+    assert seen[0].headers["authorization"] == "Bearer sk-test"
+    assert answer.choice == "technical"
+    assert answer.confidence == pytest.approx(0.9)
+    assert (answer.input_tokens, answer.tokens_estimated) == (64, False)
+
+
+def test_openai_decision_pricing_differs_from_llm_pricing():
+    provider = SimpleNamespace(provider_type="openai", extra_config={})
+    assert engine_mod.default_prices("decision", provider, "gpt-6-luna") == (0.10, 0.0, "OpenAI list price")
+    assert engine_mod.default_prices("llm", provider, "gpt-6-luna")[:2] == (0.10, 0.50)
+    assert engine_mod.default_prices("decision", provider, "gpt-7-nova") == (None, None, "unknown")
+    typesafe = SimpleNamespace(provider_type="typesafe", extra_config={})
+    assert engine_mod.default_prices("decision", typesafe, "jev-1.13.0") == (0.042, 0.0, "TypeSafe list price")
 
 
 # ── LLM answer parsing ──────────────────────────────────────────────────
@@ -341,6 +433,37 @@ def test_comparison_end_to_end(client):
     db = SessionLocal()
     assert db.query(DecisionPrediction).count() == 0
     db.close()
+
+
+def test_openai_provider_lists_decision_and_llm_variants(client):
+    db = SessionLocal()
+    openai = db.query(Provider).filter(Provider.id == 2).first()
+    openai.llm_models = ["gpt-6-luna"]
+    openai.supports_decision = True
+    openai.decision_models = ["gpt-6-luna"]
+    db.commit()
+    db.close()
+
+    models = client.get("/api/decision/models").json()
+    decision = next(m for m in models["decision_models"] if m["provider_id"] == 2)
+    llm = next(m for m in models["llm_models"] if m["provider_id"] == 2)
+    assert decision["display_name"] == "gpt-6-luna · Decisions (OpenAI)"
+    assert llm["display_name"] == "gpt-6-luna (OpenAI)"
+    assert (decision["input_price_per_million"], decision["output_price_per_million"]) == (0.10, 0.0)
+    assert decision["pricing_source"] == "OpenAI list price"
+
+    dataset_id = _upload(client)
+    estimate = client.post("/api/decision/comparisons/estimate", json={
+        "dataset_id": dataset_id,
+        "models": [
+            {"kind": "decision", "provider_id": 2, "model": "gpt-6-luna"},
+            {"kind": "llm", "provider_id": 2, "model": "gpt-6-luna"},
+        ],
+        "sample_size": 10,
+    })
+    assert estimate.status_code == 200, estimate.text
+    names = [m["display_name"] for m in estimate.json()["models"]]
+    assert names == ["gpt-6-luna · Decisions (OpenAI)", "gpt-6-luna (OpenAI)"]
 
 
 def test_builtin_datasets_are_read_only(client):

@@ -13,7 +13,7 @@ from app.schemas.provider import PROVIDER_CATALOG
 from app.services.llm_factory import (
     anthropic_accepts_temperature, flex_supported_for, get_llm, is_openai_reasoning_model,
 )
-from app.services.token_tracker import estimate_cost, lookup_pricing
+from app.services.token_tracker import estimate_cost, lookup_decision_pricing, lookup_pricing
 
 for _mod in pkgutil.iter_modules(app.models.__path__):
     importlib.import_module(f"app.models.{_mod.name}")
@@ -23,6 +23,19 @@ for _mod in pkgutil.iter_modules(app.models.__path__):
 def test_every_catalog_llm_model_has_a_price(ptype):
     missing = [m for m in PROVIDER_CATALOG[ptype]["llm_models"] if lookup_pricing(m) is None]
     assert missing == []
+
+
+@pytest.mark.parametrize("ptype", ["openai", "typesafe"])
+def test_every_catalog_decision_model_has_a_price(ptype):
+    models = PROVIDER_CATALOG[ptype]["decision_models"]
+    assert models
+    assert [m for m in models if lookup_decision_pricing(ptype, m) is None] == []
+
+
+def test_openai_serves_gpt_6_luna_as_a_decision_model():
+    entry = PROVIDER_CATALOG["openai"]
+    assert entry["supports_decision"] and entry["supports_llm"]
+    assert entry["decision_models"][0] == "gpt-6-luna"
 
 
 def test_retired_models_left_the_catalog():

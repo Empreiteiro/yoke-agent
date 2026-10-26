@@ -85,10 +85,18 @@ MODEL_PRICING = {
     "embed-multilingual-v3.0": {"prompt": 0.10, "completion": 0.0},
     # ── Claude Code CLI (local — no direct API cost) ─────────────────
     "claude-code": {"prompt": 0.0, "completion": 0.0},
-    # ── TypeSafe decision models ──────────────────────────────────────
-    # Jev bills input tokens only ($0.042 per 1M); output is free
-    # (vendor-published early-access pricing, Sept 2026).
-    "jev": {"prompt": 0.042, "completion": 0.0},
+}
+
+
+# Decision-model prices (Model Comparison), keyed by provider type and then
+# model. Kept apart from MODEL_PRICING because OpenAI's Decisions API reuses
+# an LLM model id (gpt-6-luna) at a different price. Both bill input tokens
+# only; output is free.
+DECISION_MODEL_PRICING: Dict[str, Dict[str, Dict[str, float]]] = {
+    # TypeSafe Jev — vendor-published early-access pricing, Sept 2026.
+    "typesafe": {"jev": {"prompt": 0.042, "completion": 0.0}},
+    # OpenAI Decisions API (GA Oct 22, 2026) — gpt-6-luna only.
+    "openai": {"gpt-6-luna": {"prompt": 0.10, "completion": 0.0}},
 }
 
 
@@ -144,6 +152,19 @@ def lookup_pricing(model_name: str, on: Optional[date] = None) -> Optional[Dict[
         if today >= effective:
             pricing = changed
     return pricing
+
+
+def lookup_decision_pricing(provider_type: str, model_name: str) -> Optional[Dict[str, float]]:
+    """Price of a decision model, matched like :func:`_pricing_key` but only
+    within the provider's own table (``jev-latest`` → ``jev``), or None."""
+    table = DECISION_MODEL_PRICING.get(provider_type) or {}
+    if not model_name:
+        return None
+    if model_name in table:
+        return table[model_name]
+    lowered = model_name.lower()
+    contained = [key for key in table if key in lowered]
+    return table[max(contained, key=len)] if contained else None
 
 
 def estimate_cost(
