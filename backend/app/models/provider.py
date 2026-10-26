@@ -8,7 +8,7 @@ class Provider(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
-    provider_type = Column(String(50), nullable=False)  # openai, anthropic, google, cohere, huggingface, ollama, azure_openai, custom, typesafe, systemone
+    provider_type = Column(String(50), nullable=False)  # openai, anthropic, google, cohere, huggingface, ollama, azure_openai, custom, typesafe, systemone, classifier
     api_key = Column(Text, nullable=True)  # encrypted in production
     base_url = Column(String(500), nullable=True)  # for custom/ollama endpoints
     is_active = Column(Boolean, default=True)
@@ -17,7 +17,8 @@ class Provider(Base):
     supports_llm = Column(Boolean, default=False)
     supports_embedding = Column(Boolean, default=False)
     # Decision models (TypeSafe Jev and other System One-style APIs) return a
-    # typed choice from a fixed option set instead of generated text.
+    # typed choice from a fixed option set instead of generated text. Text
+    # classifier providers reuse the same flag and model list.
     supports_decision = Column(Boolean, default=False)
 
     # Available models (stored as JSON arrays)

@@ -95,6 +95,9 @@ def test_system_one_client_sends_bearer_and_retries_429():
     assert answer.tokens_estimated  # no usage block → char/4 estimate
     assert calls[-1].headers["authorization"] == "Bearer ts-key"
     assert len(calls) == 2
+    # Only the successful attempt is timed: the 0.5 s backoff isn't in it.
+    assert answer.attempts == 2
+    assert answer.latency_ms < 400
 
 
 # ── LLM answer parsing ──────────────────────────────────────────────────
@@ -127,20 +130,20 @@ def test_stratified_sampling_preserves_distribution_and_is_deterministic():
     assert select_items(items, 5, "first") == [1, 2, 3, 4, 5]
 
 
-def _pred(expected, predicted, status="ok", conf=None, latency=10.0, cost=0.001):
+def _pred(expected, predicted, status="ok", conf=None, latency=10.0, cost=0.001, attempts=1):
     return SimpleNamespace(
         expected_label=expected, predicted_label=predicted, status=status,
         is_correct=status == "ok" and expected == predicted, confidence=conf,
-        latency_ms=latency, input_tokens=10, output_tokens=2, cost=cost,
+        latency_ms=latency, input_tokens=10, output_tokens=2, cost=cost, attempts=attempts,
     )
 
 
 def test_compute_metrics_counts_correct_incorrect_failed():
     preds = [
         _pred("billing", "billing", conf=0.9),
-        _pred("billing", "technical", conf=0.6),
+        _pred("billing", "technical", conf=0.6, attempts=2),
         _pred("technical", "technical", conf=0.8),
-        _pred("technical", None, status="error", latency=None, cost=None),
+        _pred("technical", None, status="error", latency=None, cost=None, attempts=None),
     ]
     m = compute_metrics(preds, ["billing", "technical"])
     assert (m["total"], m["correct"], m["incorrect"], m["failed"]) == (4, 2, 1, 1)
@@ -148,8 +151,10 @@ def test_compute_metrics_counts_correct_incorrect_failed():
     assert m["per_label"]["billing"]["recall"] == pytest.approx(0.5)
     assert m["per_label"]["technical"]["precision"] == pytest.approx(0.5)
     assert m["confusion"]["technical"]["(no answer)"] == 1
-    assert m["total_cost"] == pytest.approx(0.003)
+    assert m["token_cost"] == pytest.approx(0.003)
     assert m["avg_confidence_correct"] == pytest.approx(0.85)
+    assert m["p99_latency_ms"] == pytest.approx(10.0)
+    assert m["retried"] == 1 and m["avg_attempts"] == pytest.approx(4 / 3)
 
 
 # ── Dataset upload parsing ──────────────────────────────────────────────

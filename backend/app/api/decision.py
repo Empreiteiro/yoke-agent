@@ -1,8 +1,11 @@
-"""Model Comparison API — decision models (TypeSafe Jev, System One) vs. LLMs.
+"""Model Comparison API — decision models (TypeSafe Jev, System One), text
+classifiers and rule baselines vs. LLMs.
 
 Datasets:      /api/decision/datasets…
 Models:        /api/decision/models
 Comparisons:   /api/decision/comparisons…
+Analysis:      /api/decision/comparisons/{id}/analysis (guardrail view,
+               significance, calibration, ROC, slices, policy sensitivity)
 """
 
 import csv
@@ -24,14 +27,17 @@ from app.models.decision import (
 from app.models.provider import Provider
 from app.models.user import ROLE_ADMIN
 from app.schemas.decision import (
-    ComparisonCreate, DecisionDatasetDetail, DecisionDatasetResponse, DecisionDatasetUpdate,
+    AnalysisSettings, ComparisonCreate, DecisionDatasetDetail, DecisionDatasetResponse, DecisionDatasetUpdate,
     DecisionItemResponse, EstimateRequest, ModelSpec,
 )
 from app.services import decision_comparison as engine
+from app.services import decision_stats as stats
 from app.services.decision_datasets import (
     DEFAULT_TASK, MAX_UPLOAD_BYTES, TEMPLATE_CSV, DatasetParseError, export_payload, insert_items, parse_dataset,
 )
 from app.services.decision_models import DECISION_PROVIDER_TYPES
+from app.services.llm_classifier import SYSTEM_PROMPT, USER_PROMPT
+from app.services.text_classifiers import CLASSIFIER_PROVIDER_TYPES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -82,6 +88,7 @@ def _ratio(num: Optional[float], den: Optional[float]) -> Optional[float]:
 def _result_dict(res: DecisionModelResult) -> dict:
     total = res.total or 0
     evaluated = (res.correct or 0) + (res.incorrect or 0) + (res.failed or 0)
+    config = res.config or {}
     return {
         "id": res.id,
         "position": res.position,
@@ -93,7 +100,16 @@ def _result_dict(res: DecisionModelResult) -> dict:
         "display_name": res.display_name or res.model_name,
         "input_price_per_million": res.input_price_per_million,
         "output_price_per_million": res.output_price_per_million,
-        "pricing_known": res.input_price_per_million is not None or res.output_price_per_million is not None,
+        "infra_cost_per_hour": res.infra_cost_per_hour,
+        "pricing_known": (
+            res.input_price_per_million is not None
+            or res.output_price_per_million is not None
+            or res.infra_cost_per_hour is not None
+        ),
+        "variant": res.variant,
+        "policy_hash": res.policy_hash,
+        "config": config,
+        "deployment": config.get("deployment") or {},
         "status": res.status,
         "error_message": res.error_message,
         "total": total,
@@ -111,13 +127,21 @@ def _result_dict(res: DecisionModelResult) -> dict:
         "input_tokens": res.input_tokens or 0,
         "output_tokens": res.output_tokens or 0,
         "tokens_estimated": bool(res.tokens_estimated),
+        "token_cost": res.token_cost,
+        "infra_cost": res.infra_cost,
         "total_cost": res.total_cost,
         "cost_per_1k": _ratio(res.total_cost * 1000 if res.total_cost is not None else None, evaluated),
         "cost_per_correct": _ratio(res.total_cost, res.correct),
         "avg_latency_ms": res.avg_latency_ms,
         "p50_latency_ms": res.p50_latency_ms,
+        "p90_latency_ms": res.p90_latency_ms,
         "p95_latency_ms": res.p95_latency_ms,
+        "p99_latency_ms": res.p99_latency_ms,
+        "latency_std_ms": res.latency_std_ms,
         "wall_time_ms": res.wall_time_ms,
+        "throughput_rps": _ratio(evaluated, res.wall_time_ms / 1000 if res.wall_time_ms else None),
+        "avg_attempts": res.avg_attempts,
+        "retried": res.retried or 0,
         "avg_confidence": res.avg_confidence,
         "avg_confidence_correct": res.avg_confidence_correct,
         "avg_confidence_incorrect": res.avg_confidence_incorrect,
@@ -183,24 +207,34 @@ def _comparison_dict(comp: DecisionComparison, include_details: bool = True) -> 
         data["models"] = results
     else:
         data["models"] = [
-            {k: r[k] for k in ("id", "display_name", "kind", "status", "accuracy", "total_cost", "rank", "processed", "total")}
+            {k: r[k] for k in ("id", "display_name", "kind", "variant", "status", "accuracy", "total_cost", "rank", "processed", "total")}
             for r in results
         ]
     return data
 
 
-def _resolve_specs(db: Session, specs: list[ModelSpec]) -> list[tuple[ModelSpec, Provider, Optional[float], Optional[float]]]:
+def _resolve_specs(
+    db: Session, specs: list[ModelSpec], label_names: list[str],
+) -> list[tuple[ModelSpec, Optional[Provider], Optional[float], Optional[float]]]:
     resolved = []
     for spec in specs:
-        provider = db.query(Provider).filter(Provider.id == spec.provider_id).first()
-        if not provider:
-            raise HTTPException(400, f"Provider #{spec.provider_id} not found")
-        if not provider.is_active:
-            raise HTTPException(400, f"Provider '{provider.name}' is inactive")
+        unknown = sorted(spec.referenced_labels() - set(label_names))
+        if unknown:
+            raise HTTPException(400, f"Model '{spec.model}' refers to labels not in the dataset: {', '.join(unknown)}")
+        provider = None
+        if spec.kind != "rules":
+            provider = db.query(Provider).filter(Provider.id == spec.provider_id).first()
+            if not provider:
+                raise HTTPException(400, f"Provider #{spec.provider_id} not found")
+            if not provider.is_active:
+                raise HTTPException(400, f"Provider '{provider.name}' is inactive")
         if spec.kind == "decision":
             if provider.provider_type not in DECISION_PROVIDER_TYPES or not provider.supports_decision:
                 raise HTTPException(400, f"Provider '{provider.name}' does not serve decision models")
-        elif not provider.supports_llm:
+        elif spec.kind == "classifier":
+            if provider.provider_type not in CLASSIFIER_PROVIDER_TYPES or not provider.supports_decision:
+                raise HTTPException(400, f"Provider '{provider.name}' does not serve text classifiers")
+        elif spec.kind == "llm" and not provider.supports_llm:
             raise HTTPException(400, f"Provider '{provider.name}' does not serve LLMs")
         in_price, out_price = spec.input_price_per_million, spec.output_price_per_million
         if in_price is None and out_price is None:
@@ -435,15 +469,17 @@ def export_dataset(dataset_id: int, request: Request, db: Session = Depends(get_
 
 @router.get("/models")
 def list_comparable_models(db: Session = Depends(get_db)):
-    """Every decision model and LLM from active providers, with the price
-    that will be used for cost unless the user overrides it."""
-    decision_models, llm_models = [], []
+    """Every decision model, text classifier and LLM from active providers,
+    with the price that will be used for cost unless the user overrides it,
+    plus the default LLM prompt templates (for per-model overrides)."""
+    decision_models, classifier_models, llm_models = [], [], []
     for p in db.query(Provider).filter(Provider.is_active.is_(True)).order_by(Provider.id).all():
-        if p.supports_decision and p.provider_type in DECISION_PROVIDER_TYPES:
+        if p.supports_decision and p.provider_type in (DECISION_PROVIDER_TYPES | CLASSIFIER_PROVIDER_TYPES):
+            kind = "classifier" if p.provider_type in CLASSIFIER_PROVIDER_TYPES else "decision"
             for model in p.decision_models or []:
-                in_price, out_price, source = engine.default_prices("decision", p, model)
-                decision_models.append({
-                    "kind": "decision", "provider_id": p.id, "provider_name": p.name,
+                in_price, out_price, source = engine.default_prices(kind, p, model)
+                (classifier_models if kind == "classifier" else decision_models).append({
+                    "kind": kind, "provider_id": p.id, "provider_name": p.name,
                     "provider_type": p.provider_type, "model": model,
                     "is_default": model == p.default_decision_model,
                     "input_price_per_million": in_price, "output_price_per_million": out_price,
@@ -459,7 +495,12 @@ def list_comparable_models(db: Session = Depends(get_db)):
                     "input_price_per_million": in_price, "output_price_per_million": out_price,
                     "pricing_source": source,
                 })
-    return {"decision_models": decision_models, "llm_models": llm_models}
+    return {
+        "decision_models": decision_models,
+        "classifier_models": classifier_models,
+        "llm_models": llm_models,
+        "default_prompts": {"system": SYSTEM_PROMPT, "user": USER_PROMPT},
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -473,20 +514,25 @@ def estimate_comparison(body: EstimateRequest, request: Request, db: Session = D
     ds = _get_dataset(request, db, body.dataset_id)
     ids = _sample_ids(db, ds.id, body.sample_size, body.sampling, body.seed)
     texts = [t for (t,) in db.query(DecisionDatasetItem.text).filter(DecisionDatasetItem.id.in_(ids))]
+    label_names = [l["name"] for l in ds.labels or []]
     estimates = []
-    for spec, provider, in_price, out_price in _resolve_specs(db, body.models):
-        in_tok, out_tok = engine.estimate_tokens(spec.kind, ds.task, ds.labels or [], texts)
+    for spec, provider, in_price, out_price in _resolve_specs(db, body.models, label_names):
+        config = spec.snapshot()
+        task, labels = engine.effective_policy(ds.task, ds.labels or [], config)
+        in_tok, out_tok = engine.estimate_tokens(spec.kind, task, labels, texts, config)
         estimates.append({
             "kind": spec.kind,
-            "provider_id": provider.id,
+            "provider_id": provider.id if provider else None,
             "model": spec.model,
-            "display_name": spec.display_name or f"{spec.model} ({provider.name})",
+            "variant": spec.variant,
+            "display_name": spec.display_name or _default_display_name(spec, provider),
             "items": len(ids),
             "input_tokens": in_tok,
             "output_tokens": out_tok,
             "input_price_per_million": in_price,
             "output_price_per_million": out_price,
             "estimated_cost": engine.cost_of(in_tok, out_tok, in_price, out_price),
+            "infra_cost_per_hour": spec.infra_cost_per_hour,
         })
     priced = [e["estimated_cost"] for e in estimates if e["estimated_cost"] is not None]
     return {
@@ -497,10 +543,21 @@ def estimate_comparison(body: EstimateRequest, request: Request, db: Session = D
     }
 
 
+def _default_display_name(spec: ModelSpec, provider: Optional[Provider]) -> str:
+    source = provider.name if provider else "rules"
+    name = f"{spec.model} ({source})"
+    return f"{name} · {spec.variant}" if spec.variant else name
+
+
 @router.post("/comparisons", status_code=201)
 def create_comparison(body: ComparisonCreate, request: Request, bg: BackgroundTasks, db: Session = Depends(get_db)):
     ds = _get_dataset(request, db, body.dataset_id)
-    resolved = _resolve_specs(db, body.models)
+    label_names = [l["name"] for l in ds.labels or []]
+    resolved = _resolve_specs(db, body.models, label_names)
+    if body.analysis and body.analysis.positive_labels is not None:
+        unknown = sorted(set(body.analysis.positive_labels) - set(label_names))
+        if unknown:
+            raise HTTPException(400, f"Positive labels not in the dataset: {', '.join(unknown)}")
     ids = _sample_ids(db, ds.id, body.sample_size, body.sampling, body.seed)
     if len(ids) > MAX_COMPARISON_ITEMS:
         raise HTTPException(400, f"Comparisons are limited to {MAX_COMPARISON_ITEMS:,} rows — set a sample size.")
@@ -517,22 +574,33 @@ def create_comparison(body: ComparisonCreate, request: Request, bg: BackgroundTa
         sample_size=body.sample_size,
         seed=body.seed,
         item_ids=ids,
-        config={"concurrency": body.concurrency, "temperature": body.temperature},
+        config={
+            "concurrency": 1 if body.latency_mode else body.concurrency,
+            "temperature": body.temperature,
+            "latency_mode": body.latency_mode,
+            "warmup": body.warmup,
+            **({"analysis": body.analysis.model_dump()} if body.analysis else {}),
+        },
     )
     db.add(comp)
     db.flush()
     for position, (spec, provider, in_price, out_price) in enumerate(resolved):
+        config = spec.snapshot()
         db.add(DecisionModelResult(
             comparison_id=comp.id,
             position=position,
             kind=spec.kind,
-            provider_id=provider.id,
-            provider_name=provider.name,
-            provider_type=provider.provider_type,
+            provider_id=provider.id if provider else None,
+            provider_name=provider.name if provider else "Rules",
+            provider_type=provider.provider_type if provider else "rules",
             model_name=spec.model,
-            display_name=spec.display_name or f"{spec.model} ({provider.name})",
+            display_name=spec.display_name or _default_display_name(spec, provider),
             input_price_per_million=in_price,
             output_price_per_million=out_price,
+            infra_cost_per_hour=spec.infra_cost_per_hour,
+            config=config,
+            variant=spec.variant,
+            policy_hash=engine.policy_hash(spec.kind, ds.task, ds.labels or [], config),
             total=len(ids),
         ))
     db.commit()
@@ -564,6 +632,7 @@ def list_predictions(
     outcome: Optional[str] = Query(None, pattern="^(correct|incorrect|failed|errors)$"),
     expected_label: Optional[str] = None,
     predicted_label: Optional[str] = None,
+    difficulty: Optional[str] = None,
     search: Optional[str] = None,
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
@@ -589,6 +658,8 @@ def list_predictions(
         q = q.filter(DecisionPrediction.expected_label == expected_label)
     if predicted_label:
         q = q.filter(DecisionPrediction.predicted_label == predicted_label)
+    if difficulty:
+        q = q.filter(DecisionDatasetItem.difficulty == difficulty)
     if search:
         q = q.filter(DecisionDatasetItem.text.ilike(f"%{search}%"))
     total = q.count()
@@ -607,7 +678,9 @@ def list_predictions(
                 "status": p.status,
                 "is_correct": bool(p.is_correct),
                 "confidence": p.confidence,
+                "probabilities": p.probabilities,
                 "latency_ms": p.latency_ms,
+                "attempts": p.attempts,
                 "input_tokens": p.input_tokens,
                 "output_tokens": p.output_tokens,
                 "cost": p.cost,
@@ -617,6 +690,55 @@ def list_predictions(
             for p, text, difficulty in rows
         ],
     }
+
+
+def _analysis(db: Session, comp: DecisionComparison) -> dict:
+    label_names = [l["name"] for l in comp.labels or []]
+    settings = stats.resolve_settings(label_names, (comp.config or {}).get("analysis"))
+    rows = [
+        stats.PredictionRow(
+            model_result_id=r.model_result_id, item_id=r.item_id, expected_label=r.expected_label,
+            predicted_label=r.predicted_label, status=r.status, is_correct=bool(r.is_correct),
+            confidence=r.confidence, probabilities=r.probabilities, latency_ms=r.latency_ms,
+        )
+        for r in db.query(
+            DecisionPrediction.model_result_id, DecisionPrediction.item_id, DecisionPrediction.expected_label,
+            DecisionPrediction.predicted_label, DecisionPrediction.status, DecisionPrediction.is_correct,
+            DecisionPrediction.confidence, DecisionPrediction.probabilities, DecisionPrediction.latency_ms,
+        ).filter(DecisionPrediction.comparison_id == comp.id)
+    ]
+    difficulties = dict(
+        db.query(DecisionDatasetItem.id, DecisionDatasetItem.difficulty)
+        .filter(DecisionDatasetItem.id.in_(comp.item_ids or []))
+        .all()
+    )
+    results = _comparison_dict(comp)["models"]
+    return stats.analyze(results, rows, label_names, difficulties, settings)
+
+
+@router.get("/comparisons/{comparison_id}/analysis")
+def get_analysis(comparison_id: int, request: Request, db: Session = Depends(get_db)):
+    """Derived statistics: guardrail (binary) view, confidence intervals,
+    paired significance tests, ROC/PR, calibration, difficulty slices and
+    policy sensitivity. Computed from stored predictions on every call."""
+    return _analysis(db, _get_comparison(request, db, comparison_id))
+
+
+@router.put("/comparisons/{comparison_id}/analysis-settings")
+def update_analysis_settings(
+    comparison_id: int, body: AnalysisSettings, request: Request, db: Session = Depends(get_db),
+):
+    """Save how the guardrail view reads this comparison; returns the new analysis."""
+    comp = _get_comparison(request, db, comparison_id)
+    label_names = {l["name"] for l in comp.labels or []}
+    if body.positive_labels is not None:
+        unknown = sorted(set(body.positive_labels) - label_names)
+        if unknown:
+            raise HTTPException(400, f"Positive labels not in the dataset: {', '.join(unknown)}")
+    comp.config = {**(comp.config or {}), "analysis": body.model_dump()}
+    db.commit()
+    db.refresh(comp)
+    return _analysis(db, comp)
 
 
 @router.get("/comparisons/{comparison_id}/export")
@@ -641,7 +763,8 @@ def export_comparison(comparison_id: int, request: Request, db: Session = Depend
         header = ["item_id", "text", "expected_label"]
         for r in results:
             name = r.display_name or r.model_name
-            header += [f"{name} | predicted", f"{name} | correct", f"{name} | confidence", f"{name} | latency_ms", f"{name} | cost_usd"]
+            header += [f"{name} | predicted", f"{name} | correct", f"{name} | confidence", f"{name} | latency_ms",
+                       f"{name} | attempts", f"{name} | cost_usd"]
         writer.writerow(header)
         for item_id in comp.item_ids or []:
             preds = by_item.get(item_id, {})
@@ -649,13 +772,14 @@ def export_comparison(comparison_id: int, request: Request, db: Session = Depend
             for r in results:
                 p = preds.get(r.id)
                 if p is None:
-                    row += ["", "", "", "", ""]
+                    row += ["", "", "", "", "", ""]
                 else:
                     row += [
                         p.predicted_label if p.status == "ok" else f"[{p.status}]",
                         "1" if p.is_correct else "0",
                         "" if p.confidence is None else f"{p.confidence:.4f}",
                         "" if p.latency_ms is None else f"{p.latency_ms:.1f}",
+                        "" if p.attempts is None else str(p.attempts),
                         "" if p.cost is None else f"{p.cost:.8f}",
                     ]
             writer.writerow(row)

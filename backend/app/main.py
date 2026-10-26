@@ -67,6 +67,20 @@ def _run_migrations(engine):
         ("providers", "supports_decision", "BOOLEAN DEFAULT FALSE"),
         ("providers", "decision_models", "JSON"),
         ("providers", "default_decision_model", "VARCHAR(100)"),
+        # Model Comparison: guardrail benchmark metrics, variants, infra cost
+        ("decision_model_results", "infra_cost_per_hour", "REAL"),
+        ("decision_model_results", "config", "JSON"),
+        ("decision_model_results", "variant", "VARCHAR(100)"),
+        ("decision_model_results", "policy_hash", "VARCHAR(16)"),
+        ("decision_model_results", "token_cost", "REAL"),
+        ("decision_model_results", "infra_cost", "REAL"),
+        ("decision_model_results", "p90_latency_ms", "REAL"),
+        ("decision_model_results", "p99_latency_ms", "REAL"),
+        ("decision_model_results", "latency_std_ms", "REAL"),
+        ("decision_model_results", "avg_attempts", "REAL"),
+        ("decision_model_results", "retried", "INTEGER DEFAULT 0"),
+        ("decision_predictions", "probabilities", "JSON"),
+        ("decision_predictions", "attempts", "INTEGER"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:

@@ -3,17 +3,25 @@
 Every model in a comparison classifies the *same* sample of dataset rows.
 Decision models (TypeSafe Jev, System One-compatible endpoints) receive the
 task as a typed ``choice`` question; LLMs receive the same task and label
-definitions as a prompt. For each model we record every prediction plus
-aggregated accuracy (correct / incorrect / failed), per-label precision
-and recall, a confusion matrix, latency percentiles and total cost.
+definitions as a prompt; pre-trained text classifiers return native labels
+that are mapped onto the dataset's; rule baselines match regexes
+in-process. A model may override the task, label definitions and prompt
+(its *policy*), so the same model can run as several variants. For each
+model we record every prediction plus aggregated accuracy (correct /
+incorrect / failed), per-label precision and recall, a confusion matrix,
+latency percentiles, token cost and — for self-hosted models — the cost of
+the hardware for the run's wall-clock time.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 import math
 import random
+import re
 import threading
 import time
 from collections import Counter, defaultdict
@@ -32,7 +40,8 @@ from app.models.token_usage import TokenUsageLog
 from app.services.decision_models import (
     DECISION_PROVIDER_TYPES, SystemOneClient, estimate_request_tokens,
 )
-from app.services.llm_classifier import build_messages, parse_answer
+from app.services.llm_classifier import build_messages, match_label, normalize_aliases, parse_answer
+from app.services.text_classifiers import CLASSIFIER_PROVIDER_TYPES, TextClassifierClient
 from app.services.token_tracker import FLEX_DISCOUNT, extract_llm_token_usage, lookup_pricing
 
 logger = logging.getLogger(__name__)
@@ -48,6 +57,7 @@ RAW_OUTPUT_LIMIT = 500
 NO_ANSWER = "(no answer)"
 # Typical size of {"label": "...", "confidence": 0.9} in tokens.
 LLM_EST_OUTPUT_TOKENS = 18
+WARMUP_TEXT = "Hello! Can you help me with my account settings?"
 
 _stop_requests: set[int] = set()
 _stop_lock = threading.Lock()
@@ -119,13 +129,17 @@ def select_items(
 # ── Pricing & estimates ─────────────────────────────────────────────────
 
 
-def default_prices(kind: str, provider: Provider, model: str) -> tuple[Optional[float], Optional[float], str]:
+def default_prices(kind: str, provider: Optional[Provider], model: str) -> tuple[Optional[float], Optional[float], str]:
     """Suggested ``(input $/1M, output $/1M, source)`` for a model.
 
     Returns ``(None, None, "unknown")`` when no price is known — the caller
     then shows "set a price" in the UI instead of inventing a number.
     """
+    if kind == "rules":
+        return 0.0, 0.0, "local"
     ptype = provider.provider_type
+    if kind == "classifier":
+        return 0.0, 0.0, "self-hosted"
     if kind == "decision":
         if ptype == "typesafe":
             pricing = lookup_pricing("jev")
@@ -153,15 +167,44 @@ def cost_of(input_tokens: int, output_tokens: int, in_price: Optional[float], ou
     return ((input_tokens * (in_price or 0.0)) + (output_tokens * (out_price or 0.0))) / 1_000_000
 
 
-def estimate_tokens(kind: str, task: str, labels: list[dict], texts: Iterable[str]) -> tuple[int, int]:
+def estimate_tokens(
+    kind: str, task: str, labels: list[dict], texts: Iterable[str], config: Optional[dict] = None,
+) -> tuple[int, int]:
     """Estimate ``(input_tokens, output_tokens)`` for classifying ``texts``."""
     texts = list(texts)
+    if kind in ("classifier", "rules"):
+        return 0, 0
     if kind == "decision":
         return sum(estimate_request_tokens(t, task, labels) for t in texts), 0
-    system, _ = build_messages(task, labels, "")
-    overhead = len(system) + 40
+    config = config or {}
+    system, user = build_messages(task, labels, "", config.get("system_prompt"), config.get("user_prompt"))
+    overhead = len(system) + len(user)
     input_tokens = sum((overhead + len(t)) // 4 for t in texts)
     return input_tokens, LLM_EST_OUTPUT_TOKENS * len(texts)
+
+
+# ── Per-model policy ────────────────────────────────────────────────────
+
+
+def effective_policy(task: str, labels: list[dict], config: Optional[dict]) -> tuple[str, list[dict]]:
+    """The task and label definitions a model sees after its overrides."""
+    config = config or {}
+    overrides = config.get("label_descriptions") or {}
+    effective = [
+        {"name": l["name"], "description": overrides.get(l["name"], l.get("description") or "")}
+        for l in labels
+    ]
+    return (config.get("task") or task), effective
+
+
+def policy_hash(kind: str, task: str, labels: list[dict], config: Optional[dict]) -> str:
+    """Short fingerprint of everything that shapes a model's answers."""
+    config = config or {}
+    eff_task, eff_labels = effective_policy(task, labels, config)
+    keys = ("system_prompt", "user_prompt", "label_map", "threshold", "fallback_label",
+            "rules", "default_label", "case_sensitive")
+    payload = {"kind": kind, "task": eff_task, "labels": eff_labels, **{k: config.get(k) for k in keys}}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:12]
 
 
 # ── Metrics ─────────────────────────────────────────────────────────────
@@ -180,6 +223,13 @@ def _percentile(values: list[float], pct: float) -> Optional[float]:
 
 def _mean(values: list[float]) -> Optional[float]:
     return sum(values) / len(values) if values else None
+
+
+def _std(values: list[float]) -> Optional[float]:
+    if len(values) < 2:
+        return None
+    mean = sum(values) / len(values)
+    return math.sqrt(sum((v - mean) ** 2 for v in values) / (len(values) - 1))
 
 
 def compute_metrics(predictions: list[DecisionPrediction], label_names: list[str]) -> dict:
@@ -222,6 +272,7 @@ def compute_metrics(predictions: list[DecisionPrediction], label_names: list[str
     latencies = [p.latency_ms for p in predictions if p.latency_ms is not None and p.status != "error"]
     confidences = [p.confidence for p in predictions if p.confidence is not None]
     costs = [p.cost for p in predictions if p.cost is not None]
+    attempts = [p.attempts for p in predictions if getattr(p, "attempts", None)]
 
     return {
         "total": total,
@@ -233,10 +284,15 @@ def compute_metrics(predictions: list[DecisionPrediction], label_names: list[str
         "macro_f1": _mean(f1s),
         "input_tokens": sum(p.input_tokens or 0 for p in predictions),
         "output_tokens": sum(p.output_tokens or 0 for p in predictions),
-        "total_cost": sum(costs) if costs else None,
+        "token_cost": sum(costs) if costs else None,
         "avg_latency_ms": _mean(latencies),
         "p50_latency_ms": _percentile(latencies, 0.5),
+        "p90_latency_ms": _percentile(latencies, 0.9),
         "p95_latency_ms": _percentile(latencies, 0.95),
+        "p99_latency_ms": _percentile(latencies, 0.99),
+        "latency_std_ms": _std(latencies),
+        "avg_attempts": _mean(attempts),
+        "retried": sum(1 for a in attempts if a > 1),
         "avg_confidence": _mean(confidences),
         "avg_confidence_correct": _mean([p.confidence for p in predictions if p.is_correct and p.confidence is not None]),
         "avg_confidence_incorrect": _mean([p.confidence for p in predictions if not p.is_correct and p.confidence is not None]),
@@ -253,6 +309,8 @@ class Outcome:
     predicted: Optional[str] = None
     status: str = "ok"  # ok | invalid | error
     confidence: Optional[float] = None
+    probabilities: Optional[dict] = None  # dataset label → score
+    attempts: Optional[int] = None
     input_tokens: int = 0
     output_tokens: int = 0
     tokens_estimated: bool = False
@@ -261,12 +319,34 @@ class Outcome:
     error: Optional[str] = None
 
 
+def map_scores(scores: dict, label_names: list[str], aliases: dict[str, str]) -> tuple[dict[str, float], list[str]]:
+    """Fold native ``{label: score}`` onto dataset labels.
+
+    Returns the mapped scores (summed when several native labels map to the
+    same dataset label) and the native labels that matched nothing.
+    """
+    mapped: dict[str, float] = {}
+    unmapped: list[str] = []
+    for native, score in scores.items():
+        label = match_label(str(native), label_names, aliases)
+        if label is None:
+            unmapped.append(str(native))
+            continue
+        try:
+            mapped[label] = mapped.get(label, 0.0) + float(score)
+        except (TypeError, ValueError):
+            continue
+    return mapped, unmapped
+
+
 class _DecisionClassifier:
-    def __init__(self, provider: Provider, model: str, task: str, labels: list[dict], concurrency: int):
+    def __init__(self, provider: Provider, model: str, task: str, labels: list[dict], concurrency: int,
+                 label_map: Optional[dict] = None):
         self.client = SystemOneClient(provider, model)
         self.task = task
         self.labels = labels
         self.label_names = [l["name"] for l in labels]
+        self.aliases = normalize_aliases(label_map, self.label_names)
         self.concurrency = concurrency
         self.http = None
 
@@ -280,15 +360,15 @@ class _DecisionClassifier:
 
     async def classify(self, text: str) -> Outcome:
         answer = await self.client.decide(self.http, text, self.task, self.labels)
-        label = answer.choice if answer.choice in self.label_names else None
-        if label is None and answer.choice:
-            lowered = {name.lower(): name for name in self.label_names}
-            label = lowered.get(answer.choice.strip().lower())
+        label = match_label(answer.choice.strip(), self.label_names, self.aliases) if answer.choice else None
+        probabilities, _ = map_scores(answer.probabilities, self.label_names, self.aliases)
         raw = str(answer.raw.get("answers") if isinstance(answer.raw, dict) else answer.raw)
         return Outcome(
             predicted=label,
             status="ok" if label else "invalid",
             confidence=answer.confidence,
+            probabilities=probabilities or None,
+            attempts=answer.attempts,
             input_tokens=answer.input_tokens,
             output_tokens=answer.output_tokens,
             tokens_estimated=answer.tokens_estimated,
@@ -299,14 +379,20 @@ class _DecisionClassifier:
 
 
 class _LLMClassifier:
-    def __init__(self, db: Session, provider: Provider, model: str, task: str, labels: list[dict], temperature: Optional[float]):
+    def __init__(self, db: Session, provider: Provider, model: str, task: str, labels: list[dict],
+                 temperature: Optional[float], config: Optional[dict] = None):
         from app.services.llm_factory import get_llm
 
-        fmt = "json" if provider.provider_type == "ollama" else None
+        config = config or {}
+        # Ollama's JSON mode would break custom prompts that ask for prose.
+        fmt = "json" if provider.provider_type == "ollama" and not config.get("system_prompt") else None
         self.llm = get_llm(db, provider_id=provider.id, model=model, temperature=temperature, format=fmt, isolated=True)
         self.task = task
         self.labels = labels
         self.label_names = [l["name"] for l in labels]
+        self.system_template = config.get("system_prompt")
+        self.user_template = config.get("user_prompt")
+        self.label_map = config.get("label_map")
 
     async def __aenter__(self):
         return self
@@ -317,7 +403,7 @@ class _LLMClassifier:
     async def classify(self, text: str) -> Outcome:
         from langchain_core.messages import HumanMessage, SystemMessage
 
-        system, user = build_messages(self.task, self.labels, text)
+        system, user = build_messages(self.task, self.labels, text, self.system_template, self.user_template)
         started = time.perf_counter()
         response = await asyncio.wait_for(
             self.llm.ainvoke([SystemMessage(content=system), HumanMessage(content=user)]),
@@ -337,7 +423,7 @@ class _LLMClassifier:
                 "completion_tokens": max(1, len(content) // 4),
             }
             estimated = True
-        label, confidence = parse_answer(content, self.label_names)
+        label, confidence = parse_answer(content, self.label_names, self.label_map)
         return Outcome(
             predicted=label,
             status="ok" if label else "invalid",
@@ -351,7 +437,91 @@ class _LLMClassifier:
         )
 
 
+class _TextClassifier:
+    """Pre-trained classifier: native labels are mapped onto dataset labels."""
+
+    def __init__(self, provider: Provider, model: str, labels: list[dict], concurrency: int, config: dict):
+        self.client = TextClassifierClient(provider, model)
+        self.label_names = [l["name"] for l in labels]
+        self.aliases = normalize_aliases(config.get("label_map"), self.label_names)
+        self.threshold = config.get("threshold")
+        self.fallback = config.get("fallback_label")
+        self.concurrency = concurrency
+        self.http = None
+
+    async def __aenter__(self):
+        self.http = self.client.new_http_client(self.concurrency)
+        return self
+
+    async def __aexit__(self, *exc):
+        if self.http is not None:
+            await self.http.aclose()
+
+    async def classify(self, text: str) -> Outcome:
+        answer = await self.client.classify(self.http, text)
+        raw = json.dumps(answer.raw, ensure_ascii=False)[:RAW_OUTPUT_LIMIT]
+        base = dict(latency_ms=answer.latency_ms, attempts=answer.attempts, raw=raw)
+        mapped, unmapped = map_scores(answer.scores, self.label_names, self.aliases)
+        if not answer.scores:
+            # A detector that found nothing answers the fallback label.
+            if not self.fallback:
+                return Outcome(status="invalid", error="Nothing detected and no fallback label is set", **base)
+            return Outcome(predicted=self.fallback, probabilities={self.fallback: 1.0}, **base)
+        if not mapped:
+            return Outcome(
+                status="invalid",
+                error=f"Classifier label(s) {', '.join(unmapped)} aren't mapped to dataset labels — set a label map",
+                **base,
+            )
+        label = max(mapped, key=mapped.get)
+        if self.threshold is not None and mapped[label] < self.threshold and self.fallback:
+            label = self.fallback
+        return Outcome(predicted=label, confidence=mapped.get(label), probabilities=mapped, **base)
+
+
+class _RulesClassifier:
+    """Regex baseline: the first rule with a matching pattern wins."""
+
+    def __init__(self, labels: list[dict], config: dict):
+        flags = 0 if config.get("case_sensitive") else re.IGNORECASE
+        names = {l["name"] for l in labels}
+        self.rules = [
+            (rule["label"], [re.compile(p, flags) for p in rule.get("patterns") or [] if p])
+            for rule in config.get("rules") or []
+            if rule.get("label") in names
+        ]
+        self.default = config.get("default_label")
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return None
+
+    async def classify(self, text: str) -> Outcome:
+        started = time.perf_counter()
+        label, matched = self.default, None
+        for rule_label, patterns in self.rules:
+            hit = next((p for p in patterns if p.search(text)), None)
+            if hit is not None:
+                label, matched = rule_label, hit.pattern
+                break
+        latency = (time.perf_counter() - started) * 1000
+        return Outcome(
+            predicted=label,
+            status="ok" if label else "invalid",
+            latency_ms=latency,
+            attempts=1,
+            raw=f"matched /{matched}/" if matched else "no pattern matched",
+            error=None if label else "No pattern matched and no default label is set",
+        )
+
+
 def _build_classifier(db: Session, result: DecisionModelResult, comp: DecisionComparison, concurrency: int):
+    config = result.config or {}
+    task, labels = effective_policy(comp.task, comp.labels, config)
+    if result.kind == "rules":
+        return _RulesClassifier(labels, config)
     provider = db.query(Provider).filter(Provider.id == result.provider_id).first()
     if not provider:
         raise ValueError(f"Provider #{result.provider_id} no longer exists")
@@ -360,9 +530,13 @@ def _build_classifier(db: Session, result: DecisionModelResult, comp: DecisionCo
     if result.kind == "decision":
         if provider.provider_type not in DECISION_PROVIDER_TYPES:
             raise ValueError(f"Provider '{provider.name}' does not serve decision models")
-        return _DecisionClassifier(provider, result.model_name, comp.task, comp.labels, concurrency)
+        return _DecisionClassifier(provider, result.model_name, task, labels, concurrency, config.get("label_map"))
+    if result.kind == "classifier":
+        if provider.provider_type not in CLASSIFIER_PROVIDER_TYPES:
+            raise ValueError(f"Provider '{provider.name}' does not serve text classifiers")
+        return _TextClassifier(provider, result.model_name, labels, concurrency, config)
     temperature = (comp.config or {}).get("temperature", 0.0)
-    return _LLMClassifier(db, provider, result.model_name, comp.task, comp.labels, temperature)
+    return _LLMClassifier(db, provider, result.model_name, task, labels, temperature, config)
 
 
 # ── Runner ──────────────────────────────────────────────────────────────
@@ -392,14 +566,26 @@ async def run_comparison(comparison_id: int) -> None:
         )
         items = [(r.id, r.text, r.expected_label) for r in rows]
         pending = [r for r in comp.model_results if r.status != "completed"]
-        concurrency = max(1, min(int((comp.config or {}).get("concurrency") or DEFAULT_CONCURRENCY), MAX_CONCURRENCY))
+        config = comp.config or {}
+        latency_mode = bool(config.get("latency_mode"))
+        concurrency = max(1, min(int(config.get("concurrency") or DEFAULT_CONCURRENCY), MAX_CONCURRENCY))
+        warmup = max(0, int(config.get("warmup") or 0))
 
-        # Models run concurrently; each has its own concurrency budget. All
-        # DB writes happen in synchronous blocks on this single session, so
-        # coroutines never interleave inside a transaction.
-        await asyncio.gather(*[
-            _run_model_safe(db, comp, result, items, concurrency) for result in pending
-        ])
+        if latency_mode:
+            # Latency benchmark: one request in flight at a time and one
+            # model after another, so no model's numbers include queueing
+            # or contention with the others.
+            for result in pending:
+                if _stop_requested(comparison_id):
+                    break
+                await _run_model_safe(db, comp, result, items, 1, warmup)
+        else:
+            # Models run concurrently; each has its own concurrency budget. All
+            # DB writes happen in synchronous blocks on this single session, so
+            # coroutines never interleave inside a transaction.
+            await asyncio.gather(*[
+                _run_model_safe(db, comp, result, items, concurrency, warmup) for result in pending
+            ])
 
         db.refresh(comp)
         statuses = [r.status for r in comp.model_results]
@@ -426,11 +612,11 @@ async def run_comparison(comparison_id: int) -> None:
         db.close()
 
 
-async def _run_model_safe(db, comp, result, items, concurrency) -> None:
+async def _run_model_safe(db, comp, result, items, concurrency, warmup=0) -> None:
     """Run one model; an unexpected crash fails that model, not the run."""
     result_id = result.id
     try:
-        await _run_model(db, comp, result, items, concurrency)
+        await _run_model(db, comp, result, items, concurrency, warmup)
     except Exception as e:
         logger.exception("Model result %s crashed", result_id)
         db.rollback()
@@ -455,6 +641,7 @@ async def _run_model(
     result: DecisionModelResult,
     items: list[tuple[int, str, str]],
     concurrency: int,
+    warmup: int = 0,
 ) -> None:
     comparison_id = comp.id
     result_id = result.id
@@ -481,7 +668,6 @@ async def _run_model(
     aborted = asyncio.Event()
     buffer: list[DecisionPrediction] = []
     last_flush = time.monotonic()
-    started = time.perf_counter()
 
     def flush(force: bool = False) -> None:
         nonlocal last_flush
@@ -521,6 +707,17 @@ async def _run_model(
                 return item, Outcome(status="error", error=message[:RAW_OUTPUT_LIMIT])
 
     async with classifier:
+        # Warm-up requests (lazy model loading, connection setup) are sent
+        # first and discarded — they never reach the metrics. A fixed text
+        # keeps dataset rows out of any server-side cache.
+        for _ in range(warmup if todo else 0):
+            if _stop_requested(comparison_id):
+                break
+            try:
+                await classifier.classify(WARMUP_TEXT)
+            except Exception as e:  # noqa: BLE001 — a failing warm-up is reported by the real run
+                logger.debug("Warm-up request failed for result %s: %s", result_id, e)
+        started = time.perf_counter()
         tasks = [asyncio.ensure_future(classify(it)) for it in todo]
         try:
             for fut in asyncio.as_completed(tasks):
@@ -549,7 +746,9 @@ async def _run_model(
                     status=outcome.status,
                     is_correct=outcome.status == "ok" and outcome.predicted == expected,
                     confidence=outcome.confidence,
+                    probabilities=outcome.probabilities,
                     latency_ms=outcome.latency_ms,
+                    attempts=outcome.attempts,
                     input_tokens=outcome.input_tokens,
                     output_tokens=outcome.output_tokens,
                     cost=cost_of(outcome.input_tokens, outcome.output_tokens, in_price, out_price),
@@ -572,6 +771,13 @@ async def _run_model(
     res.total = len(items)
     res.tokens_estimated = bool(res.tokens_estimated or run_estimated)
     res.wall_time_ms = (res.wall_time_ms or 0.0) + wall_ms
+    # Self-hosted hardware is billed for the time this model kept it busy.
+    if res.infra_cost_per_hour is not None:
+        res.infra_cost = res.infra_cost_per_hour * res.wall_time_ms / 3_600_000
+    if res.token_cost is None and res.infra_cost is None:
+        res.total_cost = None
+    else:
+        res.total_cost = (res.token_cost or 0.0) + (res.infra_cost or 0.0)
 
     if fail_fast:
         res.status = "failed"

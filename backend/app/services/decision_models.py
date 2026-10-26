@@ -70,7 +70,10 @@ class DecisionAnswer:
     input_tokens: int = 0
     output_tokens: int = 0
     tokens_estimated: bool = False
+    # Latency of the attempt that succeeded — backoff sleeps and failed
+    # attempts are excluded so retries don't inflate the percentiles.
     latency_ms: float = 0.0
+    attempts: int = 1
     raw: Any = None
 
 
@@ -214,10 +217,10 @@ class SystemOneClient:
         labels: list[dict],
     ) -> DecisionAnswer:
         body = build_request(self.model, state, instructions, labels)
-        started = time.perf_counter()
         last_error: Optional[Exception] = None
         for attempt in range(1, _MAX_ATTEMPTS + 1):
             retry_after = 0.0
+            started = time.perf_counter()
             try:
                 resp = await http.post(self.url, json=body)
             except httpx.TransportError as e:
@@ -235,6 +238,7 @@ class SystemOneClient:
                         raise DecisionModelError(f"Invalid JSON response: {resp.text[:200]}") from e
                     answer = parse_response(payload)
                     answer.latency_ms = (time.perf_counter() - started) * 1000
+                    answer.attempts = attempt
                     if answer.input_tokens == 0:
                         answer.input_tokens = estimate_request_tokens(state, instructions, labels)
                         answer.tokens_estimated = True
@@ -245,10 +249,17 @@ class SystemOneClient:
 
 
 def test_decision_provider(provider: Provider, model: Optional[str] = None) -> str:
-    """Make one tiny decision call; return the chosen option or raise."""
+    """Make one tiny decision call; return the chosen option or raise.
+
+    Text-classifier providers are tested with a single classification.
+    """
     model_name = model or provider.default_decision_model or (provider.decision_models or [None])[0]
     if not model_name:
         raise DecisionModelError("No decision model configured for this provider")
+    from app.services.text_classifiers import CLASSIFIER_PROVIDER_TYPES, test_classifier_provider
+
+    if provider.provider_type in CLASSIFIER_PROVIDER_TYPES:
+        return test_classifier_provider(provider, model_name)
     client = SystemOneClient(provider, model_name, timeout=30)
     labels = [
         {"name": "billing", "description": "Payments, invoices, refunds"},
