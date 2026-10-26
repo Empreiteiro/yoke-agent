@@ -320,8 +320,8 @@ function HomeContent() {
         isStepAccessible={isStepAccessible}
         currentPipeline={pipeline}
       />
-      <main className="flex-1 min-w-0 py-3 pr-3">
-        <div className="h-full bg-surface-100 rounded-3xl border border-themed shadow-resting overflow-y-auto">
+      <main className="flex-1 min-w-0 pt-3">
+        <div className="h-full bg-surface-100 rounded-tl-3xl border-t border-l border-themed shadow-resting overflow-y-auto">
           {currentView && VIEW_COMPONENTS[currentView] ? (
             <div key={currentView} className="px-8 py-7 max-w-6xl mx-auto animate-fade-up">
               {VIEW_COMPONENTS[currentView]}
@@ -329,7 +329,8 @@ function HomeContent() {
           ) : (
             <>
               <PipelineHeader
-                steps={ACTIVE_STEPS}
+                step={ACTIVE_STEPS.find((s) => s.id === currentStep)}
+                steps={pipeline === "agent" ? AGENT_STEPS : RAG_STEPS}
                 currentStep={currentStep}
                 completedSteps={completedSteps}
               />

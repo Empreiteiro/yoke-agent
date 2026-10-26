@@ -121,7 +121,7 @@ export default function StepChat() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)]">
+    <div className="flex flex-col h-[calc(100vh-12.5rem)]">
       {/* Clear button */}
       {messages.length > 0 && (
         <div className="flex justify-end mb-2">
