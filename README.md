@@ -8,7 +8,7 @@ It ships with three complementary workbenches on a single dashboard:
 
 - **RAG Workbench** — Document ingestion → LLM-generated evaluation dataset → grid search over chunking, embeddings, retrieval strategies and rerankers → [RAGAS](https://docs.ragas.io/) scoring → improvement report.
 - **Agent Workbench** — Agent definition (prompt, tools, MCP servers) → scenario library (tool use, decision paths, response quality, guardrails) → persona-driven simulation → G-Eval LLM-as-judge scoring → ranked leaderboard.
-- **Model Comparison** — Labeled classification dataset (7 built-in sets of 1,200 rows, or your own upload) → the same sample through decision models (TypeSafe Jev and other System One endpoints) and LLM classifiers → accuracy, errors and total cost per model.
+- **Model Comparison** — Labeled classification dataset (7 built-in sets of 1,200 rows, or your own upload) → the same sample through decision models (TypeSafe Jev and other System One endpoints), pre-trained text classifiers, regex baselines and LLM classifiers → accuracy, errors, latency and total cost per model, plus a guardrail (block vs allow) view with significance tests, ROC curves and calibration.
 
 ---
 
@@ -66,7 +66,11 @@ It ships with three complementary workbenches on a single dashboard:
 - **Built-in datasets** — Seven labeled sets of 1,200 rows each: Guardrails, Support Ticket Classification (English and pt-BR), Banking Intent Routing, Agent Tool Routing, Product Review Sentiment, and Email & SMS Threat Triage. Every set includes hard cases that borrow a neighbouring label's vocabulary.
 - **Custom datasets** — Upload CSV, TSV, JSON or JSONL; columns are auto-detected (or picked in a preview), and label definitions can be edited before import.
 - **Head-to-head runs** — Up to 8 models answer the same stratified sample with the same task question and label definitions, with live progress, stop and resume.
-- **Results** — Total cost per model, accuracy with total / correct / errors (wrong label vs. no valid answer), error rate, cost share and cost per 1k rows, macro-F1, p50/p95 latency, per-label recall, confusion matrix, cost-vs-accuracy chart, a per-prediction explorer, and CSV export.
+- **Traditional guardrails as baselines** — Pre-trained **text classifiers** (Hugging Face Inference API / TEI, or the OpenShift AI guardrails detector API) with a native-label → dataset-label map and threshold, and an in-process **regex rules** baseline.
+- **Policy variants** — Override a model's task, label definitions, LLM prompt template or answer aliases, and duplicate a model to compare policies side by side (policy sensitivity).
+- **Latency benchmark mode** — One request in flight, models one after another, discarded warm-up requests; retries never inflate latency, and deployment metadata plus a $/hour hardware cost make self-hosted models comparable.
+- **Results** — Total cost per model, accuracy with total / correct / errors (wrong label vs. no valid answer) and a 95% interval, error rate, cost share and cost per 1k rows, macro-F1, p50/p90/p95/p99 latency and throughput, per-label recall, confusion matrix, cost-vs-accuracy and latency-vs-accuracy charts, a per-prediction explorer, and CSV export.
+- **Guardrail benchmarking** — Block-vs-allow view (detection rate, misses, over-blocking, precision at your production prevalence, expected error cost), paired McNemar tests with "statistically tied" flags, ROC/PR curves with operating points, calibration (ECE, Brier, reliability diagram) and accuracy by difficulty.
 
 ---
 
@@ -145,6 +149,7 @@ Configured from Settings → Providers. All credentials are stored in the backen
 | **Custom** | ✓ | ✓ | Any OpenAI-compatible endpoint (LM Studio, vLLM, etc.). |
 | **TypeSafe (Jev)** | decision | — | Decision model via the System One API (`/v1/systemone`). Input tokens only, $0.042 / 1M. |
 | **System One-compatible** | decision | — | Any endpoint that speaks the System One API (gateway or self-hosted decision model). |
+| **Text classifier** | classifier | — | Pre-trained classifiers behind a Hugging Face / TEI endpoint (`{"inputs": text}` → label scores) or the guardrails detector API (`/api/v1/text/contents`). `{model}` in the Base URL selects the model. |
 
 ---
 
@@ -309,12 +314,12 @@ Aggregated results expose `{mean, median, std, min, max, count}` per metric, and
 
 ## Model Comparison: Decision Models vs LLMs
 
-Decision models such as TypeSafe's Jev don't generate text. They receive a piece of **state** and a typed **question**, and return a choice with a calibrated probability for each option. Many production LLM calls are this kind of decision: routing a ticket, screening an input, classifying an intent, or picking a tool. The Model Comparison workbench measures whether a decision model can replace an LLM on *your* task, and at what cost.
+Decision models such as TypeSafe's Jev don't generate text. They receive a piece of **state** and a typed **question**, and return a choice with a calibrated probability for each option. Many production LLM calls are this kind of decision: routing a ticket, screening an input, classifying an intent, or picking a tool. The Model Comparison workbench measures whether a decision model can replace an LLM on *your* task, and at what cost — and, for guardrails, whether it beats the small pre-trained classifiers and rules you could run instead (the comparison Red Hat made in [*Benchmarking AI decision models against traditional guardrails*](https://developers.redhat.com/articles/2026/10/02/benchmarking-ai-decision-models-against-traditional-guardrails)).
 
 **How a run works**
 
 1. Pick a dataset and a sample (stratified by default, so the label mix is preserved).
-2. Pick up to 8 models: decision models and/or LLMs from any configured provider.
+2. Pick up to 8 models: decision models, text classifiers and/or LLMs from any configured provider, plus an optional regex baseline.
 3. Every model gets the **same task question and label definitions**:
    - Decision models receive them as a System One `choice` question:
      ```json
@@ -323,7 +328,12 @@ Decision models such as TypeSafe's Jev don't generate text. They receive a piece
                                  "criteria": {"<label>": "<definition>", "...": "..."}}}}
      ```
    - LLMs receive the same content as a prompt and must answer `{"label": "...", "confidence": ...}`. An answer that doesn't resolve to exactly one known label counts as **no answer**. The parser never guesses.
-4. Predictions are stored per row, so you can drill into exactly where each model failed.
+   - Text classifiers return their own labels (`INJECTION`, `SAFE`, `LABEL_1`…). A per-model **label map** folds them onto dataset labels; an optional **threshold** answers a fallback label below it (also used when a detector finds nothing).
+   - Regex baselines run in-process: the first label with a matching pattern wins, otherwise the default label.
+4. **Policies are per model.** Open a model to override its task, label definitions, prompt template (placeholders `{task}`, `{labels}`, `{label_names}`, `{text}`) or answer aliases (e.g. `unsafe` → `jailbreak`), and duplicate it to run several variants. Wording alone can move accuracy by double digits, so each result stores its settings and a policy fingerprint.
+5. Predictions are stored per row (with the probability distribution when the model returns one), so you can drill into exactly where each model failed.
+
+Turn on **latency benchmark mode** when latency matters: each model runs alone with one request in flight after a few discarded warm-up requests. In every mode, decision-model and classifier latency times only the attempt that succeeded, so rate-limit retries don't inflate percentiles. Record where each model ran (hardware, parameters, serving stack) — a CPU classifier and a GPU-hosted 35B judge aren't comparable without it.
 
 **Metrics per model**
 
@@ -332,10 +342,23 @@ Decision models such as TypeSafe's Jev don't generate text. They receive a piece
 | Total / Correct / Errors | Rows evaluated; correct answers; errors split into *wrong label* and *no answer* (API error or an answer outside the label set) |
 | Accuracy, Error rate | Correct ÷ total, Errors ÷ total |
 | Macro-F1, per-label recall & precision | Class-balanced quality; where each model struggles |
-| Total cost, Cost / 1k rows, Cost share, × cheapest | Measured tokens × price per 1M tokens (editable per run), and each model's share of the comparison's spend |
-| Latency p50 / p95 | Per-request latency |
+| Accuracy / macro-F1 intervals | 95% Wilson interval for accuracy, bootstrap interval for macro-F1 |
+| Total cost, Cost / 1k rows, Cost share, × cheapest | Measured tokens × price per 1M tokens (editable per run) plus, for self-hosted models, hardware $/hour × the model's wall-clock time |
+| Latency p50 / p90 / p95 / p99, std dev, throughput, retried | Per-request latency of the successful attempt, rows per second, requests that needed a retry |
 
-Prices come from the built-in table (`MODEL_PRICING`, flex-tier aware). Ollama and Claude Code are treated as free, and any other model with no known price can be priced per run in the UI (enter 0 for self-hosted). Spend is also logged to **History → Logs** under the `model_comparison` operation.
+Prices come from the built-in table (`MODEL_PRICING`, flex-tier aware). Ollama, Claude Code, classifiers and rules have no token price; give self-hosted models a hardware $/hour instead, and price any other unknown model per run in the UI. Spend is also logged to **History → Logs** under the `model_comparison` operation.
+
+**Guardrail benchmarking** (`GET /api/decision/comparisons/{id}/analysis`, computed from the stored predictions — changing a setting never re-runs anything)
+
+| View | What it shows |
+|---|---|
+| Block vs allow | Labels split into a *block* class (auto-detected as everything except labels named like `safe`) and the rest: detection rate, missed attacks, over-blocking (FPR) with intervals, precision, F1, balanced accuracy, MCC. Failed requests count as allowed (fail-open), blocked (fail-closed) or excluded. |
+| Production prevalence & cost | Precision if attacks were e.g. 1% of real traffic (balanced benchmarks hide this), and the expected error cost per 1,000 requests with your weights for a missed attack vs. a false block |
+| Statistical significance | Paired McNemar tests between every pair of models (they answered the same rows), Holm-adjusted; the leaderboard flags models that are **≈ #1** — not distinguishable from the top model |
+| ROC / PR | Curves for the block class from each model's probabilities (or stated confidence), ROC-AUC, PR-AUC, detection at FPR ≤ 1% / 5%, FPR at 95% detection |
+| Calibration | Reliability diagram, ECE and Brier score: is a model that says 90% right 90% of the time? |
+| Difficulty slices | Accuracy per `difficulty` tag (built-in sets mark ~20% of rows `hard`) |
+| Policy sensitivity | Accuracy spread across variants of the same model |
 
 **Built-in datasets** (`backend/data/decision_datasets/`, seeded on startup)
 
@@ -406,11 +429,13 @@ The backend exposes a RESTful API at `http://localhost:4040`. Interactive docs:
 | `GET` | `/api/token-usage/summary` | Aggregated spend by provider / model / experiment |
 | `GET` | `/api/decision/datasets` | Built-in and custom comparison datasets |
 | `POST` | `/api/decision/datasets/upload` | Upload a CSV / TSV / JSON / JSONL dataset (`dry_run=true` previews) |
-| `GET` | `/api/decision/models` | Decision models + LLMs available for comparison, with default prices |
+| `GET` | `/api/decision/models` | Decision models, text classifiers + LLMs available for comparison, with default prices and prompt templates |
 | `POST` | `/api/decision/comparisons/estimate` | Projected tokens and cost per model |
 | `POST` | `/api/decision/comparisons` | Create and start a comparison |
 | `GET` | `/api/decision/comparisons/{id}` | Leaderboard: accuracy, errors, cost, latency, per-label metrics |
-| `GET` | `/api/decision/comparisons/{id}/predictions` | Per-row predictions (filter by model / outcome / label) |
+| `GET` | `/api/decision/comparisons/{id}/predictions` | Per-row predictions (filter by model / outcome / label / difficulty) |
+| `GET` | `/api/decision/comparisons/{id}/analysis` | Guardrail view, intervals, McNemar tests, ROC, calibration, slices, policy sensitivity |
+| `PUT` | `/api/decision/comparisons/{id}/analysis-settings` | Block labels, failure policy, production prevalence and error costs for the analysis |
 | `GET` | `/api/decision/comparisons/{id}/export` | CSV with every model's prediction per row |
 
 ---
@@ -460,8 +485,10 @@ yoke-agent/
 │   │   │   ├── agent_evaluator.py      # G-Eval LLM-as-judge
 │   │   │   ├── agent_report_generator.py
 │   │   │   ├── decision_models.py      # TypeSafe Jev / System One client
+│   │   │   ├── text_classifiers.py     # HF / TEI / guardrails-detector classifier client
 │   │   │   ├── llm_classifier.py       # LLM-as-classifier prompt + answer parser
 │   │   │   ├── decision_comparison.py  # Comparison runner, sampling, metrics, pricing
+│   │   │   ├── decision_stats.py       # Guardrail view, intervals, McNemar, ROC, calibration
 │   │   │   └── decision_datasets.py    # Built-in seeding + upload parsing
 │   │   └── main.py
 │   ├── data/decision_datasets/         # 7 built-in comparison datasets (1,200 rows each)
