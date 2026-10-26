@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app.core.database import get_db
 from app.models.provider import Provider
@@ -124,6 +124,15 @@ def delete_provider(provider_id: int, db: Session = Depends(get_db)):
     return {"detail": "Provider deleted"}
 
 
+def _describe_failure(provider: Provider, kind: str, model: Optional[str], error: Exception) -> str:
+    """``"LLM (model): error — hint"`` for the provider test message."""
+    from app.services.llm_factory import provider_error_hint
+
+    message = f"{kind} ({model}): {error}" if model else f"{kind}: {error}"
+    hint = provider_error_hint(provider.provider_type, str(error))
+    return f"{message} — {hint}" if hint else message
+
+
 @router.post("/{provider_id}/test", response_model=ProviderTestResult)
 def test_provider(provider_id: int, db: Session = Depends(get_db)):
     """Test connectivity for a provider by making a minimal API call."""
@@ -162,7 +171,8 @@ def test_provider(provider_id: int, db: Session = Depends(get_db)):
             llm_ok = True
         except Exception as e:
             llm_ok = False
-            errors.append(f"LLM: {str(e)}")
+            tested = test_model or provider.default_llm_model or provider.llm_models[0]
+            errors.append(_describe_failure(provider, "LLM", tested, e))
 
     if provider.supports_embedding and provider.embedding_models:
         try:
@@ -172,7 +182,8 @@ def test_provider(provider_id: int, db: Session = Depends(get_db)):
             embedding_ok = True
         except Exception as e:
             embedding_ok = False
-            errors.append(f"Embedding: {str(e)}")
+            tested = provider.default_embedding_model or provider.embedding_models[0]
+            errors.append(_describe_failure(provider, "Embedding", tested, e))
 
     if provider.supports_decision:
         try:
@@ -182,7 +193,8 @@ def test_provider(provider_id: int, db: Session = Depends(get_db)):
             logger.info("Decision provider %s answered test question with %r", provider.name, choice)
         except Exception as e:
             decision_ok = False
-            errors.append(f"Decision model: {str(e)}")
+            tested = provider.default_decision_model or (provider.decision_models or [None])[0]
+            errors.append(_describe_failure(provider, "Decision model", tested, e))
 
     success = (llm_ok is not False) and (embedding_ok is not False) and (decision_ok is not False)
     message = "All tests passed" if success else "; ".join(errors)

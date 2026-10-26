@@ -143,7 +143,7 @@ Configured from Settings → Providers. All credentials are stored in the backen
 | **Anthropic** | ✓ | — | Claude Opus 5.5 / Sonnet 5.5 / Haiku 5.5, Fable 5.1, and the Opus 5, Sonnet 5 and 4.x models. |
 | **Google (Gemini)** | ✓ | ✓ | Gemini 4 Argon, 3.8 Flash, 3.6 Flash, 3.5 Flash-Lite, 3.1 Pro (preview). Flex tier on `gemini-2.5-*` and `gemini-3.x`. |
 | **OpenRouter** | ✓ | — | One key for hundreds of models (`https://openrouter.ai/api/v1`). Suggests some of the most used: DeepSeek V4.1 Flash, GPT-6 Luna, Claude Sonnet 5.5, Gemini 3.8 Flash, Claude Opus 5.5, GPT-6.1 Sol and the free Nemotron 3 Ultra. Add any other `vendor/model` slug by hand. |
-| **NVIDIA NIM** | ✓ | classifier | build.nvidia.com (free, rate-limited trial) or a self-hosted NIM via the Base URL. LLMs: Nemotron 3 Super / Ultra, DiffusionGemma. Classifiers: Nemotron-3.5 Content Safety with **default policies** (NVIDIA's taxonomy) or **custom policies** (built from the dataset's labels). |
+| **NVIDIA NIM** | ✓ | classifier | build.nvidia.com (free, rate-limited trial) or a self-hosted NIM via the Base URL. LLMs: Nemotron 3 Super / Ultra, DiffusionGemma. Classifiers: Nemotron-3.5 Content Safety with **default policies** (NVIDIA's taxonomy) or **custom policies** (built from the dataset's labels). A `404 Function … Not found for account` means NVIDIA hasn't enabled that model's hosted endpoint for your account: try another model, or ask NVIDIA to enable "Public API Endpoints". |
 | **Cohere** | ✓ | ✓ | Command-R family + embed-english/multilingual. |
 | **Ollama** | ✓ | ✓ | Local models via `/api/tags` discovery. |
 | **Azure OpenAI** | ✓ | ✓ | Deployment-based, with custom API version. |

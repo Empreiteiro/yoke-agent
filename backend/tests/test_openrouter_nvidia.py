@@ -246,3 +246,58 @@ def test_comparison_lists_nim_classifiers_with_labels():
     claude = next(m for m in listing["llm_models"] if m["provider_name"] == "OpenRouter")
     assert (claude["input_price_per_million"], claude["pricing_source"]) == (2.0, "price table")
     assert json.dumps(listing)  # serializable as returned by the API
+
+
+# ── NIM access errors ───────────────────────────────────────────────────
+
+NIM_NO_ACCESS = (
+    "Error code: 404 - {'status': 404, 'title': 'Not Found', 'detail': \"Function "
+    "'ac74040f-9fc9-4c5e-ac74-279ba5161d69': Not found for account 'abc'\"}"
+)
+
+
+def test_provider_error_hint_explains_nim_entitlement_errors():
+    from app.services.llm_factory import provider_error_hint
+
+    hint = provider_error_hint("nvidia", NIM_NO_ACCESS)
+    assert "hasn't enabled this model's hosted endpoint for your account" in hint
+    assert "Public API Endpoints" in hint
+    assert provider_error_hint("openai", NIM_NO_ACCESS) is None
+    assert provider_error_hint("nvidia", "Error code: 401 - Unauthorized") is None
+
+
+def test_provider_test_names_the_model_and_explains_nim_404(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api import providers as providers_api
+    from app.services import decision_models, llm_factory
+
+    class _FailingLLM:
+        def invoke(self, prompt):
+            raise RuntimeError(NIM_NO_ACCESS)
+
+    monkeypatch.setattr(llm_factory, "get_llm", lambda *a, **kw: _FailingLLM())
+    monkeypatch.setattr(decision_models, "test_decision_provider", lambda provider: "safe")
+
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    nim = Provider(name="NIM", provider_type="nvidia", api_key="nvapi-test", is_active=True,
+                   supports_llm=True, llm_models=PROVIDER_CATALOG["nvidia"]["llm_models"],
+                   default_llm_model="nvidia/nemotron-3-super-120b-a12b",
+                   supports_decision=True, decision_models=[DEFAULT])
+    db.add(nim)
+    db.commit()
+    app = FastAPI()
+    app.include_router(providers_api.router, prefix="/api/providers")
+    try:
+        result = TestClient(app).post(f"/api/providers/{nim.id}/test").json()
+    finally:
+        db.delete(nim)
+        db.commit()
+        db.close()
+
+    assert result["success"] is False
+    assert result["llm_ok"] is False and result["decision_ok"] is True
+    assert result["message"].startswith("LLM (nvidia/nemotron-3-super-120b-a12b): Error code: 404")
+    assert "hasn't enabled this model's hosted endpoint for your account" in result["message"]
