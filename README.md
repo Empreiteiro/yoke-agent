@@ -62,7 +62,7 @@ It ships with three complementary workbenches on a single dashboard:
 - **Results Dashboard** — All Results table with every metric as a column, collapsible LLM-generated Improvement Report, and per-transcript drill-down.
 
 ### Model Comparison (decision models vs LLMs)
-- **Decision-model providers** — TypeSafe's **Jev** (System One API), OpenAI's **Decisions API** (`gpt-6-luna`, selected under *Decision Models* on an OpenAI provider) and any System One-compatible endpoint (gateways such as LiteLLM, or self-hosted open "Jev-style" models), configured in Settings → Providers next to your LLMs.
+- **Decision-model providers** — TypeSafe's **Jev** (System One API), OpenAI's **Decisions API** (`gpt-6-luna`, selected under *Decision Models* on an OpenAI provider) and any System One-compatible endpoint (gateways such as LiteLLM, or self-hosted open "Jev-style" models such as Google's **DiffusionGemma**), configured in Settings → Providers next to your LLMs.
 - **Built-in datasets** — Seven labeled sets of 1,200 rows each: Guardrails, Support Ticket Classification (English and pt-BR), Banking Intent Routing, Agent Tool Routing, Product Review Sentiment, and Email & SMS Threat Triage. Every set includes hard cases that borrow a neighbouring label's vocabulary.
 - **Custom datasets** — Upload CSV, TSV, JSON or JSONL; columns are auto-detected (or picked in a preview), and label definitions can be edited before import.
 - **Head-to-head runs** — Up to 8 models answer the same stratified sample with the same task question and label definitions, with live progress, stop and resume.
@@ -148,7 +148,7 @@ Configured from Settings → Providers. All credentials are stored in the backen
 | **Claude Code CLI** | ✓ | — | Subprocess-based; no API key needed. |
 | **Custom** | ✓ | ✓ | Any OpenAI-compatible endpoint (LM Studio, vLLM, etc.). |
 | **TypeSafe (Jev)** | decision | — | Decision model via the System One API (`/v1/systemone`). Input tokens only, $0.042 / 1M. |
-| **System One-compatible** | decision | — | Any endpoint that speaks the System One API (gateway or self-hosted decision model). |
+| **System One-compatible** | decision | — | Any endpoint that speaks the System One API (gateway or self-hosted decision model). Suggests `google/diffusiongemma-26B-A4B-it` for DiffusionGemma on vLLM's structured-decisions server (`http://localhost:8011`). |
 | **Text classifier** | classifier | — | Pre-trained classifiers behind a Hugging Face / TEI endpoint (`{"inputs": text}` → label scores) or the guardrails detector API (`/api/v1/text/contents`). `{model}` in the Base URL selects the model. |
 
 ---
@@ -365,6 +365,10 @@ Prices come from the built-in tables (`MODEL_PRICING`, flex-tier aware, and `DEC
 | Calibration | Reliability diagram, ECE and Brier score: is a model that says 90% right 90% of the time? |
 | Difficulty slices | Accuracy per `difficulty` tag (built-in sets mark ~20% of rows `hard`) |
 | Policy sensitivity | Accuracy spread across variants of the same model |
+
+**Self-hosted DiffusionGemma**
+
+DiffusionGemma (`google/diffusiongemma-26B-A4B-it`) is an open-weights (Apache 2.0) Gemma model. It is **not served by the Gemini API**, so a Google AI Studio key can't call it, and Model Garden deployments use Google Cloud credentials rather than that key. Run it as a decision model on your own GPU with vLLM's [structured-decisions example server](https://docs.vllm.ai/en/latest/examples/features/structured_diffusion/), which speaks System One. Then add a **System One-compatible** provider with that server's URL (`http://localhost:8011` by default). Use vLLM's served model name: `google/diffusiongemma-26B-A4B-it` by default, or `dgemma` if you followed the recipe's `--served-model-name`. Tokens have no list price, so give the model the GPU's $/hour in the comparison to see its real cost.
 
 **Built-in datasets** (`backend/data/decision_datasets/`, seeded on startup)
 
