@@ -11,6 +11,23 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 NVIDIA_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
 
+def provider_error_hint(provider_type: str, message: str) -> Optional[str]:
+    """What to do about an upstream error whose text doesn't say, or None.
+
+    build.nvidia.com answers ``404 Function '<id>': Not found for account
+    '<id>'`` when it knows the model but hasn't enabled its hosted endpoint
+    for the key's account — an NVIDIA-side entitlement (often per model),
+    not a wrong model id or key.
+    """
+    if provider_type == "nvidia" and "not found for account" in (message or "").lower():
+        return (
+            "build.nvidia.com hasn't enabled this model's hosted endpoint for your account "
+            "(an NVIDIA entitlement, not a wrong model id or key). Try another model; if none "
+            "works, ask NVIDIA to enable \"Public API Endpoints\" for your account."
+        )
+    return None
+
+
 # Models that accept the "flex" service tier. Used to pre-flight test
 # calls so we don't issue a flex request against a model the upstream
 # API will reject (non-flex models return either "service_tier 'flex'

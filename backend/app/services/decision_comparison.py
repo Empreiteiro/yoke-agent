@@ -41,6 +41,7 @@ from app.services.decision_models import (
     DECISION_PROVIDER_TYPES, DecisionClient, estimate_request_tokens,
 )
 from app.services.llm_classifier import build_messages, match_label, normalize_aliases, parse_answer
+from app.services.llm_factory import provider_error_hint
 from app.services.text_classifiers import (
     CLASSIFIER_PROVIDER_TYPES, NVIDIA_NIM_BASE_URL, TextClassifierClient, build_safety_policy, is_custom_policy,
 )
@@ -808,6 +809,9 @@ async def _run_model(
         res.error_message = first_error or "Every request failed"
     else:
         res.status = "completed"
+    hint = provider_error_hint(result.provider_type or "", first_error or "") if res.status == "failed" else None
+    if hint:
+        res.error_message += f" — {hint}"
     res.completed_at = _utcnow()
 
     if run_in_tokens or run_out_tokens:
