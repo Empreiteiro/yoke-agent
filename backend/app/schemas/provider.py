@@ -67,6 +67,54 @@ PROVIDER_CATALOG = {
         "requires_api_key": True,
         "supports_base_url": False,
     },
+    # OpenRouter: one key, hundreds of models behind an OpenAI-compatible
+    # API (https://openrouter.ai/api/v1). These are among the most used in
+    # Oct 2026 (openrouter.ai/rankings); any other "vendor/model" slug can
+    # be added by hand. ":free" variants cost nothing but are rate-limited.
+    "openrouter": {
+        "label": "OpenRouter",
+        "supports_llm": True,
+        "supports_embedding": False,
+        "llm_models": [
+            "deepseek/deepseek-v4.1-flash", "openai/gpt-6-luna",
+            "anthropic/claude-sonnet-5.5", "google/gemini-3.8-flash",
+            "anthropic/claude-opus-5.5", "openai/gpt-6.1-sol",
+            "nvidia/nemotron-3-ultra-550b-a55b:free",
+        ],
+        "embedding_models": [],
+        "requires_api_key": True,
+        "supports_base_url": False,
+    },
+    # NVIDIA NIM: the build.nvidia.com API catalog (free, rate-limited
+    # trial endpoints) or a self-hosted NIM — both OpenAI-compatible.
+    # Nemotron 3.5 Content Safety is a 4B guard model that answers
+    # safe/unsafe plus violated categories, so Model Comparison runs it as
+    # a text classifier (see services/text_classifiers.py). The
+    # ":custom-policy" entry is the same model, sent the dataset's task and
+    # label definitions as its policy instead of NVIDIA's taxonomy.
+    "nvidia": {
+        "label": "NVIDIA NIM",
+        "supports_llm": True,
+        "supports_embedding": False,
+        "supports_decision": True,
+        "decision_kind": "classifier",
+        "llm_models": [
+            "nvidia/nemotron-3-super-120b-a12b", "nvidia/nemotron-3-ultra-550b-a55b",
+            "google/diffusiongemma-26b-a4b-it",
+        ],
+        "embedding_models": [],
+        "decision_models": [
+            "nvidia/nemotron-3.5-content-safety",
+            "nvidia/nemotron-3.5-content-safety:custom-policy",
+        ],
+        "model_labels": {
+            "nvidia/nemotron-3.5-content-safety": "Nemotron-3.5 Content Safety (default policies)",
+            "nvidia/nemotron-3.5-content-safety:custom-policy": "Nemotron-3.5 Content Safety (custom policies)",
+        },
+        "requires_api_key": True,
+        "supports_base_url": True,
+        "default_base_url": "https://integrate.api.nvidia.com/v1",
+    },
     "cohere": {
         "label": "Cohere",
         "supports_llm": True,
@@ -188,6 +236,7 @@ PROVIDER_CATALOG = {
         "supports_llm": False,
         "supports_embedding": False,
         "supports_decision": True,
+        "decision_kind": "classifier",
         "llm_models": [],
         "embedding_models": [],
         "decision_models": [
@@ -199,10 +248,19 @@ PROVIDER_CATALOG = {
     },
 }
 
-# Catalog entries default to no decision support.
+# Catalog entries default to no decision support. ``decision_kind`` says
+# whether a provider's decision_models run as decision models or as text
+# classifiers; ``model_labels`` gives friendlier names for some model ids.
 for _entry in PROVIDER_CATALOG.values():
     _entry.setdefault("supports_decision", False)
     _entry.setdefault("decision_models", [])
+    _entry.setdefault("decision_kind", "decision")
+    _entry.setdefault("model_labels", {})
+
+
+def model_label(provider_type: str, model: str) -> str:
+    """Catalog display name for ``model``, or the id itself."""
+    return PROVIDER_CATALOG.get(provider_type, {}).get("model_labels", {}).get(model, model)
 
 
 # --- Embedding model dimension capabilities ---

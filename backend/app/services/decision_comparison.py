@@ -41,7 +41,9 @@ from app.services.decision_models import (
     DECISION_PROVIDER_TYPES, DecisionClient, estimate_request_tokens,
 )
 from app.services.llm_classifier import build_messages, match_label, normalize_aliases, parse_answer
-from app.services.text_classifiers import CLASSIFIER_PROVIDER_TYPES, TextClassifierClient
+from app.services.text_classifiers import (
+    CLASSIFIER_PROVIDER_TYPES, NVIDIA_NIM_BASE_URL, TextClassifierClient, build_safety_policy, is_custom_policy,
+)
 from app.services.token_tracker import (
     FLEX_DISCOUNT, extract_llm_token_usage, lookup_decision_pricing, lookup_pricing,
 )
@@ -140,6 +142,11 @@ def default_prices(kind: str, provider: Optional[Provider], model: str) -> tuple
     if kind == "rules":
         return 0.0, 0.0, "local"
     ptype = provider.provider_type
+    if ptype == "nvidia":
+        # build.nvidia.com endpoints are a free (rate-limited) trial; a
+        # self-hosted NIM costs its GPU's $/hour instead.
+        hosted = (provider.base_url or NVIDIA_NIM_BASE_URL).rstrip("/") == NVIDIA_NIM_BASE_URL
+        return 0.0, 0.0, "NVIDIA API (free trial)" if hosted else "self-hosted"
     if kind == "classifier":
         return 0.0, 0.0, "self-hosted"
     if kind == "decision":
@@ -446,8 +453,10 @@ class _LLMClassifier:
 class _TextClassifier:
     """Pre-trained classifier: native labels are mapped onto dataset labels."""
 
-    def __init__(self, provider: Provider, model: str, labels: list[dict], concurrency: int, config: dict):
-        self.client = TextClassifierClient(provider, model)
+    def __init__(self, provider: Provider, model: str, labels: list[dict], concurrency: int, config: dict,
+                 task: str = ""):
+        policy = build_safety_policy(task, labels) if is_custom_policy(model) else None
+        self.client = TextClassifierClient(provider, model, policy=policy)
         self.label_names = [l["name"] for l in labels]
         self.aliases = normalize_aliases(config.get("label_map"), self.label_names)
         self.threshold = config.get("threshold")
@@ -468,6 +477,10 @@ class _TextClassifier:
         raw = json.dumps(answer.raw, ensure_ascii=False)[:RAW_OUTPUT_LIMIT]
         base = dict(latency_ms=answer.latency_ms, attempts=answer.attempts, raw=raw)
         mapped, unmapped = map_scores(answer.scores, self.label_names, self.aliases)
+        if not mapped and answer.fallback_scores:
+            # Content-safety categories that map to nothing fall back to the verdict.
+            mapped, fallback_unmapped = map_scores(answer.fallback_scores, self.label_names, self.aliases)
+            unmapped += fallback_unmapped
         if not answer.scores:
             # A detector that found nothing answers the fallback label.
             if not self.fallback:
@@ -540,7 +553,7 @@ def _build_classifier(db: Session, result: DecisionModelResult, comp: DecisionCo
     if result.kind == "classifier":
         if provider.provider_type not in CLASSIFIER_PROVIDER_TYPES:
             raise ValueError(f"Provider '{provider.name}' does not serve text classifiers")
-        return _TextClassifier(provider, result.model_name, labels, concurrency, config)
+        return _TextClassifier(provider, result.model_name, labels, concurrency, config, task=task)
     temperature = (comp.config or {}).get("temperature", 0.0)
     return _LLMClassifier(db, provider, result.model_name, task, labels, temperature, config)
 

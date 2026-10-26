@@ -65,6 +65,7 @@ interface SelectedModel {
   provider_name: string;
   provider_type: string;
   model: string;
+  label: string;
   input_price: string;
   output_price: string;
   pricing_source: string;
@@ -132,6 +133,7 @@ function toSelected(m: any, labels: any[]): SelectedModel {
     provider_name: m.provider_name,
     provider_type: m.provider_type,
     model: m.model,
+    label: m.label ?? m.model,
     input_price: toPrice(m.input_price_per_million),
     output_price: toPrice(m.output_price_per_million),
     pricing_source: m.pricing_source,
@@ -493,7 +495,7 @@ export default function DecisionCompare() {
             <ModelPicker
               title="Text classifiers"
               icon={ShieldCheck}
-              hint="Pre-trained guardrail classifiers (DeBERTa, Granite Guardian…) behind a Hugging Face / TEI or detector endpoint. Map their native labels in the model's settings."
+              hint="Pre-trained guardrail classifiers (DeBERTa, Granite Guardian…) behind a Hugging Face / TEI or detector endpoint, and guard models such as Nemotron-3.5 Content Safety on NVIDIA NIM. Map their native labels in the model's settings."
               models={available.classifier_models}
               selected={selected}
               onToggle={toggle}
@@ -744,7 +746,7 @@ function SelectedRow({
         <SeriesDot color={color} />
         <div className="flex-1 min-w-[200px]">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-primary font-medium">{m.model}</span>
+            <span className="text-sm text-primary font-medium">{m.label}</span>
             <KindBadge kind={m.kind} />
             <VariantBadge variant={m.variant} />
           </div>
@@ -1187,7 +1189,7 @@ function ModelPicker({
                 )}
               >
                 {isSelected ? <Check className="w-3 h-3 inline mr-1" /> : <Plus className="w-3 h-3 inline mr-1 opacity-60" />}
-                {m.model}
+                {m.label ?? m.model}
                 <span className="text-xs text-muted ml-1">({m.provider_name})</span>
                 {count > 1 && <span className="text-[10px] ml-1">×{count}</span>}
               </button>

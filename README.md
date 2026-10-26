@@ -67,6 +67,7 @@ It ships with three complementary workbenches on a single dashboard:
 - **Custom datasets** — Upload CSV, TSV, JSON or JSONL; columns are auto-detected (or picked in a preview), and label definitions can be edited before import.
 - **Head-to-head runs** — Up to 8 models answer the same stratified sample with the same task question and label definitions, with live progress, stop and resume.
 - **Traditional guardrails as baselines** — Pre-trained **text classifiers** (Hugging Face Inference API / TEI, or the OpenShift AI guardrails detector API) with a native-label → dataset-label map and threshold, and an in-process **regex rules** baseline.
+- **Guard models on NVIDIA NIM** — **Nemotron-3.5 Content Safety** runs as a classifier and answers safe/unsafe plus the categories the input violates. With *default policies* it uses NVIDIA's taxonomy, so map `unsafe` (or a category) to a dataset label. With *custom policies* the dataset's task and label definitions become its policy: non-safe labels are the disallowed categories, so its categories come back as label names. When no category maps, the `unsafe` verdict's mapping is used.
 - **Policy variants** — Override a model's task, label definitions, LLM prompt template or answer aliases, and duplicate a model to compare policies side by side (policy sensitivity).
 - **Latency benchmark mode** — One request in flight, models one after another, discarded warm-up requests; retries never inflate latency, and deployment metadata plus a $/hour hardware cost make self-hosted models comparable.
 - **Results** — Total cost per model, accuracy with total / correct / errors (wrong label vs. no valid answer) and a 95% interval, error rate, cost share and cost per 1k rows, macro-F1, p50/p90/p95/p99 latency and throughput, per-label recall, confusion matrix, cost-vs-accuracy and latency-vs-accuracy charts, a per-prediction explorer, and CSV export.
@@ -141,6 +142,8 @@ Configured from Settings → Providers. All credentials are stored in the backen
 | **OpenAI** | ✓ | ✓ | GPT-6 (Astra, 6.1 Sol, Luna), GPT-5.6 (Sol, Terra), GPT-5.5, GPT-5.4. Flex tier on `o3`, `gpt-5*`, `gpt-6*`. Decision model `gpt-6-luna` via the Decisions API (`/v1/decisions`): input tokens only, $0.10 / 1M. |
 | **Anthropic** | ✓ | — | Claude Opus 5.5 / Sonnet 5.5 / Haiku 5.5, Fable 5.1, and the Opus 5, Sonnet 5 and 4.x models. |
 | **Google (Gemini)** | ✓ | ✓ | Gemini 4 Argon, 3.8 Flash, 3.6 Flash, 3.5 Flash-Lite, 3.1 Pro (preview). Flex tier on `gemini-2.5-*` and `gemini-3.x`. |
+| **OpenRouter** | ✓ | — | One key for hundreds of models (`https://openrouter.ai/api/v1`). Suggests some of the most used: DeepSeek V4.1 Flash, GPT-6 Luna, Claude Sonnet 5.5, Gemini 3.8 Flash, Claude Opus 5.5, GPT-6.1 Sol and the free Nemotron 3 Ultra. Add any other `vendor/model` slug by hand. |
+| **NVIDIA NIM** | ✓ | classifier | build.nvidia.com (free, rate-limited trial) or a self-hosted NIM via the Base URL. LLMs: Nemotron 3 Super / Ultra, DiffusionGemma. Classifiers: Nemotron-3.5 Content Safety with **default policies** (NVIDIA's taxonomy) or **custom policies** (built from the dataset's labels). |
 | **Cohere** | ✓ | ✓ | Command-R family + embed-english/multilingual. |
 | **Ollama** | ✓ | ✓ | Local models via `/api/tags` discovery. |
 | **Azure OpenAI** | ✓ | ✓ | Deployment-based, with custom API version. |

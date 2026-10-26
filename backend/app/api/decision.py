@@ -30,6 +30,7 @@ from app.schemas.decision import (
     AnalysisSettings, ComparisonCreate, DecisionDatasetDetail, DecisionDatasetResponse, DecisionDatasetUpdate,
     DecisionItemResponse, EstimateRequest, ModelSpec,
 )
+from app.schemas.provider import model_label
 from app.services import decision_comparison as engine
 from app.services import decision_stats as stats
 from app.services.decision_datasets import (
@@ -223,7 +224,7 @@ def _default_display_name(
     elif kind == "decision" and provider.supports_llm:
         name = f"{model} · Decisions ({provider.name})"
     else:
-        name = f"{model} ({provider.name})"
+        name = f"{model_label(provider.provider_type, model)} ({provider.name})"
     return f"{name} · {variant}" if variant else name
 
 
@@ -495,6 +496,7 @@ def list_comparable_models(db: Session = Depends(get_db)):
                 (classifier_models if kind == "classifier" else decision_models).append({
                     "kind": kind, "provider_id": p.id, "provider_name": p.name,
                     "provider_type": p.provider_type, "model": model,
+                    "label": model_label(p.provider_type, model),
                     "display_name": _default_display_name(kind, p, model),
                     "is_default": model == p.default_decision_model,
                     "input_price_per_million": in_price, "output_price_per_million": out_price,
@@ -506,6 +508,7 @@ def list_comparable_models(db: Session = Depends(get_db)):
                 llm_models.append({
                     "kind": "llm", "provider_id": p.id, "provider_name": p.name,
                     "provider_type": p.provider_type, "model": model,
+                    "label": model_label(p.provider_type, model),
                     "display_name": _default_display_name("llm", p, model),
                     "is_default": model == p.default_llm_model,
                     "input_price_per_million": in_price, "output_price_per_million": out_price,
