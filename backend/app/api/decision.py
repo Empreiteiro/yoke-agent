@@ -213,6 +213,20 @@ def _comparison_dict(comp: DecisionComparison, include_details: bool = True) -> 
     return data
 
 
+def _default_display_name(
+    kind: str, provider: Optional[Provider], model: str, variant: Optional[str] = None,
+) -> str:
+    # OpenAI serves gpt-6-luna both as an LLM and via its Decisions API —
+    # tag the decision variant so the two don't share a name in results.
+    if provider is None:  # rule baselines run in-process
+        name = f"{model} (rules)"
+    elif kind == "decision" and provider.supports_llm:
+        name = f"{model} · Decisions ({provider.name})"
+    else:
+        name = f"{model} ({provider.name})"
+    return f"{name} · {variant}" if variant else name
+
+
 def _resolve_specs(
     db: Session, specs: list[ModelSpec], label_names: list[str],
 ) -> list[tuple[ModelSpec, Optional[Provider], Optional[float], Optional[float]]]:
@@ -481,6 +495,7 @@ def list_comparable_models(db: Session = Depends(get_db)):
                 (classifier_models if kind == "classifier" else decision_models).append({
                     "kind": kind, "provider_id": p.id, "provider_name": p.name,
                     "provider_type": p.provider_type, "model": model,
+                    "display_name": _default_display_name(kind, p, model),
                     "is_default": model == p.default_decision_model,
                     "input_price_per_million": in_price, "output_price_per_million": out_price,
                     "pricing_source": source,
@@ -491,6 +506,7 @@ def list_comparable_models(db: Session = Depends(get_db)):
                 llm_models.append({
                     "kind": "llm", "provider_id": p.id, "provider_name": p.name,
                     "provider_type": p.provider_type, "model": model,
+                    "display_name": _default_display_name("llm", p, model),
                     "is_default": model == p.default_llm_model,
                     "input_price_per_million": in_price, "output_price_per_million": out_price,
                     "pricing_source": source,
@@ -525,7 +541,7 @@ def estimate_comparison(body: EstimateRequest, request: Request, db: Session = D
             "provider_id": provider.id if provider else None,
             "model": spec.model,
             "variant": spec.variant,
-            "display_name": spec.display_name or _default_display_name(spec, provider),
+            "display_name": spec.display_name or _default_display_name(spec.kind, provider, spec.model, spec.variant),
             "items": len(ids),
             "input_tokens": in_tok,
             "output_tokens": out_tok,
@@ -541,12 +557,6 @@ def estimate_comparison(body: EstimateRequest, request: Request, db: Session = D
         "estimated_total_cost": sum(priced) if priced else None,
         "models": estimates,
     }
-
-
-def _default_display_name(spec: ModelSpec, provider: Optional[Provider]) -> str:
-    source = provider.name if provider else "rules"
-    name = f"{spec.model} ({source})"
-    return f"{name} · {spec.variant}" if spec.variant else name
 
 
 @router.post("/comparisons", status_code=201)
@@ -594,7 +604,7 @@ def create_comparison(body: ComparisonCreate, request: Request, bg: BackgroundTa
             provider_name=provider.name if provider else "Rules",
             provider_type=provider.provider_type if provider else "rules",
             model_name=spec.model,
-            display_name=spec.display_name or _default_display_name(spec, provider),
+            display_name=spec.display_name or _default_display_name(spec.kind, provider, spec.model, spec.variant),
             input_price_per_million=in_price,
             output_price_per_million=out_price,
             infra_cost_per_hour=spec.infra_cost_per_hour,

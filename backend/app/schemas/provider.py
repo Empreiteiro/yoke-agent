@@ -23,6 +23,11 @@ PROVIDER_CATALOG = {
             "text-embedding-3-small", "text-embedding-3-large",
             "text-embedding-ada-002",
         ],
+        # Decisions API (POST /v1/decisions, GA Oct 22, 2026) — runs on
+        # gpt-6-luna only. Same id as the LLM, but answers a typed choice
+        # question instead of generating text.
+        "supports_decision": True,
+        "decision_models": ["gpt-6-luna"],
         "requires_api_key": True,
         "supports_base_url": False,
     },
@@ -141,7 +146,9 @@ PROVIDER_CATALOG = {
     # ── Decision models ──────────────────────────────────────────────
     # Decision models answer a typed question about a piece of state with
     # a calibrated choice (plus per-option probabilities) instead of
-    # generated text. Used by the Model Comparison workbench.
+    # generated text. Used by the Model Comparison workbench. OpenAI
+    # (above) serves them next to its LLMs; these providers serve only
+    # decision models.
     "typesafe": {
         "label": "TypeSafe (Jev)",
         "supports_llm": False,

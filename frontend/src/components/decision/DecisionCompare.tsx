@@ -469,7 +469,7 @@ export default function DecisionCompare() {
             <ModelPicker
               title="Decision models"
               icon={Zap}
-              hint="Typed choice + probability — TypeSafe Jev and System One-compatible endpoints."
+              hint="Typed choice + probability — TypeSafe Jev, OpenAI's Decisions API and System One-compatible endpoints."
               models={available.decision_models}
               selected={selected}
               onToggle={toggle}
@@ -477,8 +477,9 @@ export default function DecisionCompare() {
                 <div className="flex flex-wrap items-center gap-3 text-xs text-t-secondary bg-warning/5 border border-warning/20 rounded-lg px-3 py-2.5">
                   <Zap className="w-4 h-4 text-warning" />
                   <span className="flex-1">
-                    No decision provider yet. Add <strong className="text-primary">TypeSafe (Jev)</strong> — or any System
-                    One-compatible endpoint — in Settings → Providers.
+                    No decision provider yet. Add <strong className="text-primary">TypeSafe (Jev)</strong>, select{" "}
+                    <strong className="text-primary">gpt-6-luna</strong> under Decision Models on an OpenAI provider, or add
+                    any System One-compatible endpoint in Settings → Providers.
                   </span>
                   <button
                     onClick={() => router.push("/?view=settings")}
@@ -672,8 +673,7 @@ export default function DecisionCompare() {
                       <td className="py-1.5 text-primary">
                         <span className="inline-flex items-center gap-2">
                           <SeriesDot color={colors[idx % colors.length]} />
-                          {m.model}
-                          <VariantBadge variant={m.variant} />
+                          {m.display_name}
                         </span>
                       </td>
                       <td className="py-1.5 text-right tabular-nums text-t-hover">{formatInt(m.input_tokens)}</td>
@@ -1205,8 +1205,8 @@ function EmptyProviders({ onOpenSettings, onAddRules }: { onOpenSettings: () => 
       <Scale className="w-10 h-10 text-muted mx-auto mb-3" />
       <p className="text-sm text-primary font-medium">No models available yet</p>
       <p className="text-xs text-t-secondary mt-1 max-w-md mx-auto">
-        Add a decision-model provider (TypeSafe Jev), a text classifier and at least one LLM provider in Settings → Providers —
-        or start with a regex baseline, which needs no provider.
+        Add a decision-model provider (TypeSafe Jev or OpenAI&apos;s Decisions API), a text classifier and at least one LLM
+        provider in Settings → Providers — or start with a regex baseline, which needs no provider.
       </p>
       <div className="mt-4 flex justify-center gap-2">
         <button

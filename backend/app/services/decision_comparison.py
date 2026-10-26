@@ -1,16 +1,16 @@
 """Model Comparison engine: decision models vs. LLMs on labeled datasets.
 
 Every model in a comparison classifies the *same* sample of dataset rows.
-Decision models (TypeSafe Jev, System One-compatible endpoints) receive the
-task as a typed ``choice`` question; LLMs receive the same task and label
-definitions as a prompt; pre-trained text classifiers return native labels
-that are mapped onto the dataset's; rule baselines match regexes
-in-process. A model may override the task, label definitions and prompt
-(its *policy*), so the same model can run as several variants. For each
-model we record every prediction plus aggregated accuracy (correct /
-incorrect / failed), per-label precision and recall, a confusion matrix,
-latency percentiles, token cost and — for self-hosted models — the cost of
-the hardware for the run's wall-clock time.
+Decision models (TypeSafe Jev, System One-compatible endpoints, OpenAI's
+Decisions API) receive the task as a typed ``choice`` question; LLMs
+receive the same task and label definitions as a prompt; pre-trained text
+classifiers return native labels that are mapped onto the dataset's; rule
+baselines match regexes in-process. A model may override the task, label
+definitions and prompt (its *policy*), so the same model can run as several
+variants. For each model we record every prediction plus aggregated
+accuracy (correct / incorrect / failed), per-label precision and recall, a
+confusion matrix, latency percentiles, token cost and — for self-hosted
+models — the cost of the hardware for the run's wall-clock time.
 """
 
 from __future__ import annotations
@@ -38,11 +38,13 @@ from app.models.decision import (
 from app.models.provider import Provider
 from app.models.token_usage import TokenUsageLog
 from app.services.decision_models import (
-    DECISION_PROVIDER_TYPES, SystemOneClient, estimate_request_tokens,
+    DECISION_PROVIDER_TYPES, DecisionClient, estimate_request_tokens,
 )
 from app.services.llm_classifier import build_messages, match_label, normalize_aliases, parse_answer
 from app.services.text_classifiers import CLASSIFIER_PROVIDER_TYPES, TextClassifierClient
-from app.services.token_tracker import FLEX_DISCOUNT, extract_llm_token_usage, lookup_pricing
+from app.services.token_tracker import (
+    FLEX_DISCOUNT, extract_llm_token_usage, lookup_decision_pricing, lookup_pricing,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -141,10 +143,11 @@ def default_prices(kind: str, provider: Optional[Provider], model: str) -> tuple
     if kind == "classifier":
         return 0.0, 0.0, "self-hosted"
     if kind == "decision":
-        if ptype == "typesafe":
-            pricing = lookup_pricing("jev")
-            return pricing["prompt"], pricing["completion"], "TypeSafe list price"
-        return None, None, "unknown"
+        pricing = lookup_decision_pricing(ptype, model)
+        if not pricing:
+            return None, None, "unknown"
+        vendor = "TypeSafe" if ptype == "typesafe" else "OpenAI"
+        return pricing["prompt"], pricing["completion"], f"{vendor} list price"
 
     if ptype in ("ollama", "claude_code"):
         return 0.0, 0.0, "local"
@@ -342,7 +345,7 @@ def map_scores(scores: dict, label_names: list[str], aliases: dict[str, str]) ->
 class _DecisionClassifier:
     def __init__(self, provider: Provider, model: str, task: str, labels: list[dict], concurrency: int,
                  label_map: Optional[dict] = None):
-        self.client = SystemOneClient(provider, model)
+        self.client = DecisionClient(provider, model)
         self.task = task
         self.labels = labels
         self.label_names = [l["name"] for l in labels]
@@ -374,7 +377,10 @@ class _DecisionClassifier:
             tokens_estimated=answer.tokens_estimated,
             latency_ms=answer.latency_ms,
             raw=raw[:RAW_OUTPUT_LIMIT],
-            error=None if label else f"Answer {answer.choice!r} is not one of the dataset labels",
+            error=None if label else (
+                f"Model refused: {answer.refusal}" if answer.refusal
+                else f"Answer {answer.choice!r} is not one of the dataset labels"
+            ),
         )
 
 
