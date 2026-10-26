@@ -190,6 +190,35 @@ def test_openai_decision_pricing_differs_from_llm_pricing():
     assert engine_mod.default_prices("decision", provider, "gpt-7-nova") == (None, None, "unknown")
     typesafe = SimpleNamespace(provider_type="typesafe", extra_config={})
     assert engine_mod.default_prices("decision", typesafe, "jev-1.13.0") == (0.042, 0.0, "TypeSafe list price")
+    systemone = SimpleNamespace(provider_type="systemone", extra_config={})
+    assert engine_mod.default_prices("decision", systemone, "google/diffusiongemma-26B-A4B-it") == (0.0, 0.0, "self-hosted")
+    assert engine_mod.default_prices("decision", systemone, "open-jev") == (None, None, "unknown")
+
+
+def test_diffusiongemma_on_vllm_speaks_system_one():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        body = json.loads(request.content)
+        assert body["model"] == "dgemma"
+        assert body["questions"]["decision"]["type"] == "choice"
+        return httpx.Response(200, json={
+            "answers": {"decision": {"choice": "billing", "probabilities": {"billing": 0.88, "technical": 0.12}}},
+        })
+
+    provider = SimpleNamespace(provider_type="systemone", base_url="http://localhost:8011",
+                               extra_config={}, api_key=None, name="DiffusionGemma")
+    client = DecisionClient(provider, "dgemma")
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler), headers=client.headers) as http:
+            return await client.decide(http, "charged twice", "Which team?", LABELS)
+
+    answer = asyncio.run(run())
+    assert str(seen[0].url) == "http://localhost:8011/v1/systemone"
+    assert "authorization" not in seen[0].headers
+    assert answer.choice == "billing" and answer.confidence == pytest.approx(0.88)
 
 
 # ── LLM answer parsing ──────────────────────────────────────────────────

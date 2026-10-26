@@ -74,7 +74,7 @@ const DECISION_HINTS: Record<string, string> = {
   typesafe:
     "TypeSafe's Jev is a decision model: it returns a typed choice with calibrated probabilities instead of generated text. Used by Model Comparison. Billed per input token; output is free.",
   systemone:
-    "Any endpoint that speaks TypeSafe's System One API — a gateway (e.g. LiteLLM at http://proxy:4000/typesafe) or a self-hosted open decision model. Requests go to {Base URL}/v1/systemone.",
+    "Any endpoint that speaks TypeSafe's System One API — a gateway (e.g. LiteLLM at http://proxy:4000/typesafe) or a self-hosted open decision model such as Google's DiffusionGemma behind vLLM's structured-decisions server (port 8011 by default). Requests go to {Base URL}/v1/systemone. DiffusionGemma isn't on the Gemini API, so a Google API key won't reach it: use the served model name (dgemma if you set --served-model-name) and give the GPU a $/hour cost in Model Comparison.",
   classifier:
     "Pre-trained text classifiers (e.g. a DeBERTa prompt-injection detector or Granite Guardian HAP) — the traditional guardrails decision models are benchmarked against. Use {model} in the Base URL to address several Hugging Face models from one provider. Model Comparison maps their native labels onto the dataset's.",
 };
@@ -857,7 +857,13 @@ function AddProviderForm({
                   value={customDecisionModel}
                   onChange={(e) => setCustomDecisionModel(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addCustomModel(customDecisionModel, selectedDecisionModels, setSelectedDecisionModels, setCustomDecisionModel)}
-                  placeholder={providerType === "typesafe" ? "Add a pinned version, e.g. jev-1.13.0" : "Add model name..."}
+                  placeholder={
+                    providerType === "typesafe"
+                      ? "Add a pinned version, e.g. jev-1.13.0"
+                      : providerType === "systemone"
+                        ? "Add the served model name, e.g. dgemma"
+                        : "Add model name..."
+                  }
                   className="flex-1 px-3 py-1.5 bg-surface-50 border border-visible rounded-lg text-primary text-xs focus:outline-none focus:border-accent"
                 />
                 <button

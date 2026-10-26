@@ -25,11 +25,24 @@ def test_every_catalog_llm_model_has_a_price(ptype):
     assert missing == []
 
 
-@pytest.mark.parametrize("ptype", ["openai", "typesafe"])
+@pytest.mark.parametrize("ptype", ["openai", "typesafe", "systemone"])
 def test_every_catalog_decision_model_has_a_price(ptype):
     models = PROVIDER_CATALOG[ptype]["decision_models"]
     assert models
     assert [m for m in models if lookup_decision_pricing(ptype, m) is None] == []
+
+
+def test_diffusiongemma_is_a_self_hosted_decision_model_not_a_gemini_one():
+    # Not served by the Gemini API, so it must not sit under the Google key.
+    google = PROVIDER_CATALOG["google"]
+    assert not any("diffusiongemma" in m.lower() for m in google["llm_models"] + google["decision_models"])
+    systemone = PROVIDER_CATALOG["systemone"]
+    assert "google/diffusiongemma-26B-A4B-it" in systemone["decision_models"]
+    assert systemone["default_base_url"] == "http://localhost:8011"
+    # Open weights: no per-token fee, under the default or the recipe's served name.
+    for name in ("google/diffusiongemma-26B-A4B-it", "dgemma"):
+        assert lookup_decision_pricing("systemone", name) == {"prompt": 0.0, "completion": 0.0}
+    assert lookup_decision_pricing("systemone", "open-jev") is None
 
 
 def test_openai_serves_gpt_6_luna_as_a_decision_model():

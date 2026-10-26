@@ -90,13 +90,20 @@ MODEL_PRICING = {
 
 # Decision-model prices (Model Comparison), keyed by provider type and then
 # model. Kept apart from MODEL_PRICING because OpenAI's Decisions API reuses
-# an LLM model id (gpt-6-luna) at a different price. Both bill input tokens
-# only; output is free.
+# an LLM model id (gpt-6-luna) at a different price. Hosted ones bill input
+# tokens only; output is free.
 DECISION_MODEL_PRICING: Dict[str, Dict[str, Dict[str, float]]] = {
     # TypeSafe Jev — vendor-published early-access pricing, Sept 2026.
     "typesafe": {"jev": {"prompt": 0.042, "completion": 0.0}},
     # OpenAI Decisions API (GA Oct 22, 2026) — gpt-6-luna only.
     "openai": {"gpt-6-luna": {"prompt": 0.10, "completion": 0.0}},
+    # DiffusionGemma is open weights: no per-token fee. Its cost is the
+    # hardware, entered as $/hour on the comparison. "dgemma" is the served
+    # name in the vLLM structured-decisions recipe.
+    "systemone": {
+        "diffusiongemma": {"prompt": 0.0, "completion": 0.0},
+        "dgemma": {"prompt": 0.0, "completion": 0.0},
+    },
 }
 
 
