@@ -146,8 +146,8 @@ def default_prices(kind: str, provider: Optional[Provider], model: str) -> tuple
         pricing = lookup_decision_pricing(ptype, model)
         if not pricing:
             return None, None, "unknown"
-        vendor = "TypeSafe" if ptype == "typesafe" else "OpenAI"
-        return pricing["prompt"], pricing["completion"], f"{vendor} list price"
+        source = {"typesafe": "TypeSafe list price", "openai": "OpenAI list price"}.get(ptype, "self-hosted")
+        return pricing["prompt"], pricing["completion"], source
 
     if ptype in ("ollama", "claude_code"):
         return 0.0, 0.0, "local"

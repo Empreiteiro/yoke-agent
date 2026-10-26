@@ -161,6 +161,11 @@ PROVIDER_CATALOG = {
         "supports_base_url": True,
         "default_base_url": "https://api.typesafe.ai",
     },
+    # DiffusionGemma (Google, open weights, Apache 2.0) runs as a decision
+    # model behind vLLM's structured-decisions example server, which speaks
+    # System One on port 8011. It is not served by the Gemini API, so the
+    # Google provider's API key can't reach it. The id is vLLM's default
+    # served name; use --served-model-name's value if you set one (dgemma).
     "systemone": {
         "label": "System One-compatible",
         "supports_llm": False,
@@ -168,9 +173,10 @@ PROVIDER_CATALOG = {
         "supports_decision": True,
         "llm_models": [],
         "embedding_models": [],
-        "decision_models": [],
+        "decision_models": ["google/diffusiongemma-26B-A4B-it"],
         "requires_api_key": False,
         "supports_base_url": True,
+        "default_base_url": "http://localhost:8011",
     },
     # Pre-trained text classifiers (the "traditional guardrails" decision
     # models are benchmarked against). Their models are listed under
