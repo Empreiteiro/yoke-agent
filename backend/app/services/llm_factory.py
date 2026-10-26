@@ -1,10 +1,14 @@
 """
 Factory for creating LLM and Embedding instances from provider configurations.
-Supports: OpenAI, Anthropic, Google, Cohere, Ollama, Azure OpenAI, HuggingFace, Custom.
+Supports: OpenAI, Anthropic, Google, OpenRouter, NVIDIA NIM, Cohere, Ollama,
+Azure OpenAI, HuggingFace, Custom.
 """
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.provider import Provider
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+NVIDIA_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
 
 # Models that accept the "flex" service tier. Used to pre-flight test
@@ -240,6 +244,32 @@ def get_llm(
             base_url=provider.base_url,
             temperature=temperature,
         )
+
+    elif ptype == "openrouter":
+        from langchain_openai import ChatOpenAI
+        # OpenRouter drops sampling parameters a model doesn't support, so
+        # temperature is safe to pass to reasoning models here. X-Title
+        # attributes the traffic to Yoke in the OpenRouter dashboard.
+        kwargs = {
+            "model": model_name,
+            "api_key": provider.api_key,
+            "base_url": OPENROUTER_BASE_URL,
+            "default_headers": {"X-Title": "Yoke Agent"},
+        }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        return ChatOpenAI(**kwargs)
+
+    elif ptype == "nvidia":
+        from langchain_openai import ChatOpenAI
+        kwargs = {
+            "model": model_name,
+            "api_key": provider.api_key or "not-needed",
+            "base_url": provider.base_url or NVIDIA_NIM_BASE_URL,
+        }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        return ChatOpenAI(**kwargs)
 
     else:
         raise ValueError(f"Unsupported provider type: {ptype}")

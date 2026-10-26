@@ -40,6 +40,10 @@ MODEL_PRICING = {
     "text-embedding-3-small": {"prompt": 0.02, "completion": 0.0},
     "text-embedding-3-large": {"prompt": 0.13, "completion": 0.0},
     "text-embedding-ada-002": {"prompt": 0.10, "completion": 0.0},
+    # ── DeepSeek ──────────────────────────────────────────────────────
+    # V4.1 Flash off-peak list price; DeepSeek doubles it at peak hours and
+    # OpenRouter's providers vary, so treat it as an estimate.
+    "deepseek-v4.1-flash": {"prompt": 0.15, "completion": 0.60},
     # ── Anthropic (platform.claude.com pricing, Oct 2026) ─────────────
     "claude-fable-5-1": {"prompt": 10.00, "completion": 50.00},
     "claude-fable-5": {"prompt": 10.00, "completion": 50.00},
@@ -130,11 +134,16 @@ def _pricing_key(model_name: str) -> Optional[str]:
     Exact match first; then the *longest* key contained in the name, so
     ``gpt-4o-mini-2024-07-18`` resolves to ``gpt-4o-mini`` rather than
     ``gpt-4o``; then a key that contains the name, only when exactly one
-    does (``gpt-6`` alone is ambiguous and stays unpriced).
+    does (``gpt-6`` alone is ambiguous and stays unpriced). OpenRouter
+    slugs work too: ``openai/gpt-6-luna`` contains its key, and Claude's
+    dotted versions (``anthropic/claude-opus-5.5``) are read as
+    ``claude-opus-5-5`` — otherwise they'd match ``claude-opus-5``.
     """
     if model_name in MODEL_PRICING:
         return model_name
     lowered = model_name.lower()
+    if "claude" in lowered:
+        lowered = lowered.replace(".", "-")
     contained = [key for key in MODEL_PRICING if key in lowered]
     if contained:
         return max(contained, key=len)
@@ -150,6 +159,8 @@ def lookup_pricing(model_name: str, on: Optional[date] = None) -> Optional[Dict[
     unknown. Matches by name as described in :func:`_pricing_key`."""
     if not model_name:
         return None
+    if model_name.endswith(":free"):  # OpenRouter's free, rate-limited variants
+        return {"prompt": 0.0, "completion": 0.0}
     key = _pricing_key(model_name)
     if key is None:
         return None
