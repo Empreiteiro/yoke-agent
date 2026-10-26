@@ -4,8 +4,8 @@ Everything here is computed on demand from stored predictions, so changing
 an analysis setting (which labels count as "block", the deployment
 prevalence, error costs…) never needs a re-run:
 
-* **Uncertainty** — Wilson intervals for accuracy and rates, bootstrap
-  intervals for macro-F1 and median latency.
+* **Uncertainty** — Wilson intervals for accuracy and rates, a bootstrap
+  interval for macro-F1 and an order-statistic interval for median latency.
 * **Significance** — paired McNemar tests between models (every model saw
   the same rows), Holm-adjusted, and which models are statistically tied
   with the top-ranked one.
@@ -129,27 +129,33 @@ def bootstrap_macro_f1(
 
     ``expected`` / ``predicted`` are label indices; a failed prediction is
     ``-1`` (it counts against recall but isn't a prediction of any label).
+    Macro-F1 only depends on the confusion counts, so resampling rows is
+    drawn directly as a multinomial over confusion cells — the same
+    distribution as resampling rows, at a cost independent of their number.
     """
     n = len(expected)
     if n < 2 or n_labels < 1:
         return None
+    k = n_labels
     exp = np.asarray(expected, dtype=np.int64)
     pred = np.asarray(predicted, dtype=np.int64)
+    valid = exp >= 0
+    exp, pred = exp[valid], pred[valid]
+    if exp.size < 2:
+        return None
+    # Column k holds "no answer".
+    cells = exp * (k + 1) + np.where(pred >= 0, pred, k)
+    probs = np.bincount(cells, minlength=k * (k + 1)) / exp.size
     rng = np.random.default_rng(seed)
-    stats: list[np.ndarray] = []
+    stats_: list[np.ndarray] = []
     for start in range(0, rounds, BOOTSTRAP_CHUNK):
         b = min(BOOTSTRAP_CHUNK, rounds - start)
-        idx = rng.integers(0, n, size=(b, n))
-        e, p = exp[idx], pred[idx]
-        offsets = (np.arange(b) * n_labels)[:, None]
-        size = b * n_labels
-        support = np.bincount((e + offsets).ravel(), minlength=size).reshape(b, n_labels)
-        valid = p >= 0
-        predc = np.bincount((p + offsets)[valid], minlength=size).reshape(b, n_labels)
-        hit = valid & (e == p)
-        tp = np.bincount((e + offsets)[hit], minlength=size).reshape(b, n_labels)
-        stats.append(_macro_f1_from_counts(tp, predc, support))
-    values = np.concatenate(stats)
+        draws = rng.multinomial(exp.size, probs, size=b).reshape(b, k, k + 1)
+        support = draws.sum(axis=2)
+        predc = draws[:, :, :k].sum(axis=1)
+        tp = np.diagonal(draws[:, :, :k], axis1=1, axis2=2)
+        stats_.append(_macro_f1_from_counts(tp, predc, support))
+    values = np.concatenate(stats_)
     values = values[~np.isnan(values)]
     if values.size == 0:
         return None
@@ -157,19 +163,20 @@ def bootstrap_macro_f1(
     return [float(lo), float(hi)]
 
 
-def bootstrap_median(values: Sequence[float], rounds: int = BOOTSTRAP_ROUNDS, seed: int = 0) -> Optional[list[float]]:
-    """Percentile bootstrap 95% interval for the median."""
-    arr = np.asarray([v for v in values if v is not None], dtype=float)
+def median_interval(values: Sequence[float], z: float = Z95) -> Optional[list[float]]:
+    """Distribution-free 95% interval for the median (order statistics).
+
+    The number of observations below the median is Binomial(n, ½), so the
+    interval runs between the order statistics at n/2 ∓ z·√n/2.
+    """
+    arr = np.sort(np.asarray([v for v in values if v is not None], dtype=float))
     n = arr.size
     if n < 2:
         return None
-    rng = np.random.default_rng(seed)
-    medians = []
-    for start in range(0, rounds, BOOTSTRAP_CHUNK):
-        b = min(BOOTSTRAP_CHUNK, rounds - start)
-        medians.append(np.median(arr[rng.integers(0, n, size=(b, n))], axis=1))
-    lo, hi = np.percentile(np.concatenate(medians), [100 * ALPHA / 2, 100 * (1 - ALPHA / 2)])
-    return [float(lo), float(hi)]
+    half = z * math.sqrt(n) / 2
+    lo = max(0, int(math.floor(n / 2 - half)))
+    hi = min(n - 1, int(math.ceil(n / 2 + half)))
+    return [float(arr[lo]), float(arr[hi])]
 
 
 # ── Binary (guardrail) view ─────────────────────────────────────────────
@@ -543,7 +550,7 @@ def analyze(
             "n": n,
             "accuracy_ci": wilson_interval(correct, n),
             "macro_f1_ci": bootstrap_macro_f1(expected_idx, predicted_idx, len(label_names), seed=rid),
-            "p50_latency_ci": bootstrap_median(latencies, seed=rid),
+            "p50_latency_ci": median_interval(latencies),
             "calibration": calibration([p.confidence for p in with_conf], [p.is_correct for p in with_conf]),
             "confidence_coverage": _ratio(len(with_conf), n),
             "slices": {"difficulty": slice_accuracy(preds, difficulties)},

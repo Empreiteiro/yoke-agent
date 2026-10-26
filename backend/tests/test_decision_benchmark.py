@@ -85,10 +85,38 @@ def test_bootstrap_macro_f1():
     assert stats.bootstrap_macro_f1([0], [0], 3) is None
 
 
-def test_bootstrap_median():
-    lo, hi = stats.bootstrap_median([10.0, 12.0, 11.0, 50.0, 9.0, 10.5] * 10)
-    assert lo <= 10.75 <= hi
-    assert stats.bootstrap_median([5.0]) is None
+def test_median_interval():
+    values = [10.0, 12.0, 11.0, 50.0, 9.0, 10.5] * 10
+    lo, hi = stats.median_interval(values)
+    assert lo <= 10.75 <= hi and lo >= 9.0 and hi <= 12.0
+    assert stats.median_interval([5.0]) is None
+    # Wider for a small sample, never outside the data.
+    assert stats.median_interval([1.0, 2.0, 3.0]) == [1.0, 3.0]
+
+
+def test_bootstrap_macro_f1_matches_row_resampling():
+    """The multinomial shortcut must agree with resampling rows directly."""
+    import numpy as np
+
+    rng = np.random.default_rng(3)
+    exp = rng.integers(0, 4, 400)
+    pred = np.where(rng.random(400) < 0.75, exp, rng.integers(-1, 4, 400))
+    fast = stats.bootstrap_macro_f1(exp.tolist(), pred.tolist(), 4, rounds=2000, seed=5)
+
+    def macro_f1(e, p):
+        f1s = []
+        for label in range(4):
+            sup, prd = (e == label).sum(), (p == label).sum()
+            tp = ((e == label) & (p == label)).sum()
+            if not sup:
+                continue
+            prec, rec = (tp / prd if prd else 0.0), tp / sup
+            f1s.append(2 * prec * rec / (prec + rec) if prec + rec else 0.0)
+        return float(np.mean(f1s))
+
+    idx = rng.integers(0, 400, size=(2000, 400))
+    slow = np.percentile([macro_f1(exp[i], pred[i]) for i in idx], [2.5, 97.5])
+    assert fast == pytest.approx(slow.tolist(), abs=0.015)
 
 
 # ── Guardrail (binary) view ─────────────────────────────────────────────
