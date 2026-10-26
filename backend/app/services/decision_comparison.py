@@ -41,7 +41,7 @@ from app.services.decision_models import (
     DECISION_PROVIDER_TYPES, DecisionClient, estimate_request_tokens,
 )
 from app.services.llm_classifier import build_messages, match_label, normalize_aliases, parse_answer
-from app.services.llm_factory import provider_error_hint
+from app.services.llm_factory import provider_error_hint, uses_flex
 from app.services.text_classifiers import (
     CLASSIFIER_PROVIDER_TYPES, NVIDIA_NIM_BASE_URL, TextClassifierClient, build_safety_policy, is_custom_policy,
 )
@@ -54,6 +54,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONCURRENCY = 8
 MAX_CONCURRENCY = 32
 LLM_CALL_TIMEOUT_S = 120
+# Flex requests queue for spare capacity; OpenAI suggests timeouts of up
+# to 15 minutes for them.
+FLEX_CALL_TIMEOUT_S = 900
 FLUSH_EVERY = 25
 # Abort a model early when its first calls all fail (bad key, wrong URL…)
 # instead of burning through the whole sample.
@@ -134,11 +137,14 @@ def select_items(
 # ── Pricing & estimates ─────────────────────────────────────────────────
 
 
-def default_prices(kind: str, provider: Optional[Provider], model: str) -> tuple[Optional[float], Optional[float], str]:
+def default_prices(
+    kind: str, provider: Optional[Provider], model: str, flex: Optional[bool] = None,
+) -> tuple[Optional[float], Optional[float], str]:
     """Suggested ``(input $/1M, output $/1M, source)`` for a model.
 
     Returns ``(None, None, "unknown")`` when no price is known — the caller
     then shows "set a price" in the UI instead of inventing a number.
+    ``flex`` picks the LLM service tier (None = the provider's setting).
     """
     if kind == "rules":
         return 0.0, 0.0, "local"
@@ -164,9 +170,7 @@ def default_prices(kind: str, provider: Optional[Provider], model: str) -> tuple
         return None, None, "unknown"
     prompt, completion = pricing["prompt"], pricing["completion"]
     source = "price table"
-    from app.services.llm_factory import flex_supported_for
-
-    if (provider.extra_config or {}).get("flex_tier") and flex_supported_for(ptype, model):
+    if uses_flex(provider, model, flex):
         prompt, completion = prompt * FLEX_DISCOUNT, completion * FLEX_DISCOUNT
         source = "price table (flex tier)"
     return prompt, completion, source
@@ -400,7 +404,12 @@ class _LLMClassifier:
         config = config or {}
         # Ollama's JSON mode would break custom prompts that ask for prose.
         fmt = "json" if provider.provider_type == "ollama" and not config.get("system_prompt") else None
-        self.llm = get_llm(db, provider_id=provider.id, model=model, temperature=temperature, format=fmt, isolated=True)
+        # The flex choice is resolved when the comparison is created; older
+        # comparisons without one follow the provider's setting.
+        flex = config.get("flex")
+        self.llm = get_llm(db, provider_id=provider.id, model=model, temperature=temperature, format=fmt,
+                           isolated=True, flex=flex)
+        self.timeout = FLEX_CALL_TIMEOUT_S if uses_flex(provider, model, flex) else LLM_CALL_TIMEOUT_S
         self.task = task
         self.labels = labels
         self.label_names = [l["name"] for l in labels]
@@ -421,7 +430,7 @@ class _LLMClassifier:
         started = time.perf_counter()
         response = await asyncio.wait_for(
             self.llm.ainvoke([SystemMessage(content=system), HumanMessage(content=user)]),
-            timeout=LLM_CALL_TIMEOUT_S,
+            timeout=self.timeout,
         )
         latency = (time.perf_counter() - started) * 1000
         content = response.content if hasattr(response, "content") else str(response)
@@ -828,6 +837,8 @@ async def _run_model(
                 "comparison_id": comparison_id,
                 "model_result_id": result_id,
                 "tokens_estimated": run_estimated,
+                # Same marker token_tracker uses for flex calls elsewhere.
+                **({"service_tier": "flex"} if (res.config or {}).get("flex") else {}),
             },
         ))
     db.commit()

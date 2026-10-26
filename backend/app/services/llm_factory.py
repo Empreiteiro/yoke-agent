@@ -101,6 +101,16 @@ def flex_supported_for(provider_type: str, model_name: str) -> bool:
     return False
 
 
+def uses_flex(provider: Provider, model_name: str, flex: Optional[bool] = None) -> bool:
+    """Whether a call to ``model_name`` goes out on the flex tier.
+
+    ``flex`` overrides the provider's ``extra_config.flex_tier`` setting
+    (None = follow it); models without flex always run on the standard tier.
+    """
+    wanted = (provider.extra_config or {}).get("flex_tier") if flex is None else flex
+    return bool(wanted) and flex_supported_for(provider.provider_type, model_name)
+
+
 def pick_flex_model(provider: Provider) -> Optional[str]:
     """Pick the first flex-compatible model from a provider's model list,
     preferring the configured default. For OpenAI, non-reasoning models
@@ -136,12 +146,15 @@ def get_llm(
     temperature: Optional[float] = 0.0,
     format: Optional[str] = None,
     isolated: bool = False,
+    flex: Optional[bool] = None,
 ):
     """Create a LangChain LLM instance from a provider configuration.
 
     ``temperature=None`` means "use the SDK default" — the kwarg is
     omitted from the constructor entirely. Useful for models that
     reject any custom temperature (OpenAI o-series reasoning models).
+    ``flex`` turns the flex service tier on or off for this instance,
+    overriding the provider's setting (None = use the provider's).
     """
     provider = _resolve_provider(db, provider_id, capability="llm", model=model)
     model_name = model or provider.default_llm_model or (provider.llm_models[0] if provider.llm_models else None)
@@ -172,8 +185,7 @@ def get_llm(
         # ``langchain-openai >= 1.0`` exposes ``service_tier`` as an
         # explicit Pydantic field; using it directly avoids the
         # UserWarning from passing it through ``model_kwargs``.
-        extra = provider.extra_config or {}
-        if extra.get("flex_tier") and flex_supported_for("openai", model_name):
+        if uses_flex(provider, model_name, flex):
             kwargs["service_tier"] = "flex"
         return ChatOpenAI(**kwargs)
 
@@ -200,8 +212,7 @@ def get_llm(
         # `_build_request_config` → `GenerateContentConfig(service_tier=...)`.
         # Requires google-genai >= 1.69.0. Skip for non-flex models so
         # the API doesn't reject the request outright.
-        extra = provider.extra_config or {}
-        if extra.get("flex_tier") and flex_supported_for("google", model_name):
+        if uses_flex(provider, model_name, flex):
             llm = llm.bind(service_tier="flex")
         return llm
 

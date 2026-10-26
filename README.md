@@ -357,6 +357,8 @@ Turn on **latency benchmark mode** when latency matters: each model runs alone w
 
 Prices come from the built-in tables (`MODEL_PRICING`, flex-tier aware, and `DECISION_MODEL_PRICING` for decision models: OpenAI's `gpt-6-luna` costs $0.10 / 1M input tokens via the Decisions API vs. $0.10 / $0.50 as an LLM). Ollama, Claude Code, classifiers and rules have no token price; give self-hosted models a hardware $/hour instead, and price any other unknown model per run in the UI. Spend is also logged to **History → Logs** under the `model_comparison` operation.
 
+**Flex tier per model.** LLMs that have a flex service tier (OpenAI `o3`, `gpt-5*` and `gpt-6*`; Gemini 2.5 / 3.x) get a **Flex** toggle in *Selected models & pricing*. It defaults to the provider's setting. Turning it on sends that model's requests on the flex tier (about half the price, slower and best-effort, with a 15-minute timeout per call) and halves its input and output prices; turning it off restores them. The tier is fixed when the comparison is created, and the result is named `… · flex`. Duplicate a model and flip the toggle on one copy to compare both tiers side by side.
+
 **Guardrail benchmarking** (`GET /api/decision/comparisons/{id}/analysis`, computed from the stored predictions — changing a setting never re-runs anything)
 
 | View | What it shows |

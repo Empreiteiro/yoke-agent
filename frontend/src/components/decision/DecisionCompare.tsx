@@ -70,6 +70,9 @@ interface SelectedModel {
   output_price: string;
   pricing_source: string;
   infra_cost: string;
+  // LLMs on OpenAI / Gemini models with a flex service tier.
+  flex_supported: boolean;
+  flex: boolean;
   variant: string;
   // Policy overrides (decision models & LLMs)
   task: string;
@@ -138,6 +141,8 @@ function toSelected(m: any, labels: any[]): SelectedModel {
     output_price: toPrice(m.output_price_per_million),
     pricing_source: m.pricing_source,
     infra_cost: "",
+    flex_supported: Boolean(m.flex_supported),
+    flex: Boolean(m.flex),
     expanded: false,
     ...blankConfig(m.kind, labels),
   };
@@ -180,6 +185,7 @@ function toSpec(m: SelectedModel) {
     input_price_per_million: numOrNull(m.input_price),
     output_price_per_million: numOrNull(m.output_price),
     infra_cost_per_hour: m.kind === "rules" ? null : numOrNull(m.infra_cost),
+    flex: m.kind === "llm" && m.flex_supported ? m.flex : null,
     variant: orNull(m.variant),
     task: usesPolicy ? orNull(m.task) : null,
     label_descriptions: usesPolicy && Object.keys(descriptions).length ? descriptions : null,
@@ -206,6 +212,7 @@ export default function DecisionCompare() {
     classifier_models: any[];
     llm_models: any[];
     default_prompts?: { system: string; user: string };
+    flex_discount?: number;
   }>({ decision_models: [], classifier_models: [], llm_models: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -546,6 +553,7 @@ export default function DecisionCompare() {
                       labels={labels}
                       task={dataset?.task || ""}
                       defaultPrompts={available.default_prompts}
+                      flexDiscount={available.flex_discount ?? 0.5}
                       canDuplicate={selected.length < MAX_MODELS}
                       onChange={(patch) => update(m.uid, patch)}
                       onDuplicate={() => duplicate(m)}
@@ -724,6 +732,7 @@ function SelectedRow({
   labels,
   task,
   defaultPrompts,
+  flexDiscount,
   canDuplicate,
   onChange,
   onDuplicate,
@@ -734,6 +743,7 @@ function SelectedRow({
   labels: any[];
   task: string;
   defaultPrompts?: { system: string; user: string };
+  flexDiscount: number;
   canDuplicate: boolean;
   onChange: (patch: Partial<SelectedModel>) => void;
   onDuplicate: () => void;
@@ -761,6 +771,7 @@ function SelectedRow({
             <PriceInput label="Output" value={m.output_price} onChange={(v) => onChange({ output_price: v })} />
           </>
         )}
+        {m.kind === "llm" && m.flex_supported && <FlexToggle m={m} discount={flexDiscount} onChange={onChange} />}
         <span
           className={cn(
             "text-[11px] w-28",
@@ -1120,6 +1131,51 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       )}
     >
       {children}
+    </button>
+  );
+}
+
+const FLEX_SUFFIX = " (flex tier)";
+
+/** Switches an LLM between the standard and flex service tiers and rescales
+ *  its prices — flex is billed at `discount` × the standard price. */
+function FlexToggle({
+  m,
+  discount,
+  onChange,
+}: {
+  m: SelectedModel;
+  discount: number;
+  onChange: (patch: Partial<SelectedModel>) => void;
+}) {
+  const toggle = () => {
+    const next = !m.flex;
+    const factor = next ? discount : 1 / discount;
+    const scale = (v: string) =>
+      v.trim() === "" || Number.isNaN(Number(v)) ? v : String(Math.round(Number(v) * factor * 1e6) / 1e6);
+    const source = m.pricing_source.endsWith(FLEX_SUFFIX) ? m.pricing_source.slice(0, -FLEX_SUFFIX.length) : m.pricing_source;
+    onChange({
+      flex: next,
+      input_price: scale(m.input_price),
+      output_price: scale(m.output_price),
+      pricing_source: next && source === "price table" ? source + FLEX_SUFFIX : source,
+    });
+  };
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-pressed={m.flex}
+      title={`Flex service tier: ~${Math.round((1 - discount) * 100)}% cheaper, slower and best-effort (requests may queue or be rejected when capacity is short). Prices are rescaled when you switch.`}
+      className={cn(
+        "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] border transition-colors",
+        m.flex
+          ? "bg-success/15 border-success/40 text-success"
+          : "border-visible text-t-hover hover:text-primary hover:bg-surface-200/50"
+      )}
+    >
+      <Timer className="w-3 h-3" />
+      Flex
     </button>
   );
 }

@@ -38,7 +38,9 @@ from app.services.decision_datasets import (
 )
 from app.services.decision_models import DECISION_PROVIDER_TYPES
 from app.services.llm_classifier import SYSTEM_PROMPT, USER_PROMPT
+from app.services.llm_factory import flex_supported_for, uses_flex
 from app.services.text_classifiers import CLASSIFIER_PROVIDER_TYPES
+from app.services.token_tracker import FLEX_DISCOUNT
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -214,8 +216,15 @@ def _comparison_dict(comp: DecisionComparison, include_details: bool = True) -> 
     return data
 
 
+def _flex_choice(spec: ModelSpec, provider: Optional[Provider]) -> Optional[bool]:
+    """The flex tier an LLM spec runs on, or None when the model has none."""
+    if spec.kind != "llm" or provider is None or not flex_supported_for(provider.provider_type, spec.model):
+        return None
+    return uses_flex(provider, spec.model, spec.flex)
+
+
 def _default_display_name(
-    kind: str, provider: Optional[Provider], model: str, variant: Optional[str] = None,
+    kind: str, provider: Optional[Provider], model: str, variant: Optional[str] = None, flex: bool = False,
 ) -> str:
     # OpenAI serves gpt-6-luna both as an LLM and via its Decisions API —
     # tag the decision variant so the two don't share a name in results.
@@ -225,6 +234,8 @@ def _default_display_name(
         name = f"{model} · Decisions ({provider.name})"
     else:
         name = f"{model_label(provider.provider_type, model)} ({provider.name})"
+    if flex:
+        name += " · flex"
     return f"{name} · {variant}" if variant else name
 
 
@@ -253,7 +264,7 @@ def _resolve_specs(
             raise HTTPException(400, f"Provider '{provider.name}' does not serve LLMs")
         in_price, out_price = spec.input_price_per_million, spec.output_price_per_million
         if in_price is None and out_price is None:
-            in_price, out_price, _source = engine.default_prices(spec.kind, provider, spec.model)
+            in_price, out_price, _source = engine.default_prices(spec.kind, provider, spec.model, spec.flex)
         resolved.append((spec, provider, in_price, out_price))
     return resolved
 
@@ -505,12 +516,17 @@ def list_comparable_models(db: Session = Depends(get_db)):
         if p.supports_llm:
             for model in p.llm_models or []:
                 in_price, out_price, source = engine.default_prices("llm", p, model)
+                flex_ok = flex_supported_for(p.provider_type, model)
                 llm_models.append({
                     "kind": "llm", "provider_id": p.id, "provider_name": p.name,
                     "provider_type": p.provider_type, "model": model,
                     "label": model_label(p.provider_type, model),
                     "display_name": _default_display_name("llm", p, model),
                     "is_default": model == p.default_llm_model,
+                    # Prices are for the tier in "flex"; the flex price is
+                    # the standard one × flex_discount.
+                    "flex_supported": flex_ok,
+                    "flex": flex_ok and uses_flex(p, model),
                     "input_price_per_million": in_price, "output_price_per_million": out_price,
                     "pricing_source": source,
                 })
@@ -519,6 +535,7 @@ def list_comparable_models(db: Session = Depends(get_db)):
         "classifier_models": classifier_models,
         "llm_models": llm_models,
         "default_prompts": {"system": SYSTEM_PROMPT, "user": USER_PROMPT},
+        "flex_discount": FLEX_DISCOUNT,
     }
 
 
@@ -537,6 +554,7 @@ def estimate_comparison(body: EstimateRequest, request: Request, db: Session = D
     estimates = []
     for spec, provider, in_price, out_price in _resolve_specs(db, body.models, label_names):
         config = spec.snapshot()
+        flex = _flex_choice(spec, provider)
         task, labels = engine.effective_policy(ds.task, ds.labels or [], config)
         in_tok, out_tok = engine.estimate_tokens(spec.kind, task, labels, texts, config)
         estimates.append({
@@ -544,7 +562,10 @@ def estimate_comparison(body: EstimateRequest, request: Request, db: Session = D
             "provider_id": provider.id if provider else None,
             "model": spec.model,
             "variant": spec.variant,
-            "display_name": spec.display_name or _default_display_name(spec.kind, provider, spec.model, spec.variant),
+            "flex": flex,
+            "display_name": spec.display_name or _default_display_name(
+                spec.kind, provider, spec.model, spec.variant, bool(flex),
+            ),
             "items": len(ids),
             "input_tokens": in_tok,
             "output_tokens": out_tok,
@@ -599,6 +620,12 @@ def create_comparison(body: ComparisonCreate, request: Request, bg: BackgroundTa
     db.flush()
     for position, (spec, provider, in_price, out_price) in enumerate(resolved):
         config = spec.snapshot()
+        # Store the tier actually used, so the run doesn't depend on the
+        # provider's setting at run time and results show what was billed.
+        flex = _flex_choice(spec, provider)
+        config.pop("flex", None)
+        if flex is not None:
+            config["flex"] = flex
         db.add(DecisionModelResult(
             comparison_id=comp.id,
             position=position,
@@ -607,7 +634,9 @@ def create_comparison(body: ComparisonCreate, request: Request, bg: BackgroundTa
             provider_name=provider.name if provider else "Rules",
             provider_type=provider.provider_type if provider else "rules",
             model_name=spec.model,
-            display_name=spec.display_name or _default_display_name(spec.kind, provider, spec.model, spec.variant),
+            display_name=spec.display_name or _default_display_name(
+                spec.kind, provider, spec.model, spec.variant, bool(flex),
+            ),
             input_price_per_million=in_price,
             output_price_per_million=out_price,
             infra_cost_per_hour=spec.infra_cost_per_hour,
